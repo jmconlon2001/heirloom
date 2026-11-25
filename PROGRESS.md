@@ -72,7 +72,7 @@ axe runs at every step with zero serious/critical violations. Also checked insid
 - **Optional password and passkeys:** still to do.
 
 ### Known issues / notes
-- Voice recording in e2e uses WebKit's mock microphone. A real iPad mic test is a manual check before family use.
+- Voice recording in e2e uses WebKit's mock microphone on macOS. Playwright's Linux WebKit can't record at all, so on Linux CI the recording test runs the same iPad profile in Chromium with a fake microphone (which also covers the Chrome/webm path). A real iPad mic test is a manual check before family use.
 - Test databases each get a small pool, and the test PostgreSQL runs with `max_connections=500`, because many test classes run in parallel.
 
 
