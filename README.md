@@ -4,7 +4,7 @@ A self-hosted web app where family members answer guided prompts about their liv
 
 Built for older storytellers on iPads: large text, big labelled buttons, no passwords (they sign in with an email link), and a "Need help?" box on every page.
 
-> **Status:** Phase 0 (foundation) is done: sign-in, the base layout and accessibility controls, the Docker stack, and CI. See [PROGRESS.md](PROGRESS.md) and [the build plan](docs/BUILD_PROMPT.MD).
+> **Status:** Phases 0 and 1 are done. Storytellers can sign in with an email link or a printed QR card, answer guided questions by typing or recording their voice, and add photos. Admins manage people and questions. See [PROGRESS.md](PROGRESS.md) and [the build plan](docs/BUILD_PROMPT.MD).
 
 ## Quick start (Docker Compose)
 
@@ -36,7 +36,7 @@ docker compose --profile dev --profile proxy up -d --build
 
 ## Development
 
-Requires the .NET 10 SDK and Docker (tests start PostgreSQL with Testcontainers).
+Requires the .NET 10 SDK, Docker (tests start PostgreSQL with Testcontainers) and `ffmpeg` on your PATH (voice and video tests).
 
 ```sh
 dotnet build
@@ -54,6 +54,7 @@ The first e2e run downloads WebKit and Chromium.
 | `src/App.E2E` | Playwright end-to-end and accessibility tests |
 | `docker/`, `Dockerfile`, `compose.yml` | Container image and stack |
 | `deploy/dev/` | Local Caddy that stands in for the OPNsense reverse proxy |
+| `seed/prompts.json` | The 52 built-in questions with hints (★ core) |
 | `docs/` | Build plan, decisions, deployment guides |
 
 Configuration is all environment variables; [.env.example](.env.example) documents each one. Design decisions are in [docs/DECISIONS.md](docs/DECISIONS.md).

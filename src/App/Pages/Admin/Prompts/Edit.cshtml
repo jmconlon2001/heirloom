@@ -1,0 +1,42 @@
+@page "/admin/prompts/{id}"
+@model FamilyMemories.Pages.Admin.Prompts.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Add a question" : "Edit question";
+}
+<h1>@ViewData["Title"]</h1>
+@if (Model.Error is not null)
+{
+    <p class="field-error" role="alert">@Model.Error</p>
+}
+<form method="post" class="stack">
+    <div class="field">
+        <label for="ChapterId">Chapter</label>
+        <select id="ChapterId" name="ChapterId">
+            @foreach (var c in Model.Chapters)
+            {
+                <option value="@c.Id" selected="@(c.Id == Model.ChapterId)">@c.Title</option>
+            }
+        </select>
+    </div>
+    <div class="field">
+        <label asp-for="Question">The question</label>
+        <textarea asp-for="Question" rows="3" maxlength="2000"></textarea>
+    </div>
+    <div class="field">
+        <label asp-for="Title">Short title (used as the story's title)</label>
+        <input asp-for="Title" type="text" maxlength="300">
+    </div>
+    <div class="field">
+        <label asp-for="Hints">Gentle hints, one per line (2 to 4 work best)</label>
+        <textarea asp-for="Hints" rows="5"></textarea>
+    </div>
+    <div class="field">
+        <label asp-for="SuggestedAttachments">Suggested photos or documents (optional)</label>
+        <input asp-for="SuggestedAttachments" type="text" maxlength="500" placeholder="A photo of the house">
+    </div>
+    <div class="checkbox">
+        <input asp-for="IsCore" type="checkbox">
+        <label asp-for="IsCore">Core question (part of "Core 26")</label>
+    </div>
+    <button type="submit" class="button button-primary button-large">Save question</button>
+</form>

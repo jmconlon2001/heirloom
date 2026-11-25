@@ -1,0 +1,58 @@
+@page "/questions"
+@model FamilyMemories.Pages.QuestionsModel
+@{
+    ViewData["Title"] = "Questions";
+    var forSuffix = Model.ForOther ? $"?for={Model.Storyteller.Id}" : "";
+}
+<h1>@(Model.ForOther ? $"{Model.Storyteller.DisplayName}'s questions" : "My questions")</h1>
+@if (Model.ForOther)
+{
+    <p class="notice">You're writing for <strong>@Model.Storyteller.DisplayName</strong>. Their stories will say "Told by @Model.Storyteller.DisplayName · written by @User.DisplayName()".</p>
+}
+<partial name="_Flash" />
+
+@if (Model.Plan.Slots.Count == 0)
+{
+    <p class="lead">There are no questions here yet.</p>
+}
+
+@foreach (var chapter in Model.Plan.Chapters)
+{
+    <section aria-labelledby="ch-@chapter.GetHashCode()">
+        <h2 id="ch-@chapter.GetHashCode()">@chapter.Title</h2>
+        <ul class="question-list">
+            @foreach (var slot in chapter.Slots)
+            {
+                <li class="question status-@slot.Status.ToString().ToLowerInvariant()">
+                    @if (slot.Unlocked)
+                    {
+                        <a href="/answer/@slot.Prompt.Id@forSuffix">@slot.Prompt.Question</a>
+                    }
+                    else
+                    {
+                        <span>@slot.Prompt.Question</span>
+                    }
+                    <span class="status-label">@StatusText(slot)</span>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+<form method="post" asp-page="/Stories/New" class="add-story">
+    <input type="hidden" name="for" value="@Model.Storyteller.Id">
+    <button type="submit" class="button button-secondary">Add a story of @(Model.ForOther ? "their" : "your") own</button>
+</form>
+
+@functions {
+    static string StatusText(PromptSlot slot) => !slot.Unlocked
+        ? $"Opens {slot.UnlocksAt!.Value:MMMM d}"
+        : slot.Status switch
+        {
+            MemoryStatus.Complete => "✓ Shared",
+            MemoryStatus.Draft => "Started",
+            MemoryStatus.Skipped => "Saved for later",
+            MemoryStatus.Declined => "Chose not to answer",
+            _ => "Not answered yet",
+        };
+}

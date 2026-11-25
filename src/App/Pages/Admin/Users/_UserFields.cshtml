@@ -1,0 +1,40 @@
+@model FamilyMemories.Pages.Admin.Users.UserForm
+<div class="field">
+    <label for="Form_DisplayName">Name (as the app should greet them)</label>
+    <input id="Form_DisplayName" name="Form.DisplayName" value="@Model.DisplayName" type="text" required maxlength="200" autocomplete="off" placeholder="Grandma Rose">
+</div>
+<div class="field">
+    <label for="Form_Email">Email address</label>
+    <input id="Form_Email" name="Form.Email" value="@Model.Email" type="email" required autocomplete="off" autocapitalize="none" spellcheck="false">
+</div>
+<fieldset>
+    <legend>What can they do?</legend>
+    @foreach (var (role, text) in new[] { (Roles.Storyteller, "Storyteller: answers questions and shares stories"), (Roles.Family, "Family: reads what's shared with them"), (Roles.Admin, "Admin: manages people and questions, and can see every story") })
+    {
+        <div class="checkbox">
+            <input type="checkbox" id="role-@role" name="Form.Roles" value="@role" @(Model.Roles.Contains(role) ? "checked" : "")>
+            <label for="role-@role">@text</label>
+        </div>
+    }
+</fieldset>
+<div class="field">
+    <label for="Form_PromptSetId">Questions to answer</label>
+    <select id="Form_PromptSetId" name="Form.PromptSetId">
+        <option value="">None (not a storyteller)</option>
+        @foreach (var set in Model.Sets)
+        {
+            <option value="@set.Id" selected="@(Model.PromptSetId == set.Id)">@set.Name</option>
+        }
+    </select>
+</div>
+<fieldset>
+    <legend>How quickly should new questions appear?</legend>
+    <div class="checkbox">
+        <input type="radio" id="pacing-weekly" name="Form.Pacing" value="Weekly" @(Model.Pacing == Pacing.Weekly ? "checked" : "")>
+        <label for="pacing-weekly">One new question each week (recommended)</label>
+    </div>
+    <div class="checkbox">
+        <input type="radio" id="pacing-all" name="Form.Pacing" value="AllAtOnce" @(Model.Pacing == Pacing.AllAtOnce ? "checked" : "")>
+        <label for="pacing-all">All questions available now</label>
+    </div>
+</fieldset>

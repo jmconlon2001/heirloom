@@ -1,0 +1,19 @@
+@page "/admin/users/new"
+@model FamilyMemories.Pages.Admin.Users.NewModel
+@{
+    ViewData["Title"] = "Invite someone";
+}
+<h1>Invite someone</h1>
+@if (Model.Error is not null)
+{
+    <p class="field-error" role="alert">@Model.Error</p>
+}
+<form method="post" class="stack">
+    <partial name="_UserFields" model="Model.Form" />
+    <div class="checkbox">
+        <input type="checkbox" id="SendEmail" name="SendEmail" value="true" checked>
+        <label for="SendEmail">Email them an invitation now</label>
+    </div>
+    <p class="muted">Not sending an email? You can print a QR login card for them on the next page.</p>
+    <button type="submit" class="button button-primary button-large">Add this person</button>
+</form>

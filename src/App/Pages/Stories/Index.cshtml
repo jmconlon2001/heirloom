@@ -1,0 +1,27 @@
+@page "/stories"
+@model FamilyMemories.Pages.Stories.IndexModel
+@{
+    ViewData["Title"] = "My stories";
+}
+<h1>My stories</h1>
+@if (Model.Stories.Count == 0)
+{
+    <p class="lead">You haven't started any stories yet. When you do, they'll be kept here.</p>
+    <p><a class="button button-primary button-large" href="/">Answer a question</a></p>
+}
+else
+{
+    <ul class="story-list">
+        @foreach (var s in Model.Stories)
+        {
+            <li>
+                <a href="/stories/@s.Id">@(string.IsNullOrWhiteSpace(s.Title) ? "Untitled story" : s.Title)</a>
+                <span class="status-label">@(s.Status == MemoryStatus.Complete ? "✓ Shared" : "Not finished yet")</span>
+                @if (s.Status != MemoryStatus.Complete)
+                {
+                    <a class="button button-quiet" href="/stories/@s.Id/write">Keep writing</a>
+                }
+            </li>
+        }
+    </ul>
+}

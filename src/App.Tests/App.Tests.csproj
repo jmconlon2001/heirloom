@@ -15,6 +15,9 @@
     <ProjectReference Include="..\App\App.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

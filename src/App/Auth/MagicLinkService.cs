@@ -42,7 +42,7 @@ public sealed class MagicLinkService(AppDbContext db, AppOptions options, TimePr
             Purpose = purpose,
             ReturnPath = returnPath,
             CreatedAt = now,
-            ExpiresAt = now.Add(options.MagicLinkLifetime),
+            ExpiresAt = now.Add(purpose == MagicLinkPurpose.DeviceEnrollment ? options.LoginCardLifetime : options.MagicLinkLifetime),
             CreatedByIp = ip,
         });
         await db.SaveChangesAsync(ct);

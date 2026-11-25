@@ -1,8 +1,13 @@
 using System.Threading.RateLimiting;
+using FamilyMemories.Admin;
 using FamilyMemories.Auth;
 using FamilyMemories.Configuration;
 using FamilyMemories.Data;
 using FamilyMemories.Email;
+using FamilyMemories.Media;
+using FamilyMemories.Stories;
+using Hangfire;
+using Hangfire.PostgreSql;
 using FamilyMemories.Web;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -66,6 +71,9 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.LoginPath = "/account/login";
     o.LogoutPath = "/account/logout";
     o.AccessDeniedPath = "/account/access-denied";
+    // Scripts calling /api or loading /media get a status code, not an HTML login page.
+    o.Events.OnRedirectToLogin = context => RedirectOrStatus(context, StatusCodes.Status401Unauthorized);
+    o.Events.OnRedirectToAccessDenied = context => RedirectOrStatus(context, StatusCodes.Status403Forbidden);
     o.Events.OnValidatePrincipal = async context =>
     {
         await DeviceService.ValidateAsync(context);
@@ -88,6 +96,7 @@ builder.Services.Configure<SecurityStampValidatorOptions>(o =>
 builder.Services.AddAntiforgery(o =>
 {
     o.Cookie.Name = "fm_af";
+    o.HeaderName = "X-CSRF-TOKEN";
     o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
@@ -99,6 +108,40 @@ builder.Services.Configure<Microsoft.AspNetCore.Mvc.CookieTempDataProviderOption
 
 builder.Services.AddScoped<MagicLinkService>();
 builder.Services.AddScoped<DeviceService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditLog>();
+builder.Services.AddScoped<PromptSeeder>();
+builder.Services.AddScoped<StoryPlanService>();
+builder.Services.AddScoped<StoryAccess>();
+builder.Services.AddScoped<MemoryService>();
+builder.Services.AddScoped<UserAdminService>();
+builder.Services.AddSingleton<MediaStorage>();
+builder.Services.AddScoped<AttachmentService>();
+builder.Services.AddScoped<MediaProcessor>();
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("Admin", p => p.RequireRole(Roles.Admin));
+
+// Uploads without JavaScript arrive as one multipart form; allow the largest file type.
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o =>
+    o.MultipartBodyLengthLimit = Math.Max(options.MaxVideoBytes, options.MaxAudioBytes) + 1024 * 1024);
+
+// ---- Background jobs (media processing now; reminders, exports and backups later) ----
+if (options.JobsEnabled)
+{
+    builder.Services.AddHangfire(c => c
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(pg => pg.UseNpgsqlConnection(options.ConnectionString),
+            new PostgreSqlStorageOptions { SchemaName = "hangfire", PrepareSchemaIfNecessary = true, EnableLongPolling = true }));
+    builder.Services.AddHangfireServer(o => o.WorkerCount = Math.Max(2, Environment.ProcessorCount / 2));
+    builder.Services.AddScoped<IMediaJobs, HangfireMediaJobs>();
+}
+else
+{
+    builder.Services.AddScoped<IMediaJobs, InlineMediaJobs>();
+}
 builder.Services.AddSingleton<EmailTemplates>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
@@ -136,6 +179,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddRazorPages(o =>
 {
     o.Conventions.AuthorizeFolder("/");
+    o.Conventions.AuthorizeFolder("/Admin", "Admin");
     o.Conventions.AllowAnonymousToFolder("/Account");
     o.Conventions.AllowAnonymousToPage("/Error");
     o.Conventions.AllowAnonymousToPage("/Display");
@@ -168,7 +212,30 @@ app.UseAuthorization();
 app.MapHealthChecks("/healthz", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });
 app.MapRazorPages();
+app.MapStoryApi();
+app.MapMediaEndpoints();
+if (options.JobsEnabled)
+{
+    app.MapHangfireDashboard("/admin/jobs", new DashboardOptions
+    {
+        Authorization = [new AdminDashboardAuthorization()],
+        DashboardTitle = $"{options.AppName}: background jobs",
+        AppPath = "/admin",
+    });
+    app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<UploadCleanup>(
+        "upload-cleanup", c => c.RunAsync(), Cron.Daily(3));
+}
 
 app.Run();
+
+static Task RedirectOrStatus(Microsoft.AspNetCore.Authentication.RedirectContext<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions> context, int status)
+{
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/api") || path.StartsWithSegments("/media"))
+        context.Response.StatusCode = status;
+    else
+        context.Response.Redirect(context.RedirectUri);
+    return Task.CompletedTask;
+}
 
 public partial class Program;

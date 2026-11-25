@@ -1,0 +1,658 @@
+{
+  "$comment": "Seed chapters and prompts. Upserted at startup by stable key: changing text here updates the prompt, but an admin's edits in the app win once made (see DECISIONS D-017). Never reuse or rename a key.",
+  "chapters": [
+    {
+      "key": "roots",
+      "title": "Roots & Early Years",
+      "prompts": [
+        {
+          "key": "roots-born",
+          "core": true,
+          "title": "Where you were born",
+          "question": "Where and when were you born? Do you know how your name was chosen?",
+          "hints": [
+            "What town or city were you born in? Was it at home or in a hospital?",
+            "Were you named after anyone in the family?",
+            "Did you have a nickname growing up? How did you get it?"
+          ],
+          "suggestedAttachments": "A baby photo or a birth announcement"
+        },
+        {
+          "key": "roots-home",
+          "core": true,
+          "title": "The home you grew up in",
+          "question": "Describe the home you grew up in: the rooms, the smells, the sounds, the neighborhood.",
+          "hints": [
+            "Which room did your family spend the most time in?",
+            "What could you smell from the kitchen?",
+            "What did you see when you looked out the front window?",
+            "Who were the neighbors?"
+          ],
+          "suggestedAttachments": "A photo of the house"
+        },
+        {
+          "key": "roots-parents",
+          "core": true,
+          "title": "Your parents",
+          "question": "Tell us about your parents. What were they like, and what work did they do?",
+          "hints": [
+            "What is one thing your mother always used to say?",
+            "What is one thing your father always used to say?",
+            "How did they spend a typical day?",
+            "In what ways are you like them?"
+          ],
+          "suggestedAttachments": "A photo of your parents"
+        },
+        {
+          "key": "roots-earliest",
+          "core": true,
+          "title": "Your earliest memory",
+          "question": "What is your earliest memory?",
+          "hints": [
+            "How old do you think you were?",
+            "Where were you, and who was with you?",
+            "Why do you think this moment stayed with you?"
+          ]
+        },
+        {
+          "key": "roots-ancestors",
+          "core": false,
+          "title": "Grandparents and where we came from",
+          "question": "What do you know about your grandparents and where our family came from?",
+          "hints": [
+            "Did you know your grandparents? What were they like?",
+            "Where did the family live before, and why did they move?",
+            "Are there family stories that have been passed down?"
+          ],
+          "suggestedAttachments": "Old documents, immigration papers, or letters"
+        }
+      ]
+    },
+    {
+      "key": "growing-up",
+      "title": "Growing Up",
+      "prompts": [
+        {
+          "key": "growing-games",
+          "core": true,
+          "title": "Games and childhood friends",
+          "question": "What games did you play, and who were your childhood friends?",
+          "hints": [
+            "What did you play outside? What did you play when it rained?",
+            "Who was your closest friend, and what were they like?",
+            "Did you have a favorite toy?"
+          ]
+        },
+        {
+          "key": "growing-chores",
+          "core": false,
+          "title": "Chores and house rules",
+          "question": "What chores did you have, and what were the house rules?",
+          "hints": [
+            "Which chore did you like least?",
+            "Did you get an allowance, or anything for helping?",
+            "What happened if you broke a rule?"
+          ]
+        },
+        {
+          "key": "growing-trouble",
+          "core": false,
+          "title": "A time you got into trouble",
+          "question": "Tell us about a time you got into trouble as a kid.",
+          "hints": [
+            "What did you do, and who caught you?",
+            "Were you sorry, or would you do it again?",
+            "Was anyone else in on it?"
+          ]
+        },
+        {
+          "key": "growing-traditions",
+          "core": true,
+          "title": "Holidays and traditions",
+          "question": "Which holidays and family traditions do you remember most?",
+          "hints": [
+            "What food was always on the table?",
+            "Who came to visit, or where did you go?",
+            "Is there a tradition you still keep today?"
+          ]
+        },
+        {
+          "key": "growing-fun",
+          "core": true,
+          "title": "Family fun",
+          "question": "What did your family do for fun: trips, Sunday dinners, radio or TV shows?",
+          "hints": [
+            "What did a weekend look like in your house?",
+            "Was there a radio or TV program the whole family loved?",
+            "Do you remember a special outing or trip?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "school",
+      "title": "School Days",
+      "prompts": [
+        {
+          "key": "school-teacher",
+          "core": true,
+          "title": "Your schools and a teacher who mattered",
+          "question": "Tell us about your schools. Was there a teacher who made a difference?",
+          "hints": [
+            "How did you get to school each day?",
+            "What did your classroom look like?",
+            "What did that teacher do or say that you still remember?"
+          ],
+          "suggestedAttachments": "A class photo or a report card"
+        },
+        {
+          "key": "school-subjects",
+          "core": false,
+          "title": "Favorite and least favorite subjects",
+          "question": "Which subjects did you love, and which did you dread?",
+          "hints": [
+            "What came easily to you?",
+            "Was there a subject you struggled with? How did you get through it?",
+            "Do you still use anything you learned in school?"
+          ]
+        },
+        {
+          "key": "school-weekends",
+          "core": false,
+          "title": "Teenage weekends",
+          "question": "What did you and your friends do on weekends as teenagers?",
+          "hints": [
+            "Where did young people gather in your town?",
+            "What music did you listen to?",
+            "What time did you have to be home?"
+          ]
+        },
+        {
+          "key": "school-proud",
+          "core": true,
+          "title": "What you were proud of",
+          "question": "What were you proud of in your school years: sports, clubs, music, a job?",
+          "hints": [
+            "Was there a team, a club, or a band you belonged to?",
+            "Did you win anything, or work hard for something?",
+            "Who cheered you on?"
+          ],
+          "suggestedAttachments": "A yearbook page"
+        }
+      ]
+    },
+    {
+      "key": "adult",
+      "title": "Becoming an Adult",
+      "prompts": [
+        {
+          "key": "adult-first-job",
+          "core": true,
+          "title": "Your first job",
+          "question": "What was your first job, and what did you do with your first paycheck?",
+          "hints": [
+            "How old were you, and how did you get the job?",
+            "How much were you paid?",
+            "What did you learn from it?"
+          ]
+        },
+        {
+          "key": "adult-leaving-home",
+          "core": false,
+          "title": "Leaving home",
+          "question": "When did you leave home, and where did you go?",
+          "hints": [
+            "How did you feel the day you left?",
+            "Where did you live first, and who with?",
+            "What did you miss most about home?"
+          ]
+        },
+        {
+          "key": "adult-service",
+          "core": false,
+          "title": "Military or other service",
+          "question": "Did you serve in the military or another kind of service? What do you want us to know about it?",
+          "hints": [
+            "Where were you stationed or where did you serve?",
+            "Who were the friends you made there?",
+            "Share only what you're comfortable sharing."
+          ],
+          "suggestedAttachments": "A service photo or discharge papers"
+        },
+        {
+          "key": "adult-dreams",
+          "core": false,
+          "title": "What you dreamed of becoming",
+          "question": "When you were young, what did you dream of becoming?",
+          "hints": [
+            "Where did that dream come from?",
+            "Did it come true, or did life take you somewhere else?",
+            "What would you tell your young self?"
+          ]
+        },
+        {
+          "key": "adult-first-car",
+          "core": false,
+          "title": "Your first car",
+          "question": "What was your first car, or how did you get around?",
+          "hints": [
+            "What color was it, and how much did it cost?",
+            "Where was the first place you drove it?",
+            "Who taught you to drive?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "love",
+      "title": "Love & Partnership",
+      "prompts": [
+        {
+          "key": "love-meeting",
+          "core": true,
+          "title": "How you met",
+          "question": "How did you meet your spouse or partner? What was your first impression?",
+          "hints": [
+            "Where were you, and what were you doing?",
+            "What did you notice first about them?",
+            "What was your first date?"
+          ],
+          "suggestedAttachments": "An early photo of the two of you"
+        },
+        {
+          "key": "love-wedding",
+          "core": false,
+          "title": "Your wedding day",
+          "question": "Tell us about your wedding day, or the moment you knew.",
+          "hints": [
+            "Where was it, and who was there?",
+            "What do you remember about how you felt?",
+            "Did anything funny or unexpected happen?"
+          ],
+          "suggestedAttachments": "A wedding photo or the invitation"
+        },
+        {
+          "key": "love-lasting",
+          "core": true,
+          "title": "The secret to lasting love",
+          "question": "What's the secret to a lasting relationship?",
+          "hints": [
+            "What did you learn the hard way?",
+            "How did you get through a difficult time together?",
+            "What small things mattered most?"
+          ]
+        },
+        {
+          "key": "love-first-home",
+          "core": false,
+          "title": "Your first home together",
+          "question": "Describe your first home together.",
+          "hints": [
+            "Where was it, and how did you find it?",
+            "What furniture did you have, or not have?",
+            "What do you remember about your first evening there?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "family",
+      "title": "Raising a Family",
+      "prompts": [
+        {
+          "key": "family-parent",
+          "core": true,
+          "title": "Becoming a parent",
+          "question": "What do you remember about becoming a parent?",
+          "hints": [
+            "What was the day your first child was born like?",
+            "What surprised you most?",
+            "Who helped you in those early days?"
+          ]
+        },
+        {
+          "key": "family-funny",
+          "core": false,
+          "title": "A funny story about the children",
+          "question": "Share a funny or memorable story about your children when they were young.",
+          "hints": [
+            "Is there a story the family still tells at holidays?",
+            "Did one of them say something you've never forgotten?"
+          ]
+        },
+        {
+          "key": "family-week",
+          "core": false,
+          "title": "An ordinary week",
+          "question": "What was an ordinary week like when the kids were little?",
+          "hints": [
+            "What time did the day start, and who made breakfast?",
+            "What did you have for supper most nights?",
+            "What did you do on Sundays?"
+          ]
+        },
+        {
+          "key": "family-pass-on",
+          "core": true,
+          "title": "What you hoped to pass on",
+          "question": "What did you most hope to pass on to your children?",
+          "hints": [
+            "Which values mattered most to you?",
+            "Is there a skill or habit you made sure they learned?",
+            "Do you see it in them now?"
+          ]
+        },
+        {
+          "key": "family-hard-best",
+          "core": false,
+          "title": "The hardest and best parts of parenting",
+          "question": "What was the hardest part of being a parent, and what was the best part?",
+          "hints": [
+            "Is there a moment you were especially proud?",
+            "What do you wish someone had told you?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "work",
+      "title": "Work & Purpose",
+      "prompts": [
+        {
+          "key": "work-career",
+          "core": true,
+          "title": "Your life's work",
+          "question": "Tell us about your career or main life's work.",
+          "hints": [
+            "How did you get started?",
+            "What did a typical workday look like?",
+            "What did you enjoy most about it?"
+          ],
+          "suggestedAttachments": "A work photo, ID badge, or award"
+        },
+        {
+          "key": "work-proud",
+          "core": false,
+          "title": "Your proudest accomplishment",
+          "question": "What accomplishment are you most proud of?",
+          "hints": [
+            "What did it take to get there?",
+            "Who was there to see it?",
+            "Why does it still matter to you?"
+          ]
+        },
+        {
+          "key": "work-mentor",
+          "core": false,
+          "title": "A mentor who shaped you",
+          "question": "Who was a mentor or boss who shaped you?",
+          "hints": [
+            "How did you meet them?",
+            "What did they teach you, or how did they help you?",
+            "Did you ever get to thank them?"
+          ]
+        },
+        {
+          "key": "work-community",
+          "core": false,
+          "title": "Community, volunteering, or faith",
+          "question": "How have you been involved in your community, volunteering, or faith?",
+          "hints": [
+            "Which groups or places have meant the most to you?",
+            "Is there someone you helped, or who helped you, that you remember?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "places",
+      "title": "Places & Adventures",
+      "prompts": [
+        {
+          "key": "places-lived",
+          "core": true,
+          "title": "Places you've lived",
+          "question": "List the places you've lived, and why you moved each time.",
+          "hints": [
+            "Start with the first place you remember and go in order.",
+            "Which move was the hardest?",
+            "Which place did you love the most?"
+          ]
+        },
+        {
+          "key": "places-best-trip",
+          "core": true,
+          "title": "The best trip of your life",
+          "question": "What was the best trip or vacation of your life?",
+          "hints": [
+            "Where did you go, and who went with you?",
+            "How did you get there?",
+            "What is the one picture from that trip you still see in your mind?"
+          ],
+          "suggestedAttachments": "Travel photos or postcards"
+        },
+        {
+          "key": "places-home",
+          "core": false,
+          "title": "The place that feels like home",
+          "question": "What place feels most like home to you, and why?",
+          "hints": [
+            "Is it a house, a town, or somewhere outdoors?",
+            "What do you see, hear, or smell when you think of it?"
+          ]
+        },
+        {
+          "key": "places-brave",
+          "core": false,
+          "title": "A time you were brave",
+          "question": "Tell us about a time you were brave or tried something completely new.",
+          "hints": [
+            "Were you scared? What helped you go ahead?",
+            "How did it turn out?",
+            "Would you do it again?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "history",
+      "title": "History You Lived Through",
+      "prompts": [
+        {
+          "key": "history-event",
+          "core": true,
+          "title": "An event you remember vividly",
+          "question": "What world or national event do you remember most vividly? Where were you when it happened?",
+          "hints": [
+            "How did you first hear the news?",
+            "What did the people around you say or do?",
+            "Did it change anything in your own life?"
+          ]
+        },
+        {
+          "key": "history-changes",
+          "core": false,
+          "title": "How everyday life has changed",
+          "question": "How has everyday life changed since you were young: technology, communication, how people shop and travel?",
+          "hints": [
+            "How did your family keep in touch with relatives far away?",
+            "What was the first big new gadget in your home?",
+            "What do you miss about the old ways? What are you glad is gone?"
+          ]
+        },
+        {
+          "key": "history-prices",
+          "core": false,
+          "title": "What things used to cost",
+          "question": "What did things cost when you were young: a movie, gas, a loaf of bread, your first house?",
+          "hints": [
+            "What could you buy with a dollar?",
+            "What was your first rent or house payment?"
+          ]
+        },
+        {
+          "key": "history-hard-time",
+          "core": false,
+          "title": "A hard time we got through",
+          "question": "Tell us about a hard time our family got through together.",
+          "hints": [
+            "What helped the family keep going?",
+            "Who stepped up when it mattered?",
+            "What did you learn from it?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "food",
+      "title": "Food, Traditions & Heirlooms",
+      "prompts": [
+        {
+          "key": "food-recipe",
+          "core": true,
+          "title": "A family recipe",
+          "question": "Share a family recipe and the story behind it.",
+          "hints": [
+            "Who first made it, and when was it served?",
+            "Write down the ingredients and the steps as best you remember.",
+            "Is there a secret to getting it just right?"
+          ],
+          "suggestedAttachments": "A photo of the handwritten recipe card"
+        },
+        {
+          "key": "food-heirloom",
+          "core": true,
+          "title": "A treasured object",
+          "question": "Tell us the story of an heirloom or treasured object.",
+          "hints": [
+            "Where did it come from, and who owned it before you?",
+            "Why is it special to you?",
+            "Who would you like to have it one day?"
+          ],
+          "suggestedAttachments": "A photo of the object"
+        },
+        {
+          "key": "food-sayings",
+          "core": false,
+          "title": "Family songs and sayings",
+          "question": "What songs, sayings, or expressions did your family always use?",
+          "hints": [
+            "Was there a saying for when things went wrong?",
+            "Was there a song someone always sang?",
+            "Where do you think it came from?"
+          ]
+        },
+        {
+          "key": "food-holidays-changed",
+          "core": false,
+          "title": "How holidays have changed",
+          "question": "How have birthdays and holidays changed from when you were a child to now?",
+          "hints": [
+            "What did a birthday look like when you were small?",
+            "What gifts did children get?",
+            "What do you like better now, and what do you miss?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "people",
+      "title": "People Who Mattered",
+      "prompts": [
+        {
+          "key": "people-siblings",
+          "core": true,
+          "title": "Your brothers and sisters",
+          "question": "Tell us about your brothers and sisters and what growing up with them was like.",
+          "hints": [
+            "Where were you in the line-up: oldest, youngest, in between?",
+            "Who did you get along with best, and who did you fight with?",
+            "Is there a story about them you love to tell?"
+          ]
+        },
+        {
+          "key": "people-best-friend",
+          "core": false,
+          "title": "Your best friend",
+          "question": "Who was your best friend over the years?",
+          "hints": [
+            "How did you meet?",
+            "What did you do together?",
+            "What made them such a good friend?"
+          ]
+        },
+        {
+          "key": "people-miss",
+          "core": true,
+          "title": "Someone you miss",
+          "question": "Is there someone you miss? Tell us about them.",
+          "hints": [
+            "What did they look like, and how did they talk?",
+            "What is a favorite memory of time with them?",
+            "What would you say to them today?"
+          ],
+          "suggestedAttachments": "Their photo"
+        },
+        {
+          "key": "people-most-like",
+          "core": false,
+          "title": "Who you're most like",
+          "question": "Who in the family do you think you're most like?",
+          "hints": [
+            "Is it the way you look, the way you talk, or the way you do things?",
+            "Do people tell you that you remind them of someone?"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "wisdom",
+      "title": "Wisdom & Legacy",
+      "prompts": [
+        {
+          "key": "wisdom-advice",
+          "core": true,
+          "title": "The best advice",
+          "question": "What's the best advice you ever received, and what advice would you give?",
+          "hints": [
+            "Who gave you that advice, and when?",
+            "Did you follow it?",
+            "What would you tell a young person starting out today?"
+          ]
+        },
+        {
+          "key": "wisdom-grateful",
+          "core": true,
+          "title": "What you're grateful for",
+          "question": "What are you most grateful for?",
+          "hints": [
+            "Think of the people, the places, and the small everyday things.",
+            "Is there something you're grateful for now that you didn't value when you were young?"
+          ]
+        },
+        {
+          "key": "wisdom-know-me",
+          "core": true,
+          "title": "What you want them to know",
+          "question": "What do you want your grandchildren and great-grandchildren to know about you?",
+          "hints": [
+            "What do you hope they remember?",
+            "What might surprise them about you?",
+            "What are you proudest of?"
+          ]
+        },
+        {
+          "key": "wisdom-letter",
+          "core": true,
+          "title": "A letter to future generations",
+          "question": "Write a letter to future generations of our family.",
+          "hints": [
+            "Start with \"Dear family\" and write as if they're sitting with you.",
+            "Tell them what matters most in life.",
+            "End with a wish for them."
+          ]
+        }
+      ]
+    }
+  ]
+}

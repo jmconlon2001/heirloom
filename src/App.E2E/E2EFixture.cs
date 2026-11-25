@@ -30,16 +30,50 @@ public sealed class BrowsersFixture : IAsyncLifetime
     {
         await WebKit.DisposeAsync();
         await Chromium.DisposeAsync();
+        if (fakeMicChromium is not null) await fakeMicChromium.DisposeAsync();
         Playwright.Dispose();
     }
 
     /// <summary>iPad Safari: Playwright's iPad Pro 11 descriptor (834×1194, touch, WebKit).</summary>
-    public Task<IBrowserContext> NewIPadAsync(Uri baseUrl)
+    /// <summary>
+    /// The iPad profile. With <paramref name="microphone"/>, uses WebKit when this platform's WebKit build can
+    /// record (macOS); Playwright's Linux WebKit has no MediaRecorder/microphone, so on Linux CI the same iPad
+    /// profile runs on Chromium with a fake microphone instead (see PROGRESS.md).
+    /// </summary>
+    public async Task<IBrowserContext> NewIPadAsync(Uri baseUrl, bool microphone = false)
     {
         var ipad = Playwright.Devices["iPad Pro 11"];
         ipad.BaseURL = baseUrl.ToString();
-        return WebKit.NewContextAsync(ipad);
+        var forceChromium = Environment.GetEnvironmentVariable("E2E_RECORD_BROWSER") == "chromium";
+        if (microphone && (forceChromium || !await WebKitCanRecordAsync()))
+        {
+            var context = await (await FakeMicChromiumAsync()).NewContextAsync(ipad);
+            await context.GrantPermissionsAsync(["microphone"]);
+            return context;
+        }
+        var webkit = await WebKit.NewContextAsync(ipad);
+        if (microphone) await webkit.GrantPermissionsAsync(["microphone"]);
+        return webkit;
     }
+
+    private bool? webKitCanRecord;
+    private IBrowser? fakeMicChromium;
+
+    private async Task<bool> WebKitCanRecordAsync()
+    {
+        if (webKitCanRecord is { } known) return known;
+        await using var context = await WebKit.NewContextAsync();
+        var page = await context.NewPageAsync();
+        webKitCanRecord = await page.EvaluateAsync<bool>(
+            "typeof MediaRecorder !== 'undefined' && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)");
+        return webKitCanRecord.Value;
+    }
+
+    private async Task<IBrowser> FakeMicChromiumAsync() =>
+        fakeMicChromium ??= await Playwright.Chromium.LaunchAsync(new()
+        {
+            Args = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+        });
 }
 
 /// <summary>The real app on a real Kestrel port, so a real browser can reach it.</summary>

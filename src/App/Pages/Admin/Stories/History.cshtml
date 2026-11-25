@@ -1,0 +1,31 @@
+@page "/admin/stories/{id:guid}/history"
+@model FamilyMemories.Pages.Admin.Stories.HistoryModel
+@{
+    ViewData["Title"] = "Earlier versions";
+}
+<h1>Earlier versions</h1>
+<p class="lead">of "<a href="/stories/@Model.Memory.Id">@Model.Memory.Title</a>", told by @Model.Memory.Storyteller!.DisplayName</p>
+<partial name="_Flash" />
+<p>Every save is kept. Restoring a version puts its words back and keeps the current words as a version too, so nothing is lost.</p>
+
+<ol class="versions" reversed>
+    @foreach (var v in Model.Versions)
+    {
+        <li>
+            <details>
+                <summary>
+                    Version @v.Number, @v.SavedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt") by @v.SavedBy!.DisplayName
+                    <span class="muted small">(@(v.Kind switch { VersionKind.Autosave => "saved automatically", VersionKind.Restore => "restored", _ => "saved" }), @v.Body.Length characters)</span>
+                </summary>
+                <div class="version-body">@v.Body</div>
+                @if (v.Number != Model.Versions[0].Number)
+                {
+                    <form method="post">
+                        <input type="hidden" name="number" value="@v.Number">
+                        <button type="submit" class="button button-secondary">Restore version @v.Number</button>
+                    </form>
+                }
+            </details>
+        </li>
+    }
+</ol>

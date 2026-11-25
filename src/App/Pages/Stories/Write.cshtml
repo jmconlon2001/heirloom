@@ -1,0 +1,187 @@
+@page "/stories/{id:guid}/write"
+@model FamilyMemories.Pages.Stories.WriteModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@{
+    var prompt = Model.Prompt;
+    ViewData["Title"] = prompt?.Title ?? "Your own story";
+    var months = System.Globalization.CultureInfo.GetCultureInfo("en-US").DateTimeFormat.MonthNames.Take(12).ToArray();
+    var firstDecade = 1900;
+    var lastDecade = Model.CurrentYear / 10 * 10;
+    var removed = TempData["Removed"] as string;
+}
+
+<form method="post" enctype="multipart/form-data" class="answer" id="answer-form" novalidate
+      data-answer
+      data-memory-id="@Model.Memory.Id"
+      data-revision="@Model.Memory.Revision"
+      data-updated-at="@Model.Memory.UpdatedAt.ToString("O")"
+      data-csrf="@Antiforgery.GetAndStoreTokens(HttpContext).RequestToken">
+
+    @* Pressing Enter in a text box submits the form's first button: make that Save, not "Remove". *@
+    <button type="submit" asp-page-handler="Save" class="visually-hidden" tabindex="-1" aria-hidden="true">Save</button>
+
+    @if (Model.IsProxy || Model.Memory.WrittenById is not null)
+    {
+        <p class="notice">
+            You're writing for <strong>@Model.Storyteller.DisplayName</strong>.
+            It will say "Told by @Model.Storyteller.DisplayName · written by @Model.WriterName".
+        </p>
+    }
+    <partial name="_Flash" />
+
+    @if (prompt is not null)
+    {
+        @if (prompt.Chapter is not null)
+        {
+            <p class="eyebrow">@prompt.Chapter.Title</p>
+        }
+        @if (prompt.AskedByUser is not null)
+        {
+            <p class="asked-by">@prompt.AskedByUser.DisplayName asked:</p>
+        }
+        <h1 id="question" class="prompt-question">@prompt.Question</h1>
+
+        @if (prompt.Hints.Count > 0)
+        {
+            <div class="hints">
+                <p class="hints-title">Some things you might write about:</p>
+                <ul>
+                    @foreach (var hint in prompt.Hints)
+                    {
+                        <li>@hint</li>
+                    }
+                </ul>
+            </div>
+        }
+    }
+    else
+    {
+        <h1 id="question">Your own story</h1>
+        <div class="field">
+            <label asp-for="Title">What would you like to call this story?</label>
+            <input asp-for="Title" type="text" autocomplete="off" maxlength="300">
+        </div>
+    }
+
+    <div class="field story-field">
+        <label for="Body" class="@(prompt is null ? "" : "visually-hidden")">Your story</label>
+        <textarea asp-for="Body" class="story-text" rows="10" spellcheck="true" autocapitalize="sentences"
+                  aria-describedby="keyboard-tip save-status" data-autogrow></textarea>
+        <p class="tip" id="keyboard-tip">Tip: you can also tap the microphone on your keyboard to talk instead of type.</p>
+        <p class="save-status" id="save-status" role="status" aria-live="polite" data-save-status></p>
+    </div>
+
+    @if (prompt?.SuggestedAttachments is { } suggested)
+    {
+        <p class="suggested">If you have one, you could add: <strong>@suggested</strong>.</p>
+    }
+
+    <div class="media-actions">
+        <section class="recorder" data-recorder hidden aria-labelledby="recorder-title">
+            <h2 id="recorder-title" class="visually-hidden">Record your voice</h2>
+            <button type="button" class="button button-large button-record" data-record-start>Record my voice</button>
+            <div class="recording" data-recording hidden>
+                <p class="recording-time"><span class="rec-dot" aria-hidden="true"></span> Recording <span data-record-time>0:00</span></p>
+                <div class="level" aria-hidden="true"><div class="level-bar" data-record-level></div></div>
+                <button type="button" class="button button-large button-primary" data-record-stop>Stop recording</button>
+            </div>
+            <p class="field-error" data-record-error hidden></p>
+        </section>
+
+        <div class="file-picker">
+            <input type="file" id="Files" name="Files" multiple class="visually-hidden-input"
+                   accept="image/*,.heic,.heif,application/pdf,audio/*,video/*" data-file-input>
+            <label for="Files" class="button button-large button-secondary">Add photos</label>
+            <p class="muted small">Photos, scans, PDFs, sound or video.</p>
+        </div>
+    </div>
+
+    <ul class="upload-list" data-upload-list aria-live="polite"></ul>
+
+    <section id="attachments" aria-labelledby="attachments-title" class="@(Model.Items.Count == 0 ? "is-empty" : "")" data-attachments-section>
+        <h2 id="attachments-title">Photos and recordings</h2>
+        @if (removed is not null)
+        {
+            <p class="flash" role="status">
+                Removed.
+                <button type="submit" class="button button-quiet" asp-page-handler="UndoRemove" name="attachmentId" value="@removed">Put it back</button>
+            </p>
+        }
+        <ol class="attachment-list" data-attachment-list>
+            @for (var i = 0; i < Model.Items.Count; i++)
+            {
+                var a = Model.Items[i];
+                <partial name="_AttachmentEdit" model="(a, i == 0, i == Model.Items.Count - 1)" />
+            }
+        </ol>
+    </section>
+
+    <details class="when-where" @(Model.WhenYear is not null || Model.WhenDecade is not null || Model.WhenLabel is not null || Model.Place is not null ? "open" : "")>
+        <summary>Add when and where (optional)</summary>
+        <fieldset class="when">
+            <legend>When did this happen?</legend>
+            <div class="field-row">
+                <div class="field">
+                    <label asp-for="WhenYear">Year</label>
+                    <input asp-for="WhenYear" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="input-short" autocomplete="off">
+                </div>
+                <div class="field">
+                    <label asp-for="WhenMonth">Month</label>
+                    <select asp-for="WhenMonth">
+                        <option value="">Not sure</option>
+                        @for (var m = 1; m <= 12; m++)
+                        {
+                            <option value="@m">@months[m - 1]</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label asp-for="WhenDay">Day</label>
+                    <input asp-for="WhenDay" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="input-short" autocomplete="off">
+                </div>
+            </div>
+            <div class="checkbox">
+                <input asp-for="WhenCirca" type="checkbox">
+                <label asp-for="WhenCirca">I'm not sure of the exact year</label>
+            </div>
+            <div class="field">
+                <label asp-for="WhenDecade">Or just the decade</label>
+                <select asp-for="WhenDecade">
+                    <option value="">Choose a decade</option>
+                    @for (var d = lastDecade; d >= firstDecade; d -= 10)
+                    {
+                        <option value="@d">The @(d)s</option>
+                    }
+                </select>
+            </div>
+            <div class="field">
+                <label asp-for="WhenLabel">Or say it in your own words</label>
+                <input asp-for="WhenLabel" type="text" maxlength="200" placeholder="For example: the summer after the war" autocomplete="off">
+            </div>
+        </fieldset>
+        <div class="field">
+            <label asp-for="Place">Where was it?</label>
+            <input asp-for="Place" type="text" maxlength="300" placeholder="Town, street, or a place name" autocomplete="off">
+        </div>
+    </details>
+
+    <div class="save-actions">
+        <button type="submit" class="button button-large button-secondary" asp-page-handler="Save" data-save-button>Save</button>
+        <button type="submit" class="button button-large button-primary" asp-page-handler="Finish">I'm finished with this story</button>
+    </div>
+    <p class="muted">Everything is saved as you go. You can come back and add more any time.</p>
+
+    @if (prompt is not null)
+    {
+        <section class="not-now" aria-labelledby="not-now-title">
+            <h2 id="not-now-title">Not this one?</h2>
+            <p>That's all right. You can skip it for now, or choose not to answer it at all.</p>
+            <div class="button-row">
+                <button type="submit" class="button button-quiet" asp-page-handler="Skip">Skip for now</button>
+                <button type="submit" class="button button-quiet" asp-page-handler="Decline">I'd rather not answer</button>
+            </div>
+        </section>
+    }
+</form>
+
+<script type="module" src="~/js/answer.js" asp-append-version="true"></script>

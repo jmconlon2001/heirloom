@@ -16,6 +16,7 @@ public sealed class DatabaseInitializer(
     AppDbContext db,
     UserManager<AppUser> users,
     RoleManager<AppRole> roles,
+    FamilyMemories.Stories.PromptSeeder prompts,
     AppOptions options,
     TimeProvider clock,
     ILogger<DatabaseInitializer> log)
@@ -35,6 +36,7 @@ public sealed class DatabaseInitializer(
         }
 
         await SeedAsync();
+        await prompts.SeedAsync();
     }
 
     private async Task BackupBeforeMigrationAsync(IReadOnlyList<string> pending, CancellationToken ct)

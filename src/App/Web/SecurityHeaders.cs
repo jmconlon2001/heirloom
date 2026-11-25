@@ -25,7 +25,11 @@ public static class SecurityHeaders
             context.Response.OnStarting(() =>
             {
                 var h = context.Response.Headers;
-                h.ContentSecurityPolicy = ContentSecurityPolicy;
+                // The Hangfire dashboard (admin-only) ships inline scripts; everything else is strict.
+                h.ContentSecurityPolicy = context.Request.Path.StartsWithSegments("/admin/jobs")
+                    ? ContentSecurityPolicy.Replace("script-src 'self'", "script-src 'self' 'unsafe-inline'")
+                        .Replace("style-src 'self'", "style-src 'self' 'unsafe-inline'")
+                    : ContentSecurityPolicy;
                 h.XContentTypeOptions = "nosniff";
                 h.XFrameOptions = "DENY";
                 h["Referrer-Policy"] = "same-origin";

@@ -1,6 +1,7 @@
 using FamilyMemories.Data;
 using FamilyMemories.Email;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,6 +46,7 @@ public class AppFactory(PostgresFixture postgres) : WebApplicationFactory<Progra
             ["HELP_PHONE"] = "(555) 010-0199",
             ["AUTH_RATE_LIMIT"] = "1000",
             ["PRE_MIGRATION_BACKUP"] = "false",
+            ["JOBS_ENABLED"] = "false",
         };
         foreach (var (k, v) in Settings) settings[k] = v;
         foreach (var (k, v) in settings) builder.UseSetting(k, v);
@@ -56,6 +58,34 @@ public class AppFactory(PostgresFixture postgres) : WebApplicationFactory<Progra
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
         });
+    }
+
+    public static string Fixture(string name) => Path.Combine(AppContext.BaseDirectory, "Fixtures", name);
+
+    /// <summary>Creates a person directly (bypassing the admin UI).</summary>
+    public async Task<AppUser> CreateUserAsync(string name, string email, string[] roles,
+        PromptSetKind? set = null, Pacing pacing = Pacing.AllAtOnce)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AppUser>>();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Guid? setId = set is null ? null : (await db.PromptSets.FirstAsync(s => s.Kind == set)).Id;
+        var user = new AppUser
+        {
+            UserName = email, Email = email, EmailConfirmed = true, DisplayName = name,
+            CreatedAt = Clock.GetUtcNow().UtcDateTime, PromptSetId = setId, Pacing = pacing,
+            PacingStartedAt = setId is null ? null : Clock.GetUtcNow().UtcDateTime,
+        };
+        var result = await users.CreateAsync(user);
+        if (!result.Succeeded) throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
+        await users.AddToRolesAsync(user, roles);
+        return user;
+    }
+
+    public async Task<T> WithServiceAsync<TService, T>(Func<TService, Task<T>> action) where TService : notnull
+    {
+        await using var scope = Services.CreateAsyncScope();
+        return await action(scope.ServiceProvider.GetRequiredService<TService>());
     }
 
     public async Task WithDbAsync(Func<AppDbContext, Task> action)

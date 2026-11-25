@@ -1,0 +1,29 @@
+@page "/admin/users"
+@model FamilyMemories.Pages.Admin.Users.IndexModel
+@{
+    ViewData["Title"] = "People";
+}
+<h1>People</h1>
+<partial name="_Flash" />
+<p><a class="button button-primary" href="/admin/users/new">Invite someone</a></p>
+
+<div class="table-wrap">
+    <table class="data-table">
+        <caption class="visually-hidden">Everyone who can sign in</caption>
+        <thead>
+            <tr><th scope="col">Name</th><th scope="col">Roles</th><th scope="col">Questions</th><th scope="col">Stories</th><th scope="col">Last signed in</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    <th scope="row"><a href="/admin/users/@row.User.Id">@row.User.DisplayName</a><br><span class="muted small">@row.User.Email</span>@if (row.Paused) {<br><strong>Paused</strong>}</th>
+                    <td>@string.Join(", ", row.Roles)</td>
+                    <td>@(row.User.PromptSet?.Name ?? "None")@(row.User.PromptSet is null ? "" : row.User.Pacing == Pacing.Weekly ? ", weekly" : ", all at once")</td>
+                    <td>@row.Shared</td>
+                    <td>@(row.User.LastLoginAt?.ToLocalTime().ToString("MMM d, yyyy") ?? (row.User.InvitedAt is null ? "Never" : "Invited, not yet"))</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

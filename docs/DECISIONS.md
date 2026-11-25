@@ -59,3 +59,54 @@ Test runner is xUnit v3 on Microsoft.Testing.Platform (the .NET 10 SDK default; 
 
 ### D-014 · Local dev reverse proxy in Compose
 **Decision:** A `caddy` service in the `proxy` profile serves `https://memories.localhost:8443` (Caddy internal CA) and forwards to the app exactly like the OPNsense Caddy will. `scripts/smoke-proxy.sh` proves the Phase 0 "done" criterion against it. The frontend network has a fixed subnet (`FRONTEND_SUBNET`) so `TRUSTED_PROXIES` can name it.
+
+---
+## Phase 1
+
+### D-015 · Hangfire runs media processing; inline when jobs are off
+**Decision:** Upload completion enqueues `MediaProcessor.ProcessAsync` on Hangfire (PostgreSQL storage, schema `hangfire`, long-polling so jobs start within a second). `JOBS_ENABLED=false` swaps in `InlineMediaJobs`, which processes immediately. Tests use that for determinism, and one test class (`HangfireTests`) exercises the real Hangfire path. The dashboard is at `/admin/jobs`, admin-only. It ships inline scripts, so it alone gets `'unsafe-inline'` in its CSP; every other page keeps the strict policy.
+
+### D-016 · Pin Newtonsoft.Json 13.0.4 (MIT)
+**Context:** Hangfire.Core depends on Newtonsoft.Json ≥ 11.0.1, which NuGet resolves to a version with a known high-severity advisory (GHSA-5crp-9r3c-p9vr).
+**Decision:** Reference Newtonsoft.Json 13.0.4 directly so the patched version is used. It isn't called by our code.
+
+### D-017 · Prompt seeding by stable key; built-in sets follow the list
+**Decision:** `seed/prompts.json` is upserted at startup by `key`. Seed text changes flow through until an admin edits that prompt (`EditedByAdmin`); after that, the admin's wording wins. "Core 26" and "Full 52" are not stored lists. They are live views ("all active core prompts", "all active prompts") in chapter order, so a new or turned-off question updates them automatically. Only custom sets store their items.
+
+### D-018 · Version history: every save kept, autosaves coalesced
+**Decision:**
+- Each **Save**, **Finish** and **Restore** keeps a `MemoryVersion`.
+- Autosaves (every 5 s) by the same person within 30 minutes update one "saved automatically" version rather than adding hundreds.
+- A save whose content is identical to the latest version adds nothing.
+- Restoring copies an old version into a *new* version, so the words it replaces are still in history.
+
+### D-019 · `Memory.Revision` protects the words, not the attachments
+**Decision:** Autosave sends the revision it last saw. A mismatch (an old tab or another device) returns 409 instead of silently overwriting, and the page keeps the words in `localStorage` and asks for a reload. Adding photos or captions doesn't bump the revision. An earlier build did, and every photo upload caused a false "changed in another window" warning; the e2e test now covers that case.
+
+### D-020 · Our own small chunked-upload protocol
+**Decision:** `POST /api/memories/{id}/uploads` → `PUT /api/uploads/{id}?offset=N` (4 MB chunks) → `POST …/complete`. A 409 tells the client how many bytes the server has, so it resumes after a dropped connection (exponential back-off, up to 30 s). The type is checked by **magic bytes** on the first chunk, together with the per-kind size limit, so a 1 GB upload of the wrong kind is refused at 4 MB. tus was considered, but it would need a server library and a JS client, which is more than this needs. Without JavaScript, the same `AttachmentService` handles a plain multipart form post. Stale `.part` files are cleaned up daily.
+
+### D-021 · Derivatives drop *all* metadata; originals keep everything
+**Decision:** The 2048 px and 400 px JPEGs are EXIF-rotated, then `Strip()`ped. This removes GPS, and also camera data, which the web copies don't need. Originals are stored byte-for-byte (SHA-256 recorded) and are never served inline except to people who can see the story. "Remove" is a soft delete with "Put it back".
+
+### D-022 · `.mp4`/`.webm` are classified by ffprobe, not by name
+**Context:** Safari records voice as audio-only MP4, Chrome as WebM; both brands also hold video.
+**Decision:** Browser recordings are flagged as voice and always processed as audio. Other MP4/WebM/MOV uploads are probed, and if there is no real video stream (cover art doesn't count) they become audio. All audio is normalised to AAC `.m4a` (voice mono 96 kbps). Video keeps its original file for playback and gets a poster frame. Transcoding video for older Safari is not in v1.
+
+### D-023 · Proxy writing = admins + named helpers
+**Decision:** Besides admins, an admin can name **helpers** for a storyteller (`StorytellerHelper`), e.g. a grandchild doing an interview. The first time someone other than the storyteller saves, `WrittenById` is set and an audit entry written. The story reads "Told by Grandma Rose · written by Lily".
+
+### D-024 · Pacing rules
+**Decision:**
+- **Weekly:** prompt *n* in the set unlocks *n−1* weeks after the storyteller's start date.
+- Anything already started stays open regardless of pacing.
+- One-off questions are always open and listed first.
+- The next suggestion is the first unlocked prompt that is unanswered or a draft; skipped prompts come back after everything else.
+- Declined counts as done.
+- Locked prompts show their opening date and can't be opened by URL.
+
+### D-025 · Phase 1 visibility is "owner, helpers and admins"
+**Decision:** Until sharing lands in Phase 3, `StoryAccess` lets only the storyteller, their helpers and admins see or edit a story. Every page, API and `/media` request goes through it (others get 404). `Visibility` is stored now (default `AllFamily`, configurable via `DEFAULT_VISIBILITY`) so Phase 3 needs no data migration.
+
+### D-026 · QR login cards are POST-only and single-use
+**Decision:** "Print a login card" is a POST that mints a `DeviceEnrollment` link (single use, `LOGIN_CARD_DAYS`, default 30) and renders the card. A GET only redirects, so reloads, link previews and prefetching can't mint extra working links. Every card print is audited. The QR is a PNG `data:` URI (allowed by the CSP's `img-src`).

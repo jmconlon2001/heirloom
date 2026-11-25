@@ -69,7 +69,8 @@ public sealed class LoginFlowTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal("/", signIn.Headers.Location?.OriginalString);
 
         var home = await browser.GetStringAsync("/");
-        Assert.Contains("Welcome, Jacob Admin", home);
+        Assert.Contains("Hello, Jacob", home);
+        Assert.Contains("Signed in as <strong>Jacob Admin</strong>", home);
         Assert.Contains("Sign out", home);
     }
 

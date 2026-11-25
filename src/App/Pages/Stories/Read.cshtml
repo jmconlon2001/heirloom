@@ -1,0 +1,64 @@
+@page "/stories/{id:guid}"
+@model FamilyMemories.Pages.Stories.ReadModel
+@{
+    var m = Model.Memory;
+    ViewData["Title"] = string.IsNullOrWhiteSpace(m.Title) ? "A story" : m.Title;
+    var when = m.When.Format();
+}
+<article class="story">
+    <header>
+        @if (m.Prompt is not null)
+        {
+            <p class="eyebrow">@m.Prompt.Question</p>
+        }
+        <h1>@(string.IsNullOrWhiteSpace(m.Title) ? "A story" : m.Title)</h1>
+        <p class="byline">
+            Told by @m.Storyteller!.DisplayName@(m.WrittenBy is not null ? $" · written by {m.WrittenBy.DisplayName}" : "")
+        </p>
+        @if (when.Length > 0 || m.Place is not null)
+        {
+            <p class="when-place">@string.Join(" · ", new[] { when, m.Place }.Where(x => !string.IsNullOrEmpty(x)))</p>
+        }
+        @if (m.Status != MemoryStatus.Complete)
+        {
+            <p class="notice">This story isn't finished yet.</p>
+        }
+    </header>
+
+    <div class="story-body">
+        @foreach (var paragraph in Model.Paragraphs)
+        {
+            @* Each line is HTML-encoded before joining with <br>, so this is safe. *@
+            <p>@Html.Raw(string.Join("<br>", paragraph.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
+        }
+    </div>
+
+    @if (Model.Items.Count > 0)
+    {
+        <ul class="gallery">
+            @foreach (var a in Model.Items)
+            {
+                <li>
+                    <figure>
+                        <partial name="_AttachmentPreview" model="a" />
+                        @if (!string.IsNullOrWhiteSpace(a.Caption) && !(a.IsVoiceRecording && a.Caption == "Voice recording"))
+                        {
+                            <figcaption>@a.Caption</figcaption>
+                        }
+                    </figure>
+                </li>
+            }
+        </ul>
+    }
+</article>
+
+<div class="button-row">
+    @if (Model.CanEdit)
+    {
+        <a class="button button-primary" href="/stories/@m.Id/write">Add to this story</a>
+    }
+    @if (User.IsAdmin())
+    {
+        <a class="button button-secondary" href="/admin/stories/@m.Id/history">Earlier versions</a>
+    }
+</div>

@@ -10,7 +10,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 {
     public const string Image = "postgres:17.12-trixie";
 
-    private readonly PostgreSqlContainer container = new PostgreSqlBuilder(Image).Build();
+    private readonly PostgreSqlContainer container = new PostgreSqlBuilder(Image)
+        .WithCommand("-c", "max_connections=500")
+        .Build();
 
     public async ValueTask InitializeAsync() => await container.StartAsync();
 
@@ -23,6 +25,12 @@ public sealed class PostgresFixture : IAsyncLifetime
         await conn.OpenAsync();
         await using var cmd = new NpgsqlCommand($"CREATE DATABASE {name}", conn);
         await cmd.ExecuteNonQueryAsync();
-        return new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = name }.ConnectionString;
+        return new NpgsqlConnectionStringBuilder(container.GetConnectionString()) 
+        {
+            Database = name,
+            // Many test classes run in parallel, each with its own database and pool.
+            MaxPoolSize = 20,
+            ConnectionIdleLifetime = 15,
+        }.ConnectionString;
     }
 }
