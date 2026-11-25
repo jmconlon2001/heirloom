@@ -14,7 +14,9 @@ public static class StoryApi
 {
     public sealed record WhenDto(int? Year, int? Month, int? Day, bool Circa, int? Decade, string? Label);
     public sealed record AutosaveRequest(string? Title, string? Body, string? Place, WhenDto? When, int? Revision,
-        Dictionary<Guid, string?>? Captions = null);
+        Dictionary<Guid, string?>? Captions = null,
+        Visibility? Visibility = null, List<Guid>? SharedWith = null,
+        List<Guid>? PeopleIds = null, Dictionary<Guid, List<Guid>>? PhotoPeople = null);
     public sealed record StartUploadRequest(string? FileName, long Size, bool Voice);
     public sealed record OrderRequest(List<Guid> Ids);
 
@@ -23,7 +25,8 @@ public static class StoryApi
         var api = app.MapGroup("/api").RequireAuthorization().AddEndpointFilter(ValidateAntiforgery);
 
         api.MapPost("/memories/{id:guid}/autosave", async (Guid id, AutosaveRequest req, HttpContext http,
-            AppDbContext db, StoryAccess access, MemoryService memories, AttachmentService attachments, TimeProvider clock) =>
+            AppDbContext db, StoryAccess access, MemoryService memories, AttachmentService attachments,
+            FamilyMemories.Family.SharingService sharing, FamilyMemories.Family.PeopleService people, TimeProvider clock) =>
         {
             var memory = await db.Memories.AsNoTracking().SingleOrDefaultAsync(m => m.Id == id);
             if (memory is null || !await access.CanEditAsync(http.User, memory)) return Results.NotFound();
@@ -40,6 +43,25 @@ public static class StoryApi
                 foreach (var (attachmentId, caption) in req.Captions)
                     if (current.TryGetValue(attachmentId, out var old) && (old ?? "") != (caption?.Trim() ?? ""))
                         await attachments.SetCaptionAsync(id, attachmentId, caption);
+            }
+            if (result.Outcome is SaveOutcome.Saved or SaveOutcome.Unchanged)
+            {
+                if (req.Visibility is { } visibility) await sharing.SetVisibilityAsync(id, visibility, req.SharedWith ?? []);
+                if (req.PeopleIds is { } peopleIds)
+                {
+                    if (memory.AboutPersonId is { } aboutId && !peopleIds.Contains(aboutId)) peopleIds.Add(aboutId);
+                    await people.SetMemoryPeopleAsync(id, peopleIds);
+                }
+                if (req.PhotoPeople is { Count: > 0 })
+                {
+                    var mine = await db.Attachments.Where(a => a.MemoryId == id).Select(a => a.Id).ToListAsync();
+                    foreach (var (attachmentId, wanted) in req.PhotoPeople.Where(p => mine.Contains(p.Key)))
+                    {
+                        var current = await db.AttachmentPeople.Where(x => x.AttachmentId == attachmentId).Select(x => x.PersonId).ToListAsync();
+                        foreach (var pid in current.Except(wanted)) await people.TagPhotoAsync(attachmentId, pid, false);
+                        foreach (var pid in wanted.Except(current)) await people.TagPhotoAsync(attachmentId, pid, true);
+                    }
+                }
             }
             return result.Outcome switch
             {
@@ -94,6 +116,33 @@ public static class StoryApi
             return Results.Ok(AttachmentJson(a));
         });
 
+        api.MapGet("/tree", async (HttpContext http, AppDbContext db) =>
+        {
+            var isAdmin = http.User.IsAdmin();
+            var people = await db.People.AsNoTracking().ToListAsync();
+            var parents = await db.ParentChildren.AsNoTracking().ToListAsync();
+            var partners = await db.Partnerships.AsNoTracking().ToListAsync();
+            return Results.Ok(people.Select(p => new
+            {
+                id = p.Id.ToString(),
+                data = new
+                {
+                    gender = p.Sex == Sex.Female ? "F" : "M", // the layout needs one of the two
+                    name = p.DisplayName,
+                    years = FamilyMemories.Family.PeopleService.LifeSpan(p, isAdmin) is { Length: > 0 } span
+                        ? span.Replace("Born ", "b. ") : "",
+                    avatar = p.PhotoAttachmentId is { } ph ? $"/media/{ph}/thumb" : "",
+                },
+                rels = new
+                {
+                    parents = parents.Where(x => x.ChildId == p.Id).Select(x => x.ParentId.ToString()).ToList(),
+                    spouses = partners.Where(x => x.Person1Id == p.Id || x.Person2Id == p.Id)
+                        .Select(x => (x.Person1Id == p.Id ? x.Person2Id : x.Person1Id).ToString()).ToList(),
+                    children = parents.Where(x => x.ParentId == p.Id).Select(x => x.ChildId.ToString()).ToList(),
+                },
+            }));
+        });
+
         api.MapPost("/memories/{id:guid}/attachments/order", async (Guid id, OrderRequest req, HttpContext http,
             AppDbContext db, StoryAccess access, AttachmentService attachments) =>
         {
@@ -142,6 +191,24 @@ public static class StoryApi
 
 public static class MediaEndpoints
 {
+    /// <summary>Photos and recordings of a story opened through a special link (checked against the link, its passcode and its story).</summary>
+    public static void MapSharedMediaEndpoints(this IEndpointRouteBuilder app) =>
+        app.MapGet("/s/{token}/media/{id:guid}/{variant}", async (string token, Guid id, string variant, HttpContext http,
+            AppDbContext db, FamilyMemories.Family.SharingService sharing, MediaStorage storage) =>
+        {
+            if (!Enum.TryParse<MediaVariant>(variant, ignoreCase: true, out var v)) return Results.NotFound();
+            var resolution = await sharing.ResolveAsync(token);
+            if (!resolution.Ok || !sharing.IsUnlocked(resolution.Share!, http.Request.Cookies[sharing.UnlockCookieName(resolution.Share!)]))
+                return Results.NotFound();
+            var a = await db.Attachments.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.MemoryId == resolution.Share!.MemoryId && x.RemovedAt == null);
+            if (a is null) return Results.NotFound();
+            var path = storage.PathFor(a, v);
+            if (!File.Exists(path)) return Results.NotFound();
+            http.Response.Headers.CacheControl = "private, no-store";
+            http.Response.Headers["X-Robots-Tag"] = "noindex";
+            return Results.File(path, MediaStorage.ContentTypeFor(a, v), enableRangeProcessing: true);
+        });
+
     /// <summary>Serves originals and derivatives, only to people allowed to see the story. Supports range requests (Safari audio/video).</summary>
     public static void MapMediaEndpoints(this IEndpointRouteBuilder app) =>
         app.MapGet("/media/{id:guid}/{variant}", async (Guid id, string variant, HttpContext http,

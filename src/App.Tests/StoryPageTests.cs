@@ -14,6 +14,8 @@ public sealed class StoryPageTests(PostgresFixture postgres) : IAsyncLifetime
     public ValueTask DisposeAsync() => app.DisposeAsync();
 
     private static string Decode(string html) => WebUtility.HtmlDecode(html);
+    /// <summary>The page's visible text (tags removed), for checking wording that spans links.</summary>
+    private static string Text(string html) => System.Text.RegularExpressions.Regex.Replace(Decode(html), "<[^>]+>", "");
 
     private static MultipartFormDataContent Form(string pageHtml, params (string Key, string Value)[] fields)
     {
@@ -91,7 +93,7 @@ public sealed class StoryPageTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Contains("Answer this question", done); // the next one, no pressure
 
         var read = Decode(await browser.Http.GetStringAsync($"/stories/{memoryId}"));
-        Assert.Contains("Told by Rose", read);
+        Assert.Contains("Told by Rose", Text(read));
         Assert.Contains("around 1940 · Akron, Ohio", read);
         Assert.Contains("<p>I was born on a farm.</p>", read);
         Assert.Contains("<p>It was cold.</p>", read);
@@ -224,7 +226,7 @@ public sealed class StoryPageTests(PostgresFixture postgres) : IAsyncLifetime
         var memory = await app.WithDbAsync(db => db.Memories.SingleAsync(m => m.Id == memoryId));
         Assert.Equal(rose.Id, memory.StorytellerId);
         Assert.Equal(lily.Id, memory.WrittenById);
-        Assert.Contains("Told by Grandma Rose · written by Lily", Decode(await browser.Http.GetStringAsync($"/stories/{memoryId}")));
+        Assert.Contains("Told by Grandma Rose · written by Lily", Text(await browser.Http.GetStringAsync($"/stories/{memoryId}")));
     }
 }
 

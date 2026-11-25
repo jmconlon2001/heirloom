@@ -235,6 +235,21 @@ namespace FamilyMemories.Data.Migrations
                     b.ToTable("Attachments");
                 });
 
+            modelBuilder.Entity("FamilyMemories.Data.AttachmentPerson", b =>
+                {
+                    b.Property<Guid>("AttachmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("AttachmentId", "PersonId");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("AttachmentPeople");
+                });
+
             modelBuilder.Entity("FamilyMemories.Data.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -353,6 +368,56 @@ namespace FamilyMemories.Data.Migrations
                     b.ToTable("Chapters");
                 });
 
+            modelBuilder.Entity("FamilyMemories.Data.LinkShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MemoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PasscodeHash")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("ViewCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemoryId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("LinkShares");
+                });
+
             modelBuilder.Entity("FamilyMemories.Data.MagicLinkToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -405,6 +470,9 @@ namespace FamilyMemories.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AboutPersonId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Body")
@@ -470,6 +538,8 @@ namespace FamilyMemories.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AboutPersonId");
+
                     b.HasIndex("PromptId");
 
                     b.HasIndex("WrittenById");
@@ -479,6 +549,105 @@ namespace FamilyMemories.Data.Migrations
                         .HasFilter("\"PromptId\" IS NOT NULL");
 
                     b.ToTable("Memories");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MemoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MemoryId", "CreatedAt");
+
+                    b.ToTable("Comments");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryPerson", b =>
+                {
+                    b.Property<Guid>("MemoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("MemoryId", "PersonId");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("MemoryPeople");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryReaction", b =>
+                {
+                    b.Property<Guid>("MemoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("MemoryId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Reactions");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryRead", b =>
+                {
+                    b.Property<Guid>("MemoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("FirstReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("MemoryId", "UserId");
+
+                    b.ToTable("Reads");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryShare", b =>
+                {
+                    b.Property<Guid>("MemoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("MemoryId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("MemoryShares");
                 });
 
             modelBuilder.Entity("FamilyMemories.Data.MemoryVersion", b =>
@@ -548,6 +717,148 @@ namespace FamilyMemories.Data.Migrations
                     b.ToTable("MemoryVersions");
                 });
 
+            modelBuilder.Entity("FamilyMemories.Data.ParentChild", b =>
+                {
+                    b.Property<Guid>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChildId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ParentId", "ChildId");
+
+                    b.HasIndex("ChildId");
+
+                    b.ToTable("ParentChildren");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.Partnership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("EndYear")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("Person1Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Person2Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("StartYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Person2Id");
+
+                    b.HasIndex("Person1Id", "Person2Id")
+                        .IsUnique();
+
+                    b.ToTable("Partnerships");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.Person", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Bio")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<bool>("BirthCirca")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("BirthDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("BirthMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("BirthPlace")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("BirthSurname")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("BirthYear")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("DeathCirca")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("DeathDay")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DeathMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DeathPlace")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int?>("DeathYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GedcomId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("GivenNames")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsLiving")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("LinkedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Nickname")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("PhotoAttachmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Sex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Surname")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LinkedUserId")
+                        .IsUnique()
+                        .HasFilter("\"LinkedUserId\" IS NOT NULL");
+
+                    b.HasIndex("PhotoAttachmentId");
+
+                    b.ToTable("People");
+                });
+
             modelBuilder.Entity("FamilyMemories.Data.Prompt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -566,6 +877,9 @@ namespace FamilyMemories.Data.Migrations
                     b.Property<bool>("EditedByAdmin")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid?>("FollowUpOfMemoryId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ForUserId")
                         .HasColumnType("uuid");
 
@@ -582,6 +896,9 @@ namespace FamilyMemories.Data.Migrations
                     b.Property<string>("Key")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("NotifiedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Question")
                         .IsRequired()
@@ -874,6 +1191,36 @@ namespace FamilyMemories.Data.Migrations
                     b.Navigation("Memory");
                 });
 
+            modelBuilder.Entity("FamilyMemories.Data.AttachmentPerson", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Attachment", "Attachment")
+                        .WithMany()
+                        .HasForeignKey("AttachmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FamilyMemories.Data.Person", "Person")
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attachment");
+
+                    b.Navigation("Person");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.LinkShare", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Memory", "Memory")
+                        .WithMany()
+                        .HasForeignKey("MemoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Memory");
+                });
+
             modelBuilder.Entity("FamilyMemories.Data.MagicLinkToken", b =>
                 {
                     b.HasOne("FamilyMemories.Data.AppUser", "User")
@@ -887,6 +1234,11 @@ namespace FamilyMemories.Data.Migrations
 
             modelBuilder.Entity("FamilyMemories.Data.Memory", b =>
                 {
+                    b.HasOne("FamilyMemories.Data.Person", "AboutPerson")
+                        .WithMany()
+                        .HasForeignKey("AboutPersonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FamilyMemories.Data.Prompt", "Prompt")
                         .WithMany()
                         .HasForeignKey("PromptId")
@@ -903,11 +1255,92 @@ namespace FamilyMemories.Data.Migrations
                         .HasForeignKey("WrittenById")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.Navigation("AboutPerson");
+
                     b.Navigation("Prompt");
 
                     b.Navigation("Storyteller");
 
                     b.Navigation("WrittenBy");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryComment", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Memory", null)
+                        .WithMany()
+                        .HasForeignKey("MemoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FamilyMemories.Data.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryPerson", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Memory", "Memory")
+                        .WithMany()
+                        .HasForeignKey("MemoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FamilyMemories.Data.Person", "Person")
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Memory");
+
+                    b.Navigation("Person");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryReaction", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Memory", null)
+                        .WithMany()
+                        .HasForeignKey("MemoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FamilyMemories.Data.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryRead", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Memory", null)
+                        .WithMany()
+                        .HasForeignKey("MemoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.MemoryShare", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Memory", null)
+                        .WithMany()
+                        .HasForeignKey("MemoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FamilyMemories.Data.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FamilyMemories.Data.MemoryVersion", b =>
@@ -927,6 +1360,61 @@ namespace FamilyMemories.Data.Migrations
                     b.Navigation("Memory");
 
                     b.Navigation("SavedBy");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.ParentChild", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Person", "Child")
+                        .WithMany()
+                        .HasForeignKey("ChildId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FamilyMemories.Data.Person", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Child");
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.Partnership", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.Person", "Person1")
+                        .WithMany()
+                        .HasForeignKey("Person1Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FamilyMemories.Data.Person", "Person2")
+                        .WithMany()
+                        .HasForeignKey("Person2Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Person1");
+
+                    b.Navigation("Person2");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.Person", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.AppUser", "LinkedUser")
+                        .WithMany()
+                        .HasForeignKey("LinkedUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FamilyMemories.Data.Attachment", "PhotoAttachment")
+                        .WithMany()
+                        .HasForeignKey("PhotoAttachmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("LinkedUser");
+
+                    b.Navigation("PhotoAttachment");
                 });
 
             modelBuilder.Entity("FamilyMemories.Data.Prompt", b =>

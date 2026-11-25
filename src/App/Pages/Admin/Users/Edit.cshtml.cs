@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyMemories.Pages.Admin.Users;
 
-public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserAdminService admin, TimeProvider clock) : PageModel
+public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserAdminService admin, AuditLog audit, TimeProvider clock) : PageModel
 {
     public AppUser Person { get; private set; } = null!;
     [BindProperty] public UserForm Form { get; set; } = new();
@@ -99,6 +99,16 @@ public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserA
     {
         var result = await admin.SetPausedAsync(id, paused, User.UserId());
         return Done(id, result.Succeeded ? (paused ? "Account paused." : "Account unpaused.") : result.Error!);
+    }
+
+    public async Task<IActionResult> OnPostViewAsAsync(Guid id)
+    {
+        var person = await users.FindByIdAsync(id.ToString());
+        if (person is null) return NotFound();
+        if (id == User.UserId()) return Done(id, "That's you already.");
+        await audit.WriteAsync("user.view-as", $"Started viewing the site as {person.DisplayName}", "user", id);
+        FamilyMemories.Admin.ViewAs.Start(HttpContext, User.UserId(), id);
+        return LocalRedirect("/");
     }
 
     private IActionResult Done(Guid id, string message)

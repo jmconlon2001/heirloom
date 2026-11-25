@@ -1,0 +1,39 @@
+@page "/tree"
+@model FamilyMemories.Pages.TreeModel
+@{
+    ViewData["Title"] = "Family tree";
+    ViewData["TreePage"] = true;
+}
+<h1>Family tree</h1>
+<partial name="_Flash" />
+@if (Model.Focus is null)
+{
+    <p class="lead">The family tree is empty so far.</p>
+    <p><a class="button button-primary" href="/people/new">Add the first person</a></p>
+}
+else
+{
+    <p>Tap a person to put them in the middle. Use the buttons to make the tree bigger or smaller.</p>
+    <div class="button-row tree-controls">
+        <button type="button" class="button button-secondary" data-zoom="1.3">Zoom in</button>
+        <button type="button" class="button button-secondary" data-zoom="0.77">Zoom out</button>
+        <a class="button button-quiet" href="/people/@Model.Focus.Person.Id" data-open-person>Open @Model.Focus.Person.DisplayName's page</a>
+    </div>
+    <div id="family-chart" class="f3 tree-canvas" data-tree data-focus="@Model.Focus.Person.Id" data-admin="@(User.IsAdmin() ? "true" : "false")"
+         role="img" aria-label="Family tree diagram centred on @Model.Focus.Person.DisplayName. The same family is listed below."></div>
+
+    <section aria-labelledby="close-heading" class="tree-list">
+        <h2 id="close-heading">@Model.Focus.Person.DisplayName's close family</h2>
+        <partial name="People/_KinList" model="Model.Focus" />
+        <p class="muted small">Choose another person to centre the tree on them:</p>
+        <ul class="link-list">
+            @foreach (var x in Model.Focus.Parents.Concat(Model.Focus.Partners.Select(p => p.Partner)).Concat(Model.Focus.Children).Concat(Model.Focus.Siblings).DistinctBy(x => x.Id))
+            {
+                <li><a href="/tree?focus=@x.Id">Centre on @x.DisplayName</a></li>
+            }
+        </ul>
+    </section>
+    <script src="~/lib/d3/d3.min.js" asp-append-version="true"></script>
+    <script src="~/lib/family-chart/family-chart.min.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/tree.js" asp-append-version="true"></script>
+}

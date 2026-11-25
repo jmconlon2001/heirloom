@@ -42,9 +42,15 @@ public sealed class MemoryService(AppDbContext db, AppOptions options, AuditLog 
         return memory;
     }
 
-    public async Task<Memory> CreateFreeFormAsync(Guid storytellerId, Guid writerId)
+    public async Task<Memory> CreateFreeFormAsync(Guid storytellerId, Guid writerId, Guid? aboutPersonId = null)
     {
         var memory = NewMemory(storytellerId, writerId, "");
+        if (aboutPersonId is { } about && await db.People.FindAsync(about) is { } person)
+        {
+            memory.AboutPersonId = about;
+            memory.Title = $"About {person.DisplayName}";
+            db.MemoryPeople.Add(new MemoryPerson { MemoryId = memory.Id, PersonId = about });
+        }
         db.Memories.Add(memory);
         await db.SaveChangesAsync();
         return memory;

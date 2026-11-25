@@ -1,0 +1,123 @@
+@page "/people/{id}/edit"
+@model FamilyMemories.Pages.People.EditModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Add a person" : $"Edit {Model.Person?.DisplayName}";
+    var months = System.Globalization.CultureInfo.GetCultureInfo("en-US").DateTimeFormat.MonthNames.Take(12).ToArray();
+}
+<h1>@ViewData["Title"]</h1>
+<partial name="_Flash" />
+@if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+
+<form method="post" asp-page-handler="Save" class="stack">
+    <div class="field-row">
+        <div class="field"><label asp-for="GivenNames">First and middle names</label><input asp-for="GivenNames" type="text" maxlength="200" autocomplete="off"></div>
+        <div class="field"><label asp-for="Surname">Last name</label><input asp-for="Surname" type="text" maxlength="200" autocomplete="off"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label asp-for="BirthSurname">Last name at birth (maiden name)</label><input asp-for="BirthSurname" type="text" maxlength="200" autocomplete="off"></div>
+        <div class="field"><label asp-for="Nickname">Nickname</label><input asp-for="Nickname" type="text" maxlength="100" autocomplete="off" placeholder="Grandma Rose"></div>
+    </div>
+    <div class="field">
+        <label asp-for="Sex">Sex (optional)</label>
+        <select asp-for="Sex">
+            <option value="Unknown">Not given</option><option value="Female">Female</option><option value="Male">Male</option><option value="Other">Other</option>
+        </select>
+    </div>
+    <fieldset>
+        <legend>Born</legend>
+        <div class="field-row">
+            <div class="field"><label asp-for="BirthYear">Year</label><input asp-for="BirthYear" type="text" inputmode="numeric" maxlength="4" class="input-short"></div>
+            <div class="field"><label asp-for="BirthMonth">Month</label><select asp-for="BirthMonth"><option value="">Not sure</option>@for (var m = 1; m <= 12; m++) { <option value="@m">@months[m - 1]</option> }</select></div>
+            <div class="field"><label asp-for="BirthDay">Day</label><input asp-for="BirthDay" type="text" inputmode="numeric" maxlength="2" class="input-short"></div>
+        </div>
+        <div class="checkbox"><input asp-for="BirthCirca" type="checkbox"><label asp-for="BirthCirca">Not sure of the exact year</label></div>
+        <div class="field"><label asp-for="BirthPlace">Where</label><input asp-for="BirthPlace" type="text" maxlength="300"></div>
+    </fieldset>
+    <fieldset>
+        <legend>Living or died</legend>
+        <div class="radio-option"><input type="radio" id="living-yes" name="IsLiving" value="true" @(Model.IsLiving ? "checked" : "")><label for="living-yes">Living</label></div>
+        <div class="radio-option"><input type="radio" id="living-no" name="IsLiving" value="false" @(!Model.IsLiving ? "checked" : "")><label for="living-no">Has died</label></div>
+        <div class="field-row">
+            <div class="field"><label asp-for="DeathYear">Year died</label><input asp-for="DeathYear" type="text" inputmode="numeric" maxlength="4" class="input-short"></div>
+            <div class="field"><label asp-for="DeathPlace">Where</label><input asp-for="DeathPlace" type="text" maxlength="300"></div>
+        </div>
+    </fieldset>
+    <div class="field"><label asp-for="Bio">A few words about them</label><textarea asp-for="Bio" rows="4" maxlength="4000"></textarea></div>
+    @if (User.IsAdmin())
+    {
+        <div class="field">
+            <label asp-for="LinkedUserId">Signs in as (so their stories show here)</label>
+            <select asp-for="LinkedUserId">
+                <option value="">Nobody</option>
+                @foreach (var u in Model.Users) { <option value="@u.Id">@u.DisplayName (@u.Email)</option> }
+            </select>
+        </div>
+    }
+    @if (Model.PhotoChoices.Count > 0)
+    {
+        <fieldset>
+            <legend>Profile photo</legend>
+            <ul class="photo-choices">
+                <li><input type="radio" id="photo-none" name="PhotoAttachmentId" value="" @(Model.PhotoAttachmentId is null ? "checked" : "")><label for="photo-none">No photo</label></li>
+                @foreach (var a in Model.PhotoChoices)
+                {
+                    <li>
+                        <input type="radio" id="photo-@a.Id" name="PhotoAttachmentId" value="@a.Id" @(Model.PhotoAttachmentId == a.Id ? "checked" : "")>
+                        <label for="photo-@a.Id"><img src="/media/@a.Id/thumb" alt="@(a.Caption ?? "Photo")" width="120" height="120"></label>
+                    </li>
+                }
+            </ul>
+        </fieldset>
+    }
+    <button type="submit" class="button button-primary button-large">Save</button>
+</form>
+
+@if (!Model.IsNew && Model.Kin is not null)
+{
+    <section aria-labelledby="rel-heading">
+        <h2 id="rel-heading">Family connections</h2>
+        <partial name="_KinList" model="Model.Kin" />
+        <form method="post" asp-page-handler="Relate" class="stack relate-form">
+            <div class="field">
+                <label for="Relation">Add a connection: @Model.Person!.GivenNames's…</label>
+                <select id="Relation" name="Relation">
+                    <option value="parent">Parent</option>
+                    <option value="adoptive-parent">Adoptive parent</option>
+                    <option value="step-parent">Step-parent</option>
+                    <option value="child">Child</option>
+                    <option value="spouse">Husband or wife</option>
+                    <option value="partner">Partner</option>
+                    <option value="ex">Former husband or wife</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="OtherId">is</label>
+                <select id="OtherId" name="OtherId">
+                    @foreach (var o in Model.Others) { <option value="@o.Id">@o.DisplayName@(o.BirthYear is { } y ? $" (b. {y})" : "")</option> }
+                </select>
+            </div>
+            <button type="submit" class="button button-secondary">Add connection</button>
+        </form>
+        @if (Model.Kin.Parents.Count + Model.Kin.Children.Count + Model.Kin.Partners.Count > 0)
+        {
+            <form method="post" asp-page-handler="Unrelate" class="stack">
+                <div class="field">
+                    <label for="RemoveId">Remove a connection</label>
+                    <select id="RemoveId" name="RemoveId">
+                        @foreach (var x in Model.Kin.Parents) { <option value="parent:@x.Id">Parent: @x.DisplayName</option> }
+                        @foreach (var x in Model.Kin.Children) { <option value="child:@x.Id">Child: @x.DisplayName</option> }
+                        @foreach (var (x, _) in Model.Kin.Partners) { <option value="partner:@x.Id">Partner: @x.DisplayName</option> }
+                    </select>
+                </div>
+                <button type="submit" class="button button-quiet">Remove connection</button>
+            </form>
+        }
+    </section>
+    @if (User.IsAdmin())
+    {
+        <form method="post" asp-page-handler="Delete" class="danger-zone">
+            <p>Remove @Model.Person!.DisplayName from the family tree? Stories stay; they just won't be linked to this person.</p>
+            <button type="submit" class="button button-quiet">Remove from the tree</button>
+        </form>
+    }
+}

@@ -16,6 +16,9 @@
     <form method="post" action="/admin/users/@u.Id/login-card">
         <button type="submit" class="button button-secondary">Print a login card</button>
     </form>
+    <form method="post" asp-page-handler="ViewAs">
+        <button type="submit" class="button button-secondary">See the site as @u.DisplayName</button>
+    </form>
     <form method="post" asp-page-handler="Invite">
         <button type="submit" class="button button-secondary">Email a new sign-in invitation</button>
     </form>

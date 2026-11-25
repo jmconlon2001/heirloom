@@ -1,0 +1,67 @@
+@page "/s/{token}"
+@model FamilyMemories.Pages.Share.ViewModel
+@{
+    ViewData["Title"] = Model.Memory?.Title ?? "A family story";
+    ViewData["MediaBase"] = $"/s/{Model.Token}/media";
+}
+@if (Model.Failure != FamilyMemories.Family.LinkFailure.None)
+{
+    <h1>This link isn't working</h1>
+    <p class="lead">It may have expired or been turned off. Please ask the person who sent it for a new one.</p>
+}
+else if (Model.NeedsPasscode)
+{
+    <h1>A family story</h1>
+    <p class="lead">This story is protected with a passcode. The person who sent you the link can tell you what it is.</p>
+    <form method="post" class="stack">
+        @if (Model.WrongPasscode)
+        {
+            <p class="field-error" role="alert">That passcode isn't right. Please try again.</p>
+        }
+        <div class="field">
+            <label for="Passcode">Passcode</label>
+            <input id="Passcode" name="Passcode" type="text" autocomplete="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <button type="submit" class="button button-primary button-large">Show me the story</button>
+    </form>
+}
+else
+{
+    var m = Model.Memory!;
+    var when = m.When.Format();
+    <article class="story">
+        <header>
+            @if (m.Prompt is not null)
+            {
+                <p class="eyebrow">@m.Prompt.Question</p>
+            }
+            <h1>@m.Title</h1>
+            <p class="byline">Told by @m.Storyteller!.DisplayName@(m.WrittenBy is not null ? $" · written by {m.WrittenBy.DisplayName}" : "")</p>
+            @if (when.Length > 0 || m.Place is not null)
+            {
+                <p class="when-place">@string.Join(" · ", new[] { when, m.Place }.Where(x => !string.IsNullOrEmpty(x)))</p>
+            }
+        </header>
+        <div class="story-body">
+            @foreach (var paragraph in Model.Paragraphs)
+            {
+                <p>@Html.Raw(string.Join("<br>", paragraph.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
+            }
+        </div>
+        @if (Model.Items.Count > 0)
+        {
+            <ul class="gallery">
+                @foreach (var a in Model.Items)
+                {
+                    <li><figure><partial name="_AttachmentPreview" model="a" />
+                        @if (!string.IsNullOrWhiteSpace(a.Caption) && !(a.IsVoiceRecording && a.Caption == "Voice recording"))
+                        {
+                            <figcaption>@a.Caption</figcaption>
+                        }
+                    </figure></li>
+                }
+            </ul>
+        }
+    </article>
+    <p class="muted">Shared with you from @AppOptions.AppName, a private place where our family keeps its stories.</p>
+}

@@ -20,6 +20,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
     public DbSet<BackupRun> BackupRuns => Set<BackupRun>();
     public DbSet<AppSetting> Settings => Set<AppSetting>();
+    public DbSet<Person> People => Set<Person>();
+    public DbSet<ParentChild> ParentChildren => Set<ParentChild>();
+    public DbSet<Partnership> Partnerships => Set<Partnership>();
+    public DbSet<MemoryPerson> MemoryPeople => Set<MemoryPerson>();
+    public DbSet<AttachmentPerson> AttachmentPeople => Set<AttachmentPerson>();
+    public DbSet<MemoryShare> MemoryShares => Set<MemoryShare>();
+    public DbSet<LinkShare> LinkShares => Set<LinkShare>();
+    public DbSet<MemoryReaction> Reactions => Set<MemoryReaction>();
+    public DbSet<MemoryComment> Comments => Set<MemoryComment>();
+    public DbSet<MemoryRead> Reads => Set<MemoryRead>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -97,6 +107,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(m => m.Revision).IsConcurrencyToken();
             e.HasOne(m => m.Storyteller).WithMany().HasForeignKey(m => m.StorytellerId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(m => m.WrittenBy).WithMany().HasForeignKey(m => m.WrittenById).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(m => m.AboutPerson).WithMany().HasForeignKey(m => m.AboutPersonId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(m => m.Prompt).WithMany().HasForeignKey(m => m.PromptId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -127,6 +138,79 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             e.HasIndex(u => u.UserId);
             e.Property(u => u.FileName).HasMaxLength(300);
+        });
+
+        b.Entity<Person>(e =>
+        {
+            e.Property(p => p.GivenNames).HasMaxLength(200);
+            e.Property(p => p.Surname).HasMaxLength(200);
+            e.Property(p => p.BirthSurname).HasMaxLength(200);
+            e.Property(p => p.Nickname).HasMaxLength(100);
+            e.Property(p => p.BirthPlace).HasMaxLength(300);
+            e.Property(p => p.DeathPlace).HasMaxLength(300);
+            e.Property(p => p.Bio).HasMaxLength(4000);
+            e.Property(p => p.GedcomId).HasMaxLength(50);
+            e.Ignore(p => p.Birth);
+            e.Ignore(p => p.Death);
+            e.HasIndex(p => p.LinkedUserId).IsUnique().HasFilter("\"LinkedUserId\" IS NOT NULL");
+            e.HasOne(p => p.LinkedUser).WithMany().HasForeignKey(p => p.LinkedUserId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(p => p.PhotoAttachment).WithMany().HasForeignKey(p => p.PhotoAttachmentId).OnDelete(DeleteBehavior.SetNull);
+        });
+        b.Entity<ParentChild>(e =>
+        {
+            e.HasKey(x => new { x.ParentId, x.ChildId });
+            e.HasOne(x => x.Parent).WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Child).WithMany().HasForeignKey(x => x.ChildId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<Partnership>(e =>
+        {
+            e.HasOne(x => x.Person1).WithMany().HasForeignKey(x => x.Person1Id).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Person2).WithMany().HasForeignKey(x => x.Person2Id).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.Person1Id, x.Person2Id }).IsUnique();
+        });
+        b.Entity<MemoryPerson>(e =>
+        {
+            e.HasKey(x => new { x.MemoryId, x.PersonId });
+            e.HasOne(x => x.Memory).WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Person).WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<AttachmentPerson>(e =>
+        {
+            e.HasKey(x => new { x.AttachmentId, x.PersonId });
+            e.HasOne(x => x.Attachment).WithMany().HasForeignKey(x => x.AttachmentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Person).WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<MemoryShare>(e =>
+        {
+            e.HasKey(x => new { x.MemoryId, x.UserId });
+            e.HasOne<Memory>().WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<LinkShare>(e =>
+        {
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.Property(x => x.TokenHash).HasMaxLength(32);
+            e.Property(x => x.PasscodeHash).HasMaxLength(200);
+            e.Property(x => x.Label).HasMaxLength(200);
+            e.HasOne(x => x.Memory).WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<MemoryReaction>(e =>
+        {
+            e.HasKey(x => new { x.MemoryId, x.UserId });
+            e.HasOne<Memory>().WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<MemoryComment>(e =>
+        {
+            e.HasIndex(x => new { x.MemoryId, x.CreatedAt });
+            e.Property(x => x.Body).HasMaxLength(2000);
+            e.HasOne<Memory>().WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<MemoryRead>(e =>
+        {
+            e.HasKey(x => new { x.MemoryId, x.UserId });
+            e.HasOne<Memory>().WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<BackupRun>(e =>

@@ -29,7 +29,10 @@ public static class SecurityHeaders
                 h.ContentSecurityPolicy = context.Request.Path.StartsWithSegments("/admin/jobs")
                     ? ContentSecurityPolicy.Replace("script-src 'self'", "script-src 'self' 'unsafe-inline'")
                         .Replace("style-src 'self'", "style-src 'self' 'unsafe-inline'")
-                    : ContentSecurityPolicy;
+                    : context.Request.Path.Equals("/tree", StringComparison.OrdinalIgnoreCase)
+                        // family-chart positions cards with style attributes; still no inline scripts.
+                        ? ContentSecurityPolicy.Replace("style-src 'self'", "style-src 'self'; style-src-attr 'unsafe-inline'")
+                        : ContentSecurityPolicy;
                 h.XContentTypeOptions = "nosniff";
                 h.XFrameOptions = "DENY";
                 h["Referrer-Policy"] = "same-origin";

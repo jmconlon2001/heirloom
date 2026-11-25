@@ -10,11 +10,12 @@ public sealed class NewModel(StoryAccess access, MemoryService memories) : PageM
 {
     public IActionResult OnGet() => LocalRedirect("/");
 
-    public async Task<IActionResult> OnPostAsync(Guid? @for)
+    /// <param name="about">Write a story about this person in the family tree.</param>
+    public async Task<IActionResult> OnPostAsync(Guid? @for, Guid? about)
     {
         var storytellerId = @for ?? User.UserId();
         if (!await access.CanWriteForAsync(User, storytellerId)) return NotFound();
-        var memory = await memories.CreateFreeFormAsync(storytellerId, User.UserId());
+        var memory = await memories.CreateFreeFormAsync(storytellerId, User.UserId(), about);
         return LocalRedirect($"/stories/{memory.Id}/write");
     }
 }

@@ -110,16 +110,24 @@ builder.Services.Configure<Microsoft.AspNetCore.Mvc.CookieTempDataProviderOption
 builder.Services.AddScoped<MagicLinkService>();
 builder.Services.AddScoped<DeviceService>();
 builder.Services.AddHttpContextAccessor();
+// The page scripts send enum names ("AllFamily"), not numbers.
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddScoped<AuditLog>();
 builder.Services.AddScoped<PromptSeeder>();
 builder.Services.AddScoped<StoryPlanService>();
 builder.Services.AddScoped<StoryAccess>();
 builder.Services.AddScoped<MemoryService>();
+builder.Services.AddScoped<LibraryService>();
 builder.Services.AddScoped<UserAdminService>();
 builder.Services.AddSingleton<MediaStorage>();
 builder.Services.AddScoped<AttachmentService>();
 builder.Services.AddScoped<MediaProcessor>();
 builder.Services.AddScoped<AdminAlerts>();
+builder.Services.AddScoped<FamilyMemories.Family.PeopleService>();
+builder.Services.AddScoped<FamilyMemories.Family.SharingService>();
+builder.Services.AddScoped<FamilyMemories.Family.ConversationService>();
+builder.Services.AddScoped<FamilyMemories.Family.GedcomImporter>();
 builder.Services.AddSingleton<MaintenanceMode>();
 builder.Services.AddSingleton<BackupService>();
 builder.Services.AddScoped<BackupJobs>();
@@ -168,9 +176,11 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
     {
+        // Sign-in posts and link passcode attempts, per client IP.
         if (HttpMethods.IsPost(http.Request.Method)
-            && http.Request.Path.StartsWithSegments("/account", StringComparison.OrdinalIgnoreCase)
-            && !http.Request.Path.StartsWithSegments("/account/logout", StringComparison.OrdinalIgnoreCase))
+            && ((http.Request.Path.StartsWithSegments("/account", StringComparison.OrdinalIgnoreCase)
+                 && !http.Request.Path.StartsWithSegments("/account/logout", StringComparison.OrdinalIgnoreCase))
+                || http.Request.Path.StartsWithSegments("/s", StringComparison.OrdinalIgnoreCase)))
         {
             return RateLimitPartition.GetFixedWindowLimiter(
                 http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -192,6 +202,7 @@ builder.Services.AddRazorPages(o =>
     o.Conventions.AllowAnonymousToFolder("/Account");
     o.Conventions.AllowAnonymousToPage("/Error");
     o.Conventions.AllowAnonymousToPage("/Display");
+    o.Conventions.AllowAnonymousToFolder("/Share");
 });
 builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
 
@@ -217,6 +228,7 @@ app.UseMaintenancePage();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseViewAs();
 app.UseAuthorization();
 
 app.MapHealthChecks("/healthz", new HealthCheckOptions { Predicate = _ => false });
@@ -224,6 +236,7 @@ app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = c => c.Tags.
 app.MapRazorPages();
 app.MapStoryApi();
 app.MapMediaEndpoints();
+app.MapSharedMediaEndpoints();
 if (options.JobsEnabled)
 {
     app.MapHangfireDashboard("/admin/jobs", new DashboardOptions

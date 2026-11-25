@@ -19,6 +19,8 @@ public sealed class WriteModel(
     MemoryService memories,
     AttachmentService attachments,
     StoryPlanService plans,
+    FamilyMemories.Family.PeopleService people,
+    FamilyMemories.Family.SharingService sharing,
     TimeProvider clock) : PageModel
 {
     public Memory Memory { get; private set; } = null!;
@@ -37,6 +39,21 @@ public sealed class WriteModel(
     [BindProperty] public int? WhenDecade { get; set; }
     [BindProperty] public string? WhenLabel { get; set; }
     [BindProperty] public Dictionary<Guid, string?> Captions { get; set; } = [];
+    /// <summary>Null when the form didn't include the picker; then the visibility is left as it is.</summary>
+    [BindProperty] public Visibility? Visibility { get; set; }
+    [BindProperty] public List<Guid> SharedWith { get; set; } = [];
+    [BindProperty] public bool PeopleFormPresent { get; set; }
+    [BindProperty] public List<Guid> PeopleIds { get; set; } = [];
+    [BindProperty] public string? AddPerson { get; set; }
+    [BindProperty] public List<Guid> PhotoFormPresent { get; set; } = [];
+    [BindProperty] public Dictionary<Guid, List<Guid>> PhotoPeople { get; set; } = [];
+    [BindProperty] public Dictionary<Guid, string?> PhotoAddPerson { get; set; } = [];
+
+    public List<AppUser> FamilyUsers { get; private set; } = [];
+    public Dictionary<Guid, Guid> UserPhotos { get; private set; } = [];
+    public List<Person> AllPeople { get; private set; } = [];
+    public List<Person> TaggedPeople { get; private set; } = [];
+    public Dictionary<Guid, List<Person>> PhotoTags { get; private set; } = [];
 
     public string? WriterName { get; private set; }
     public int CurrentYear => clock.GetUtcNow().Year;
@@ -48,6 +65,7 @@ public sealed class WriteModel(
             .Include(m => m.Prompt).ThenInclude(p => p!.AskedByUser)
             .Include(m => m.Storyteller)
             .Include(m => m.WrittenBy)
+            .Include(m => m.AboutPerson)
             .AsNoTracking()
             .SingleOrDefaultAsync(m => m.Id == id);
         if (memory is null || !await access.CanEditAsync(User, memory)) return false;
@@ -57,6 +75,15 @@ public sealed class WriteModel(
             .Where(a => a.MemoryId == id && a.RemovedAt == null)
             .OrderBy(a => a.SortOrder).ThenBy(a => a.CreatedAt).ToListAsync();
         WriterName = memory.WrittenBy?.DisplayName ?? (IsProxy ? User.DisplayName() : null);
+
+        FamilyUsers = await db.Users.AsNoTracking().Where(u => u.Id != memory.StorytellerId).OrderBy(u => u.DisplayName).ToListAsync();
+        UserPhotos = await db.People.AsNoTracking().Where(p => p.LinkedUserId != null && p.PhotoAttachmentId != null)
+            .ToDictionaryAsync(p => p.LinkedUserId!.Value, p => p.PhotoAttachmentId!.Value);
+        AllPeople = await db.People.AsNoTracking().OrderBy(p => p.GivenNames).ThenBy(p => p.Surname).ToListAsync();
+        TaggedPeople = await db.MemoryPeople.AsNoTracking().Where(x => x.MemoryId == id).Select(x => x.Person!).OrderBy(p => p.GivenNames).ToListAsync();
+        var itemIds = Items.Select(a => a.Id).ToList();
+        PhotoTags = (await db.AttachmentPeople.AsNoTracking().Where(x => itemIds.Contains(x.AttachmentId)).Include(x => x.Person).ToListAsync())
+            .GroupBy(x => x.AttachmentId).ToDictionary(g => g.Key, g => g.Select(x => x.Person!).ToList());
         return true;
     }
 
@@ -68,6 +95,8 @@ public sealed class WriteModel(
         Place = Memory.Place;
         (WhenYear, WhenMonth, WhenDay, WhenCirca, WhenDecade, WhenLabel) =
             (Memory.WhenYear, Memory.WhenMonth, Memory.WhenDay, Memory.WhenCirca, Memory.WhenDecade, Memory.WhenLabel);
+        Visibility = Memory.Visibility;
+        SharedWith = await db.MemoryShares.Where(x => x.MemoryId == id).Select(x => x.UserId).ToListAsync();
         Response.Headers.CacheControl = "no-store";
         return Page();
     }
@@ -145,6 +174,33 @@ public sealed class WriteModel(
             if (Items.Any(a => a.Id == attachmentId && a.Caption != caption))
                 await attachments.SetCaptionAsync(Memory.Id, attachmentId, caption);
 
+        // Who can read it, and who is in it.
+        if (Visibility is { } visibility) await sharing.SetVisibilityAsync(Memory.Id, visibility, SharedWith);
+        var unknown = new List<string>();
+        if (PeopleFormPresent)
+        {
+            var ids = new List<Guid>(PeopleIds);
+            if (!string.IsNullOrWhiteSpace(AddPerson))
+            {
+                if (await people.FindByNameAsync(AddPerson) is { } found) ids.Add(found.Id);
+                else unknown.Add(AddPerson.Trim());
+            }
+            if (Memory.AboutPersonId is { } aboutId && !ids.Contains(aboutId)) ids.Add(aboutId);
+            await people.SetMemoryPeopleAsync(Memory.Id, ids);
+        }
+        foreach (var attachmentId in PhotoFormPresent.Where(a => Items.Any(i => i.Id == a)))
+        {
+            var wanted = PhotoPeople.GetValueOrDefault(attachmentId) ?? [];
+            if (PhotoAddPerson.GetValueOrDefault(attachmentId) is { Length: > 0 } typed)
+            {
+                if (await people.FindByNameAsync(typed) is { } found) wanted = [.. wanted, found.Id];
+                else unknown.Add(typed.Trim());
+            }
+            var current = PhotoTags.GetValueOrDefault(attachmentId)?.Select(p => p.Id).ToList() ?? [];
+            foreach (var pid in current.Except(wanted)) await people.TagPhotoAsync(attachmentId, pid, false);
+            foreach (var pid in wanted.Except(current)) await people.TagPhotoAsync(attachmentId, pid, true);
+        }
+
         var refused = new List<string>();
         if (Request.HasFormContentType)
         {
@@ -155,7 +211,11 @@ public sealed class WriteModel(
                 if (error != UploadError.None) refused.Add($"{file.FileName} ({UploadMessages.Describe(error)})");
             }
         }
-        return refused.Count == 0 ? null : "Your words are saved. These files couldn't be added: " + string.Join("; ", refused) + ".";
+        var notes = new List<string>();
+        if (unknown.Count > 0)
+            notes.Add($"We couldn't find {string.Join(", ", unknown.Select(n => $"\"{n}\""))} in the family tree. You can add them under Family tree, then tag them here.");
+        if (refused.Count > 0) notes.Add("These files couldn't be added: " + string.Join("; ", refused) + ".");
+        return notes.Count == 0 ? null : "Your words are saved. " + string.Join(" ", notes);
     }
 
     private async Task<IActionResult> NextAsync()

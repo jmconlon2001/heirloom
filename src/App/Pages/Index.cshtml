@@ -97,6 +97,7 @@
             <li><a href="/admin/prompts">Questions and chapters</a></li>
             <li><a href="/admin/prompt-sets">Question sets</a></li>
             <li><a href="/admin/backups">Backups</a></li>
+            <li><a href="/admin/gedcom">Import or export the family tree</a></li>
             <li><a href="/admin/audit">Activity log</a></li>
             @if (AppOptions.JobsEnabled)
             {
@@ -105,7 +106,18 @@
         </ul>
     </section>
 }
-else if (plan is null && Model.WriteFor.Count == 0)
-{
-    <p class="lead">Stories that family members share with you will appear here.</p>
-}
+
+<section aria-labelledby="newest-heading">
+    <h2 id="newest-heading">New in the Family Library</h2>
+    @if (Model.Newest.Count == 0)
+    {
+        <p>Stories that family members share with you will appear here.</p>
+    }
+    else
+    {
+        <ul class="story-cards">
+            @foreach (var card in Model.Newest) { <partial name="Library/_StoryCard" model="card" /> }
+        </ul>
+        <p><a class="button button-secondary" href="/library">See all the family's stories</a></p>
+    }
+</section>

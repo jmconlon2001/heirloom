@@ -1,0 +1,21 @@
+@page "/library/photos"
+@model FamilyMemories.Pages.Library.PhotosModel
+@{
+    ViewData["Title"] = "Photos";
+}
+<h1>Photos</h1>
+<partial name="_LibraryNav" />
+@if (Model.Photos.Count == 0)
+{
+    <p class="lead">No photos have been shared yet.</p>
+}
+<ul class="photo-grid">
+    @foreach (var a in Model.Photos)
+    {
+        <li>
+            <a href="/library/photos/@a.Id">
+                <img src="/media/@a.Id/thumb" alt="@(a.Caption ?? $"Photo from {a.Memory!.Title}")" loading="lazy" width="400" height="400">
+            </a>
+        </li>
+    }
+</ul>

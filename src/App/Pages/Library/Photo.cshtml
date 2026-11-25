@@ -1,0 +1,36 @@
+@page "/library/photos/{id:guid}"
+@model FamilyMemories.Pages.Library.PhotoModel
+@{
+    var a = Model.Photo;
+    ViewData["Title"] = a.Caption ?? "Photo";
+}
+<div class="photo-viewer">
+    <figure>
+        <img src="/media/@a.Id/web" alt="@(a.Caption ?? $"Photo from {a.Memory!.Title}")">
+        @if (a.Caption is not null)
+        {
+            <figcaption>@a.Caption</figcaption>
+        }
+    </figure>
+    @if (Model.People.Count > 0)
+    {
+        <p class="in-photo">In this photo:
+            @for (var i = 0; i < Model.People.Count; i++)
+            {
+                <a href="/people/@Model.People[i].Id">@Model.People[i].DisplayName</a>@(i < Model.People.Count - 1 ? ", " : "")
+            }
+        </p>
+    }
+    <p>From the story <a href="/stories/@a.MemoryId">@a.Memory!.Title</a>.</p>
+    <div class="button-row photo-nav">
+        @if (Model.PreviousId is { } prev)
+        {
+            <a class="button button-secondary" href="/library/photos/@prev">← Previous photo</a>
+        }
+        <a class="button button-quiet" href="/library/photos">All photos</a>
+        @if (Model.NextId is { } next)
+        {
+            <a class="button button-secondary" href="/library/photos/@next">Next photo →</a>
+        }
+    </div>
+</div>

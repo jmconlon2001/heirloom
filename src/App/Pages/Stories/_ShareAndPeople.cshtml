@@ -1,0 +1,81 @@
+@model FamilyMemories.Pages.Stories.WriteModel
+<datalist id="people-names">
+    @foreach (var p in Model.AllPeople)
+    {
+        <option value="@p.DisplayName"></option>
+    }
+</datalist>
+
+<section id="people" class="story-people" aria-labelledby="people-title">
+    <h2 id="people-title">People in this story</h2>
+    <input type="hidden" name="PeopleFormPresent" value="true">
+    @if (Model.Memory.AboutPerson is { } about)
+    {
+        <p>This is a story about <strong>@about.DisplayName</strong>.</p>
+    }
+    @if (Model.TaggedPeople.Count > 0)
+    {
+        <ul class="tag-list">
+            @foreach (var p in Model.TaggedPeople)
+            {
+                <li class="checkbox">
+                    <input type="checkbox" id="person-@p.Id" name="PeopleIds" value="@p.Id" checked data-structural>
+                    <label for="person-@p.Id">@p.DisplayName</label>
+                </li>
+            }
+        </ul>
+        <p class="muted small">Untick someone to take them off this story.</p>
+    }
+    <div class="field-row">
+        <div class="field">
+            <label for="AddPerson">Add someone from the family tree</label>
+            <input id="AddPerson" name="AddPerson" type="text" list="people-names" autocomplete="off" placeholder="Start typing a name">
+        </div>
+        <button type="submit" class="button button-secondary" asp-page-handler="Save" asp-fragment="people">Add</button>
+    </div>
+</section>
+
+<fieldset class="visibility" aria-describedby="admins-can-see">
+    <legend>Who can read this story?</legend>
+    <p id="admins-can-see" class="admins-note">Family admins can always see your stories.</p>
+    @foreach (var (value, label, hint) in new[]
+    {
+        (Visibility.AllFamily, "All the family", "Everyone who signs in to " + AppOptions.AppName + "."),
+        (Visibility.SelectedPeople, "Only certain people", "Choose them below."),
+        (Visibility.Private, "Only me", "Nobody else (except family admins)."),
+        (Visibility.Link, "Anyone I send a special link to", "For relatives who don't sign in. You'll make the link after saving."),
+    })
+    {
+        <div class="radio-option">
+            <input type="radio" id="vis-@value" name="Visibility" value="@value" @(Model.Visibility == value ? "checked" : "") data-structural>
+            <label for="vis-@value"><strong>@label</strong><span class="muted"> @hint</span></label>
+        </div>
+    }
+
+    <div class="share-picker" data-share-picker>
+        <p class="share-picker-title">If "Only certain people", who?</p>
+        <ul class="people-picker">
+            @foreach (var u in Model.FamilyUsers)
+            {
+                <li>
+                    <input type="checkbox" id="share-@u.Id" name="SharedWith" value="@u.Id" @(Model.SharedWith.Contains(u.Id) ? "checked" : "") data-structural>
+                    <label for="share-@u.Id">
+                        @if (Model.UserPhotos.TryGetValue(u.Id, out var photoId))
+                        {
+                            <img src="/media/@photoId/thumb" alt="" width="56" height="56">
+                        }
+                        else
+                        {
+                            <span class="initials" aria-hidden="true">@u.DisplayName[..1]</span>
+                        }
+                        <span>@u.DisplayName</span>
+                    </label>
+                </li>
+            }
+        </ul>
+    </div>
+    @if (Model.Visibility == Visibility.Link)
+    {
+        <p><a class="button button-secondary" href="/stories/@Model.Memory.Id/links">Make or manage special links</a></p>
+    }
+</fieldset>

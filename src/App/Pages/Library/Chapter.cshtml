@@ -1,0 +1,13 @@
+@page "/library/chapters/{id:guid}"
+@model FamilyMemories.Pages.Library.ChapterModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+<h1>@Model.Title</h1>
+<partial name="_LibraryNav" />
+<ul class="story-cards">
+    @foreach (var card in Model.Cards)
+    {
+        <partial name="_StoryCard" model="card" />
+    }
+</ul>

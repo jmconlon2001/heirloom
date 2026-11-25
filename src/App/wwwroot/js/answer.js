@@ -49,7 +49,16 @@ function init(form) {
     for (const input of form.querySelectorAll("[data-caption]")) {
       captions[input.closest("[data-attachment-id]").dataset.attachmentId] = input.value;
     }
+    const checkedValues = (selector) => [...form.querySelectorAll(selector)].filter((i) => i.checked).map((i) => i.value);
+    const photoPeople = {};
+    for (const marker of form.querySelectorAll('input[name="PhotoFormPresent"]')) {
+      photoPeople[marker.value] = checkedValues(`input[name="PhotoPeople[${marker.value}]"]`);
+    }
+    const visibility = form.querySelector('input[name="Visibility"]:checked')?.value;
     return {
+      ...(visibility ? { visibility, sharedWith: checkedValues('input[name="SharedWith"]') } : {}),
+      ...(form.querySelector('input[name="PeopleFormPresent"]') ? { peopleIds: checkedValues('input[name="PeopleIds"]') } : {}),
+      photoPeople,
       title: field("Title") ? value("Title") : null,
       body: value("Body"),
       place: value("Place"),

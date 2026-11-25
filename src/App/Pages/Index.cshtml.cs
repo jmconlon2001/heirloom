@@ -6,8 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyMemories.Pages;
 
-public sealed class IndexModel(AppDbContext db, StoryPlanService plans, StoryAccess access, FamilyMemories.Backup.BackupStatusQuery backups) : PageModel
+public sealed class IndexModel(AppDbContext db, StoryPlanService plans, StoryAccess access, FamilyMemories.Backup.BackupStatusQuery backups, LibraryService library) : PageModel
 {
+    public List<StoryCard> Newest { get; private set; } = [];
     public FamilyMemories.Backup.BackupHealth? Backups { get; private set; }
     public StoryPlan? Plan { get; private set; }
     public string FirstName { get; private set; } = "";
@@ -20,6 +21,7 @@ public sealed class IndexModel(AppDbContext db, StoryPlanService plans, StoryAcc
         FirstName = user.DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? user.DisplayName;
         if (user.PromptSetId is not null) Plan = await plans.GetAsync(me);
         if (User.IsAdmin()) Backups = await backups.GetAsync();
+        Newest = await library.NewestAsync(User, 6);
         WriteFor = [.. (await access.WritableStorytellersAsync(User)).Where(u => u.Id != me)];
     }
 }

@@ -1,0 +1,20 @@
+@page "/library/timeline"
+@model FamilyMemories.Pages.Library.TimelineModel
+@{
+    ViewData["Title"] = "Timeline";
+}
+<h1>Timeline</h1>
+<partial name="_LibraryNav" />
+<p>Stories in the order they happened. Stories without a date are at the end.</p>
+@foreach (var group in Model.Decades)
+{
+    <section aria-labelledby="decade-@group.Key">
+        <h2 id="decade-@group.Key" class="decade">@(group.Key == 0 ? "Not dated yet" : $"The {group.Key}s")</h2>
+        <ul class="story-cards">
+            @foreach (var card in group)
+            {
+                <partial name="_StoryCard" model="card" />
+            }
+        </ul>
+    </section>
+}

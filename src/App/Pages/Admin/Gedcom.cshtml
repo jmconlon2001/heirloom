@@ -1,0 +1,66 @@
+@page "/admin/gedcom"
+@model FamilyMemories.Pages.Admin.GedcomModel
+@{
+    ViewData["Title"] = "Import or export the family tree";
+}
+<h1>Import or export the family tree</h1>
+<partial name="_Flash" />
+<p>GEDCOM is the file format every genealogy program (Ancestry, FamilySearch, MyHeritage, Gramps…) can save and open. Names, dates, places and relationships are imported; sources and citations are not.</p>
+
+<div class="button-row">
+    <a class="button button-secondary" href="/admin/gedcom?handler=Export">Download the family tree (.ged)</a>
+</div>
+
+@if (Model.Preview is null)
+{
+    <h2>Import a GEDCOM file</h2>
+    @if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="stack">
+        <div class="field">
+            <label for="File">Choose a .ged file</label>
+            <input type="file" id="File" name="File" accept=".ged,.gedcom,text/plain">
+        </div>
+        <button type="submit" class="button button-primary">Show me what's in it</button>
+    </form>
+    <p class="muted">Nothing is changed until you've checked the list and pressed Import.</p>
+}
+else
+{
+    var dupes = Model.Preview.Rows.Count(r => r.Match is not null);
+    <h2>Check before importing</h2>
+    <p class="lead">@Model.Preview.Rows.Count people and @Model.Preview.FamilyCount families found. @(dupes == 0 ? "None of them look like people already in the tree." : $"{dupes} look like people already in the tree; they're marked below.")</p>
+    <form method="post" asp-page-handler="Commit">
+        <input type="hidden" name="FileId" value="@Model.Preview.FileId">
+        <div class="table-wrap">
+            <table class="data-table">
+                <caption class="visually-hidden">People in the file</caption>
+                <thead><tr><th scope="col">Person in the file</th><th scope="col">Born – died</th><th scope="col">What to do</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.Preview.Rows)
+                    {
+                        var i = row.Individual;
+                        <tr class="@(row.Match is null ? "" : "is-dupe")">
+                            <th scope="row">@i.DisplayName</th>
+                            <td>@i.Birth.Format()@(i.Deceased ? $" – {i.Death.Format()}" : "")</td>
+                            <td>
+                                <label class="visually-hidden" for="d-@i.Xref.Trim('@')">What to do with @i.DisplayName</label>
+                                <select id="d-@i.Xref.Trim('@')" name="Decisions[@i.Xref]">
+                                    @if (row.Match is { } m)
+                                    {
+                                        <option value="@m.Id" selected>Same person as @m.DisplayName (@row.MatchReason)</option>
+                                    }
+                                    <option value="new">Add as a new person</option>
+                                    <option value="skip">Skip</option>
+                                </select>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="button-row">
+            <button type="submit" class="button button-primary button-large">Import</button>
+            <a class="button button-quiet" href="/admin/gedcom">Cancel</a>
+        </div>
+    </form>
+}

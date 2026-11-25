@@ -1,0 +1,84 @@
+@page "/stories/{id:guid}/links"
+@model FamilyMemories.Pages.Stories.LinksModel
+@{
+    ViewData["Title"] = "Special links";
+}
+<h1>Special links</h1>
+<p class="lead">for "<a href="/stories/@Model.Memory.Id">@Model.Memory.Title</a>"</p>
+<partial name="_Flash" />
+
+@if (Model.Memory.Visibility != Visibility.Link)
+{
+    <p class="notice">Links only work while the story is set to <strong>Anyone I send a special link to</strong>. You can change that on the story's page.</p>
+}
+@if (Model.Memory.Status != MemoryStatus.Complete)
+{
+    <p class="notice">Links start working once the story is finished.</p>
+}
+
+@if (Model.NewLink is not null)
+{
+    <section class="card card-feature" aria-labelledby="new-link">
+        <h2 id="new-link">Your new link</h2>
+        <p>Copy this and send it by email or text message. <strong>It's shown only now</strong>; if you lose it, just make another.</p>
+        <p class="link-box"><a href="@Model.NewLink">@Model.NewLink</a></p>
+        <img src="@Model.NewLinkQr" alt="QR code for the link" width="220" height="220" class="qr">
+        @if (Model.NewLinkHasPasscode)
+        {
+            <p>Remember to tell them the passcode separately.</p>
+        }
+    </section>
+}
+
+<h2>Make a new link</h2>
+<form method="post" asp-page-handler="Create" class="stack">
+    <div class="field">
+        <label for="Label">Who is it for? (just a note for you)</label>
+        <input id="Label" name="Label" type="text" maxlength="200" placeholder="Aunt Mary">
+    </div>
+    <div class="field">
+        <label for="Expires">How long should it work?</label>
+        <select id="Expires" name="Expires">
+            <option value="30">30 days</option>
+            <option value="365">One year</option>
+            <option value="0">Until I turn it off</option>
+        </select>
+    </div>
+    <div class="field">
+        <label for="Passcode">Passcode (optional)</label>
+        <input id="Passcode" name="Passcode" type="text" maxlength="100" autocomplete="off" placeholder="Leave empty for no passcode">
+    </div>
+    <button type="submit" class="button button-primary">Make the link</button>
+</form>
+
+@if (Model.Links.Count > 0)
+{
+    <h2>Links you've made</h2>
+    <ul class="plain-list">
+        @foreach (var l in Model.Links)
+        {
+            <li class="link-row">
+                <strong>@(l.Label ?? "A link")</strong>,
+                made @TimeZoneInfo.ConvertTimeFromUtc(l.CreatedAt, AppOptions.TimeZone).ToString("MMM d, yyyy")
+                @(l.PasscodeHash is null ? "" : "· with passcode")
+                · opened @l.ViewCount @(l.ViewCount == 1 ? "time" : "times")
+                @if (l.RevokedAt is not null)
+                {
+                    <span>· turned off</span>
+                }
+                else if (l.ExpiresAt is { } exp && exp <= DateTime.UtcNow)
+                {
+                    <span>· expired</span>
+                }
+                else
+                {
+                    <span>@(l.ExpiresAt is { } e ? $"· works until {TimeZoneInfo.ConvertTimeFromUtc(e, AppOptions.TimeZone):MMM d, yyyy}" : "· works until turned off")</span>
+                    <form method="post" asp-page-handler="Revoke" class="inline-form">
+                        <input type="hidden" name="shareId" value="@l.Id">
+                        <button type="submit" class="button button-quiet">Turn off this link</button>
+                    </form>
+                }
+            </li>
+        }
+    </ul>
+}

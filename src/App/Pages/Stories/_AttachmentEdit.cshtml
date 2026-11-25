@@ -1,4 +1,4 @@
-@model (FamilyMemories.Data.Attachment Item, bool IsFirst, bool IsLast)
+@model (FamilyMemories.Data.Attachment Item, bool IsFirst, bool IsLast, List<FamilyMemories.Data.Person> Tagged)
 @{
     var a = Model.Item;
 }
@@ -10,6 +10,27 @@
             <input type="text" id="caption-@a.Id" name="Captions[@a.Id]" value="@a.Caption" maxlength="1000"
                    placeholder="Who is in it? Where? When?" autocomplete="off" data-caption>
         </div>
+        @if (a.Kind == FamilyMemories.Data.AttachmentKind.Photo)
+        {
+            <fieldset class="photo-people">
+                <legend>Who's in this photo?</legend>
+                <input type="hidden" name="PhotoFormPresent" value="@a.Id">
+                @foreach (var p in Model.Tagged)
+                {
+                    <div class="checkbox">
+                        <input type="checkbox" id="pp-@a.Id-@p.Id" name="PhotoPeople[@a.Id]" value="@p.Id" checked data-structural>
+                        <label for="pp-@a.Id-@p.Id">@p.DisplayName</label>
+                    </div>
+                }
+                <div class="field-row">
+                    <div class="field">
+                        <label for="pa-@a.Id">Add a person</label>
+                        <input id="pa-@a.Id" name="PhotoAddPerson[@a.Id]" type="text" list="people-names" autocomplete="off" placeholder="Start typing a name">
+                    </div>
+                    <button type="submit" class="button button-secondary" asp-page-handler="Save" asp-fragment="attachment-@a.Id">Add</button>
+                </div>
+            </fieldset>
+        }
         <div class="button-row attachment-buttons">
             @if (!Model.IsFirst)
             {

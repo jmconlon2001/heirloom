@@ -1,0 +1,26 @@
+@model FamilyMemories.Stories.StoryCard
+@{
+    var m = Model.Memory;
+    var when = m.When.Format();
+}
+<li class="story-card">
+    <a href="/stories/@m.Id" class="story-card-link">
+        @if (Model.ThumbAttachmentId is { } thumb)
+        {
+            <img src="/media/@thumb/thumb" alt="" loading="lazy" width="400" height="300">
+        }
+        <span class="story-card-text">
+            <span class="story-card-title">@(string.IsNullOrWhiteSpace(m.Title) ? "A story" : m.Title)</span>
+            <span class="story-card-meta">@Model.StorytellerName@(when.Length > 0 ? $" · {when}" : "")</span>
+            @if (Model.Excerpt.Length > 0)
+            {
+                <span class="story-card-excerpt">@Model.Excerpt</span>
+            }
+            <span class="story-card-extras">
+                @if (Model.Photos > 0) { <span>@Model.Photos @(Model.Photos == 1 ? "photo" : "photos")</span> }
+                @if (Model.Recordings > 0) { <span>@Model.Recordings @(Model.Recordings == 1 ? "recording" : "recordings")</span> }
+                @if (Model.Hearts > 0) { <span>♥ @Model.Hearts</span> }
+            </span>
+        </span>
+    </a>
+</li>

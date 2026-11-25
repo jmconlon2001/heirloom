@@ -164,3 +164,56 @@ The admin home and **Backups** page show the last *good* backup and check, and t
 - Publishes a GitHub Release with `compose.yml` and `family-memories.yml` (the same file, named for OMV), pinned to that version and with no build section, plus `.env.example`, `restore.sh` and a tarball. These are generated from the repo's `compose.yml` by removing the `build:` block.
 
 From a source checkout, `docker compose up --build` still builds locally. The repository is private, so the GHCR package is private too: hosts must `docker login ghcr.io` with a token that has `read:packages`, unless you make the package public.
+
+---
+## Phase 3
+
+### D-035 · One visibility rule set, applied in the query layer
+**Decision:** `StoryAccess.Readable(user)` is the only way pages, APIs, `/media`, the Library, search, person pages and the tree get stories:
+- The storyteller, whoever wrote it down, and helpers: always, including drafts.
+- Anyone else: only once the story is **finished**, and then by visibility. *All family* = every signed-in person; *Selected people* = those ticked; *Private* and *Link* = nobody (Link stories are read through their link).
+- Admins: everything. A view an admin couldn't make under the normal rules writes a `memory.admin-view` audit entry.
+
+Unauthorised requests get 404, not 403, so they don't reveal that a story exists. Every visibility picker says "Family admins can always see your stories."
+
+### D-036 · Admin "view as" swaps the identity, not the rules
+**Decision:** "See the site as Rose" sets a data-protected cookie (admin id + target id). A middleware after authentication replaces `HttpContext.User` with Rose's principal, so every page and query applies Rose's rules with no special cases. It is read-only: any non-GET is refused, except **Stop**, which needs no CSRF check because it can only reduce what the admin is shown. Starting it is audited, and a banner is shown on every page.
+
+### D-037 · Special links: random, hashed, optional passcode, short unlock cookie
+**Decision:** Each link is 192 random bits; only the SHA-256 is stored, and the URL is shown to its creator once (with a QR code). A link works only while the story is finished, its visibility is still *Link*, and the link isn't revoked or expired (30 days / 1 year / until turned off). Optional passcodes are PBKDF2-hashed (Identity's `PasswordHasher`); a correct one sets a 12-hour data-protected cookie scoped to that link's path. Media goes through `/s/{token}/media/…`, checked against the link and its story. Passcode attempts share the sign-in rate limit, and link pages send `noindex`.
+
+### D-038 · "Ask a follow-up" is a one-off prompt
+**Decision:** A follow-up becomes a `Prompt` with `ForUserId` = storyteller, `AskedByUserId` and `FollowUpOfMemoryId`. It appears first in their list as "Lily asked:", and the email goes out on the next reminder (`NotifiedAt`, Phase 4). Hearts toggle; comments are plain text (max 2000). Authors, the storyteller and admins can remove a comment, which is soft-deleted. First reads are recorded per person (`MemoryRead`) for Phase 4's "3 family members read your story".
+
+### D-039 · Anyone in the family can edit the tree; only admins delete or link accounts
+**Decision:** The tree is collaborative: any signed-in person can add and edit people and connections, and every change is audited. Removing a person and linking a person to a sign-in account are admin-only. Adding a parent that would make someone their own ancestor is refused. Living people's birth dates show only the year to non-admins, in the person page, lists and `/api/tree`.
+
+### D-040 · Tagging by name, with explicit "Add" buttons
+**Decision:** "People in this story" and "Who's in this photo?" use a text box with a `<datalist>` of everyone in the tree and an **Add** button, rather than a 100-checkbox list. Existing tags are checkboxes, untick to remove, and those are autosaved. A name that isn't in the tree gets a plain message pointing to Family tree. It works without JavaScript.
+
+### D-041 · family-chart 0.9.0 (MIT) + d3 7.9.0 (ISC), vendored; style attributes allowed on /tree only
+**Decision:**
+- Both libraries live in `wwwroot/lib`; nothing loads from a CDN.
+- family-chart positions cards with `style` attributes, so `/tree` alone adds `style-src-attr 'unsafe-inline'`. Scripts stay `'self'` only.
+- The default dark theme failed WCAG contrast, so it is restyled with light cards and dark text (also in high contrast).
+- **Zoom in / Zoom out** buttons call the library's `manualZoom`, so pinch isn't required.
+- Under the diagram, the same close family is a plain list of links ("Centre on Ann"), for screen readers and anyone who prefers lists.
+
+### D-042 · GEDCOM 5.5.1: names, dates, places, families; nothing else
+**Decision:**
+- **Parser:**
+  - INDI (NAME/GIVN/SURN/NICK, SEX, BIRT, DEAT/BURI, NOTE), FAM (HUSB, WIFE, CHIL, MARR, DIV), and CONC/CONT.
+  - Date qualifiers (ABT, EST, CAL, BEF, AFT, BET…AND, FROM…TO) become "around".
+  - Sources, citations and event notes are ignored (§7).
+- **Import preview:** flags likely duplicates (same first name and surname or maiden name, birth years within 1, or the same GEDCOM id from an earlier import). The admin chooses per person: same as / new / skip. Matching never overwrites what the family typed; it only fills empty fields.
+- **Export:** writes a birth-name record, and one FAM per couple plus one per single or unpartnered parent set.
+
+### D-043 · Family Library search uses PostgreSQL full-text, no extra index
+**Decision:** `to_tsvector('english', title ‖ body ‖ place) @@ websearch_to_tsquery(q)`, plus ILIKE on captions, places and tagged people's names. At family scale (hundreds to a few thousand stories) a GIN index isn't needed; add one if search ever takes over 100 ms.
+
+### D-044 · Test fixtures that run in parallel must not share mutable state
+**Context:** Two flaky e2e failures turned out to be cross-talk between parallel tests:
+- Kestrel bound "localhost" on port 0 with different random ports for IPv4 and IPv6.
+- Playwright's `Devices["…"]` returns a shared object whose `BaseURL` we were mutating.
+
+**Decision:** e2e servers bind `127.0.0.1` only, and device options are copied before use.

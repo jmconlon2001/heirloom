@@ -56,7 +56,7 @@
     }
     else
     {
-        <h1 id="question">Your own story</h1>
+        <h1 id="question">@(Model.Memory.AboutPerson is { } aboutPerson ? $"A story about {aboutPerson.DisplayName}" : "Your own story")</h1>
         <div class="field">
             <label asp-for="Title">What would you like to call this story?</label>
             <input asp-for="Title" type="text" autocomplete="off" maxlength="300">
@@ -111,7 +111,7 @@
             @for (var i = 0; i < Model.Items.Count; i++)
             {
                 var a = Model.Items[i];
-                <partial name="_AttachmentEdit" model="(a, i == 0, i == Model.Items.Count - 1)" />
+                <partial name="_AttachmentEdit" model="(a, i == 0, i == Model.Items.Count - 1, Model.PhotoTags.GetValueOrDefault(a.Id) ?? new List<FamilyMemories.Data.Person>())" />
             }
         </ol>
     </section>
@@ -164,6 +164,8 @@
             <input asp-for="Place" type="text" maxlength="300" placeholder="Town, street, or a place name" autocomplete="off">
         </div>
     </details>
+
+    <partial name="_ShareAndPeople" model="Model" />
 
     <div class="save-actions">
         <button type="submit" class="button button-large button-secondary" asp-page-handler="Save" data-save-button>Save</button>

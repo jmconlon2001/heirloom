@@ -1,0 +1,37 @@
+@page "/library"
+@model FamilyMemories.Pages.Library.IndexModel
+@{
+    ViewData["Title"] = "Family Library";
+}
+<h1>Family Library</h1>
+<partial name="_LibraryNav" />
+@if (User.IsAdmin())
+{
+    <p class="muted small">As an admin you see every finished story, including private ones.</p>
+}
+
+@if (Model.Newest.Count == 0)
+{
+    <p class="lead">No stories have been shared yet. When family members finish a story, it will appear here.</p>
+}
+else
+{
+    <h2>Newest stories</h2>
+    <ul class="story-cards">
+        @foreach (var card in Model.Newest)
+        {
+            <partial name="_StoryCard" model="card" />
+        }
+    </ul>
+}
+
+@if (Model.Chapters.Count > 0)
+{
+    <h2>By chapter</h2>
+    <ul class="chapter-list">
+        @foreach (var c in Model.Chapters)
+        {
+            <li><a href="/library/chapters/@c.Id">@c.Title</a> <span class="muted">@c.Count @(c.Count == 1 ? "story" : "stories")</span></li>
+        }
+    </ul>
+}

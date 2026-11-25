@@ -1,0 +1,16 @@
+@{
+    var path = Context.Request.Path.Value ?? "";
+    string? Current(string p) => path == p || (p != "/library" && path.StartsWith(p)) ? "page" : null;
+}
+<nav class="sub-nav" aria-label="Family Library">
+    <a href="/library" aria-current="@Current("/library")">Newest</a>
+    <a href="/library/timeline" aria-current="@Current("/library/timeline")">Timeline</a>
+    <a href="/library/photos" aria-current="@Current("/library/photos")">Photos</a>
+    <a href="/library/storytellers" aria-current="@Current("/library/storytellers")">Storytellers</a>
+    <a href="/people" aria-current="@Current("/people")">People</a>
+</nav>
+<form method="get" action="/library/search" class="search-form" role="search">
+    <label for="q" class="visually-hidden">Search the stories</label>
+    <input type="search" id="q" name="q" value="@Context.Request.Query["q"]" placeholder="Search for a name, a place, a word…">
+    <button type="submit" class="button button-primary">Search</button>
+</form>

@@ -1,0 +1,27 @@
+@page "/library/search"
+@model FamilyMemories.Pages.Library.SearchModel
+@{
+    ViewData["Title"] = "Search";
+}
+<h1>Search</h1>
+<partial name="_LibraryNav" />
+@if (Model.Query is not null)
+{
+    <p class="lead" role="status">@(Model.Results.Count == 0 ? $"Nothing found for \"{Model.Query}\". Try a different word or a name." : $"{Model.Results.Count} {(Model.Results.Count == 1 ? "story" : "stories")} found for \"{Model.Query}\".")</p>
+    <ul class="story-cards">
+        @foreach (var card in Model.Results)
+        {
+            <partial name="_StoryCard" model="card" />
+        }
+    </ul>
+    @if (Model.People.Count > 0)
+    {
+        <h2>People</h2>
+        <ul class="link-list">
+            @foreach (var p in Model.People)
+            {
+                <li><a href="/people/@p.Id">@p.DisplayName</a></li>
+            }
+        </ul>
+    }
+}

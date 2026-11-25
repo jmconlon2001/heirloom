@@ -37,6 +37,11 @@ public sealed class Prompt
     public Guid? AskedByUserId { get; set; }
     public AppUser? AskedByUser { get; set; }
 
+    /// <summary>For "Ask a follow-up": the story that prompted the question.</summary>
+    public Guid? FollowUpOfMemoryId { get; set; }
+    /// <summary>When the storyteller was emailed about this follow-up (Phase 4).</summary>
+    public DateTime? NotifiedAt { get; set; }
+
     /// <summary>Set once an admin edits the text; seed updates then leave it alone.</summary>
     public bool EditedByAdmin { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -116,6 +121,10 @@ public sealed class Memory
     public int? WhenDecade { get; set; }
     public string? WhenLabel { get; set; }
     public string? Place { get; set; }
+
+    /// <summary>A story about someone in the tree (e.g. a grandparent who has died). Null for most stories.</summary>
+    public Guid? AboutPersonId { get; set; }
+    public Person? AboutPerson { get; set; }
 
     /// <summary>Set when someone else typed it for the storyteller (proxy entry).</summary>
     public Guid? WrittenById { get; set; }

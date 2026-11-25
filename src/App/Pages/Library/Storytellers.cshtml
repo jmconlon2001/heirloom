@@ -1,0 +1,43 @@
+@page "/library/storytellers/{id:guid?}"
+@model FamilyMemories.Pages.Library.StorytellersModel
+@{
+    ViewData["Title"] = Model.Teller?.DisplayName ?? "Storytellers";
+}
+@if (Model.Teller is null)
+{
+    <h1>Storytellers</h1>
+    <partial name="_LibraryNav" />
+    <ul class="teller-list">
+        @foreach (var t in Model.Tellers)
+        {
+            <li>
+                <a href="/library/storytellers/@t.Id">
+                    @if (t.PhotoId is { } photo)
+                    {
+                        <img src="/media/@photo/thumb" alt="" width="96" height="96">
+                    }
+                    else
+                    {
+                        <span class="initials initials-large" aria-hidden="true">@t.Name[..1]</span>
+                    }
+                    <span><strong>@t.Name</strong><br><span class="muted">@t.Count @(t.Count == 1 ? "story" : "stories")</span></span>
+                </a>
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <h1>Stories told by @Model.Teller.DisplayName</h1>
+    <partial name="_LibraryNav" />
+    @if (Model.PersonId is { } pid)
+    {
+        <p><a href="/people/@pid">@Model.Teller.DisplayName in the family tree</a></p>
+    }
+    <ul class="story-cards">
+        @foreach (var card in Model.Cards)
+        {
+            <partial name="_StoryCard" model="card" />
+        }
+    </ul>
+}

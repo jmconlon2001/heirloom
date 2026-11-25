@@ -15,6 +15,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="same-origin">
     <title>@(string.IsNullOrEmpty(title) ? AppOptions.AppName : $"{title} · {AppOptions.AppName}")</title>
+    @if (ViewData["TreePage"] is true)
+    {
+        <link rel="stylesheet" href="~/lib/family-chart/family-chart.css" asp-append-version="true">
+    }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
     <script type="module" src="~/js/display.js" asp-append-version="true"></script>
 </head>
@@ -35,6 +39,15 @@
             }
         </div>
 
+        @if (signedIn)
+        {
+            <nav class="wrap main-nav" aria-label="Main">
+                <a href="/" aria-current="@(Context.Request.Path == "/" ? "page" : null)">Home</a>
+                <a href="/library" aria-current="@(Context.Request.Path.StartsWithSegments("/library") ? "page" : null)">Family Library</a>
+                <a href="/tree" aria-current="@(Context.Request.Path.StartsWithSegments("/tree") || Context.Request.Path.StartsWithSegments("/people") ? "page" : null)">Family tree</a>
+            </nav>
+        }
+
         <form class="wrap display-controls" method="post" asp-page="/Display" data-display-controls>
             <input type="hidden" name="returnUrl" value="@returnUrl">
             <div class="control-group" role="group" aria-labelledby="text-size-label">
@@ -53,6 +66,18 @@
             </button>
         </form>
     </header>
+
+    @if (FamilyMemories.Admin.ViewAs.IsActive(Context))
+    {
+        <div class="view-as-banner" role="status">
+            <div class="wrap">
+                <p>You're seeing the site as <strong>@Context.Items[FamilyMemories.Admin.ViewAs.TargetNameKey]</strong>. Nothing can be changed while you look around.</p>
+                <form method="post" action="@FamilyMemories.Admin.ViewAs.StopPath">
+                    <button type="submit" class="button button-primary">Stop viewing as @Context.Items[FamilyMemories.Admin.ViewAs.TargetNameKey]</button>
+                </form>
+            </div>
+        </div>
+    }
 
     <main id="main" class="wrap" tabindex="-1">
         @RenderBody()

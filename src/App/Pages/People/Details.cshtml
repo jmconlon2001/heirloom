@@ -1,0 +1,72 @@
+@page "/people/{id:guid}"
+@model FamilyMemories.Pages.People.DetailsModel
+@{
+    var p = Model.Kin.Person;
+    ViewData["Title"] = p.DisplayName;
+    var span = FamilyMemories.Family.PeopleService.LifeSpan(p, User.IsAdmin());
+}
+<partial name="_Flash" />
+<div class="person-header">
+    @if (p.PhotoAttachmentId is { } photo)
+    {
+        <img src="/media/@photo/web" alt="Photo of @p.DisplayName" class="person-photo">
+    }
+    <div>
+        <h1>@p.DisplayName</h1>
+        @if (p.Nickname is not null) { <p class="lead">Known as “@p.Nickname”</p> }
+        @if (p.BirthSurname is not null && p.BirthSurname != p.Surname) { <p>Born @p.GivenNames @p.BirthSurname</p> }
+        @if (span.Length > 0) { <p class="life-span">@span</p> }
+        @if (p.BirthPlace is not null) { <p>Born in @p.BirthPlace</p> }
+        @if (p.DeathPlace is not null) { <p>Died in @p.DeathPlace</p> }
+    </div>
+</div>
+@if (p.Bio is not null)
+{
+    <p class="person-bio">@p.Bio</p>
+}
+
+<div class="button-row">
+    <form method="post" asp-page="/Stories/New">
+        <input type="hidden" name="about" value="@p.Id">
+        <button type="submit" class="button button-primary">Write a story about @p.GivenNames.Split(' ')[0]</button>
+    </form>
+    <a class="button button-secondary" href="/tree?focus=@p.Id">See in the family tree</a>
+    <a class="button button-quiet" href="/people/@p.Id/edit">Edit</a>
+</div>
+
+<section aria-labelledby="family-heading">
+    <h2 id="family-heading">Close family</h2>
+    <partial name="_KinList" model="Model.Kin" />
+</section>
+
+@if (Model.ToldBy.Count > 0)
+{
+    <section aria-labelledby="told-heading">
+        <h2 id="told-heading">Stories told by @p.GivenNames.Split(' ')[0]</h2>
+        <ul class="story-cards">
+            @foreach (var c in Model.ToldBy) { <partial name="../Library/_StoryCard" model="c" /> }
+        </ul>
+    </section>
+}
+<section aria-labelledby="about-heading">
+    <h2 id="about-heading">Stories about @p.GivenNames.Split(' ')[0]</h2>
+    @if (Model.About.Count == 0)
+    {
+        <p class="muted">None yet. Do you remember something about @p.GivenNames.Split(' ')[0]? Write it down with the button above.</p>
+    }
+    <ul class="story-cards">
+        @foreach (var c in Model.About) { <partial name="../Library/_StoryCard" model="c" /> }
+    </ul>
+</section>
+@if (Model.Photos.Count > 0)
+{
+    <section aria-labelledby="photos-heading">
+        <h2 id="photos-heading">Photos @p.GivenNames.Split(' ')[0] appears in</h2>
+        <ul class="photo-grid">
+            @foreach (var a in Model.Photos)
+            {
+                <li><a href="/library/photos/@a.Id"><img src="/media/@a.Id/thumb" alt="@(a.Caption ?? $"Photo with {p.DisplayName}")" loading="lazy" width="400" height="400"></a></li>
+            }
+        </ul>
+    </section>
+}

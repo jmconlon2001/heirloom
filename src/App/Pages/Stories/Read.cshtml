@@ -4,7 +4,10 @@
     var m = Model.Memory;
     ViewData["Title"] = string.IsNullOrWhiteSpace(m.Title) ? "A story" : m.Title;
     var when = m.When.Format();
+    var teller = m.Storyteller!.DisplayName;
+    var firstName = teller.Split(' ')[0];
 }
+<partial name="_Flash" />
 <article class="story">
     <header>
         @if (m.Prompt is not null)
@@ -13,15 +16,28 @@
         }
         <h1>@(string.IsNullOrWhiteSpace(m.Title) ? "A story" : m.Title)</h1>
         <p class="byline">
-            Told by @m.Storyteller!.DisplayName@(m.WrittenBy is not null ? $" · written by {m.WrittenBy.DisplayName}" : "")
+            Told by <a href="/library/storytellers/@m.StorytellerId">@teller</a>@(m.WrittenBy is not null ? $" · written by {m.WrittenBy.DisplayName}" : "")
         </p>
         @if (when.Length > 0 || m.Place is not null)
         {
             <p class="when-place">@string.Join(" · ", new[] { when, m.Place }.Where(x => !string.IsNullOrEmpty(x)))</p>
         }
+        @if (Model.People.Count > 0)
+        {
+            <p class="in-story">In this story:
+                @for (var i = 0; i < Model.People.Count; i++)
+                {
+                    <a href="/people/@Model.People[i].Id">@Model.People[i].DisplayName</a>@(i < Model.People.Count - 1 ? ", " : "")
+                }
+            </p>
+        }
         @if (m.Status != MemoryStatus.Complete)
         {
-            <p class="notice">This story isn't finished yet.</p>
+            <p class="notice">This story isn't finished yet, so only you@(User.IsAdmin() ? ", helpers and admins" : " and family admins") can see it.</p>
+        }
+        else if (Model.CanEdit)
+        {
+            <p class="notice">@Model.VisibilityText</p>
         }
     </header>
 
@@ -45,6 +61,10 @@
                         {
                             <figcaption>@a.Caption</figcaption>
                         }
+                        @if (Model.PhotoPeople.TryGetValue(a.Id, out var inPhoto) && inPhoto.Count > 0)
+                        {
+                            <p class="in-photo">In this photo: @string.Join(", ", inPhoto.Select(p => p.DisplayName))</p>
+                        }
                     </figure>
                 </li>
             }
@@ -56,9 +76,73 @@
     @if (Model.CanEdit)
     {
         <a class="button button-primary" href="/stories/@m.Id/write">Add to this story</a>
+        @if (m.Visibility == Visibility.Link)
+        {
+            <a class="button button-secondary" href="/stories/@m.Id/links">Special links</a>
+        }
     }
     @if (User.IsAdmin())
     {
         <a class="button button-secondary" href="/admin/stories/@m.Id/history">Earlier versions</a>
     }
 </div>
+
+@if (m.Status == MemoryStatus.Complete)
+{
+    <section class="conversation" aria-labelledby="conversation-heading">
+        <h2 id="conversation-heading" class="visually-hidden">Hearts and notes</h2>
+        <form method="post" asp-page-handler="Heart" class="heart-form">
+            <button type="submit" class="button button-heart" aria-pressed="@(Model.IHearted ? "true" : "false")">
+                <span aria-hidden="true">♥</span> @(Model.IHearted ? "You love this story" : "Love this story")
+            </button>
+            @if (Model.HeartNames.Count > 0)
+            {
+                <span class="muted">@Model.HeartSummary</span>
+            }
+        </form>
+
+        <h2>Notes for @firstName</h2>
+        @if (Model.Comments.Count == 0)
+        {
+            <p class="muted">No notes yet.</p>
+        }
+        <ul class="comments">
+            @foreach (var c in Model.Comments)
+            {
+                <li>
+                    <p class="comment-meta"><strong>@c.User!.DisplayName</strong> <span class="muted small">@TimeZoneInfo.ConvertTimeFromUtc(c.CreatedAt, AppOptions.TimeZone).ToString("MMM d, yyyy")</span></p>
+                    <p class="comment-body">@c.Body</p>
+                    @if (c.UserId == Model.Me || User.IsAdmin() || m.StorytellerId == Model.Me)
+                    {
+                        <form method="post" asp-page-handler="DeleteComment">
+                            <input type="hidden" name="commentId" value="@c.Id">
+                            <button type="submit" class="button button-quiet">Remove this note</button>
+                        </form>
+                    }
+                </li>
+            }
+        </ul>
+        <form method="post" asp-page-handler="Comment" class="stack">
+            <div class="field">
+                <label for="NewComment">Write a short note@(m.StorytellerId == Model.Me ? "" : $" to {firstName}")</label>
+                <textarea id="NewComment" name="NewComment" rows="3" maxlength="2000" spellcheck="true"></textarea>
+            </div>
+            <button type="submit" class="button button-secondary">Add my note</button>
+        </form>
+
+        @if (m.StorytellerId != Model.Me)
+        {
+            <details class="follow-up">
+                <summary>Ask @firstName a follow-up question</summary>
+                <form method="post" asp-page-handler="FollowUp" class="stack">
+                    <div class="field">
+                        <label for="Question">Your question</label>
+                        <textarea id="Question" name="Question" rows="3" maxlength="2000" placeholder="What happened to the farm after you left?"></textarea>
+                    </div>
+                    <p class="muted">@firstName will see it at the top of their list, with your name.</p>
+                    <button type="submit" class="button button-secondary">Send my question</button>
+                </form>
+            </details>
+        }
+    </section>
+}

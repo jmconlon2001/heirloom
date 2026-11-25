@@ -1,0 +1,36 @@
+@page "/people"
+@model FamilyMemories.Pages.People.IndexModel
+@{
+    ViewData["Title"] = "People";
+}
+<h1>People in the family</h1>
+<partial name="_Flash" />
+<div class="button-row">
+    <a class="button button-primary" href="/people/new">Add a person</a>
+    <a class="button button-secondary" href="/tree">See the family tree</a>
+</div>
+@if (Model.People.Count == 0)
+{
+    <p class="lead">Nobody has been added to the family tree yet.@(User.IsAdmin() ? " You can add people one by one, or import a GEDCOM file under Family admin." : "")</p>
+}
+<ul class="person-list">
+    @foreach (var p in Model.People)
+    {
+        <li>
+            <a href="/people/@p.Id">
+                @if (p.PhotoAttachmentId is { } photo)
+                {
+                    <img src="/media/@photo/thumb" alt="" width="64" height="64">
+                }
+                else
+                {
+                    <span class="initials" aria-hidden="true">@p.DisplayName[..1]</span>
+                }
+                <span><strong>@p.DisplayName</strong>
+                    @{ var span = FamilyMemories.Family.PeopleService.LifeSpan(p, User.IsAdmin()); }
+                    @if (span.Length > 0) { <br><span class="muted">@span</span> }
+                </span>
+            </a>
+        </li>
+    }
+</ul>

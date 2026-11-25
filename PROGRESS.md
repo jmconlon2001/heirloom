@@ -1,5 +1,57 @@
 # Progress
 
+## Phase 3: Sharing and family tree ✅ (2026-11-25)
+
+**Built:**
+- **Visibility** (D-035): Private / Selected people (names with photos) / All family / Link.
+  - Every picker says "Family admins can always see your stories."
+  - Drafts stay with the storyteller until finished.
+  - Enforced in the query layer for pages, API, media, Library, search, people and tree.
+  - Admin views of stories outside the normal rules are audited.
+- **Special links** (D-037): optional passcode and expiry; turn off any time; QR code shown on creation; view counts; a read-only public view, with media served only through the link.
+- **Admin "view as"** (D-036): read-only, with a banner and audit.
+- **Family Library:**
+  - newest stories, by chapter, storytellers, a timeline by decade;
+  - a photo grid with a large viewer (Previous / Next buttons);
+  - full-text search (D-043);
+  - newest stories also on the home page.
+- **Conversation** (D-038): ♥ with names ("Lily and Ed love this"), notes, removing notes, **Ask a follow-up** (first on the storyteller's list as "Lily asked:"), and read tracking.
+- **Family tree** (D-039, D-041):
+  - People and relationships: parents (biological, adoptive, step), partners (married, partnered, divorced).
+  - Cycle protection.
+  - Person pages: photo, life dates (year-only for living people unless you're an admin), close family, "Stories told by them", "Stories about them", "Photos they appear in", **Write a story about …**.
+  - Profile photo picked from photos they're tagged in.
+  - Tree view: family-chart with large high-contrast cards, tap to re-centre, zoom buttons, and an accessible close-family list.
+- **Tagging** (D-040): people in a story, and who's in each photo.
+- **GEDCOM 5.5.1** (D-042): import with a duplicate-detection preview and per-person choices; export.
+
+### Tests: 165 passing
+- **Integration:**
+  - the visibility matrix through pages, media, Library and search;
+  - admin audit; the picker wording; selected-people sharing through the form; drafts kept private;
+  - view-as (sees what Ed sees, can't post, Stop works);
+  - special links (passcode, wrong passcode, expiry, revoke, media only through the link, dead when visibility changes);
+  - hearts, notes, delete permissions, follow-ups, reads;
+  - GEDCOM: parsing, dates, names, round trip, duplicate rules, and the import UI end to end;
+  - people pages (living privacy, admin sees full dates, write-about, photo tags, person sections);
+  - tree CSP and JSON; the ancestor-cycle guard; admin-only delete and account linking.
+- **e2e:**
+  - on iPad, a family member: home, Library, story, ♥, note, photo viewer, timeline, search, tree (zoom, re-centre), person page, with axe at each step;
+  - a relative opening a passcode link;
+  - admin view-as.
+
+### Bugs found and fixed
+- Autosave was rejected once it sent `visibility` as a name (the JSON API now accepts enum names).
+- The Library chapter query couldn't be translated to SQL.
+- family-chart failed contrast, and the app's `.card` style leaked into the tree.
+- Two e2e cross-talk flakes (D-044).
+
+### Not done
+- Choosing a different profile photo straight from the photo viewer.
+- Editing tree relationships from the diagram itself (it's done on the person's Edit page).
+- Merging two people who are already in the tree.
+
+
 ## Phase 2: Backup and restore ✅ (2026-11-25)
 
 **Done:** everything in §10 except the portable archive, which moves to Phase 5 with the other exports (D-033).

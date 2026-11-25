@@ -42,8 +42,8 @@ public sealed class BrowsersFixture : IAsyncLifetime
     /// </summary>
     public async Task<IBrowserContext> NewIPadAsync(Uri baseUrl, bool microphone = false)
     {
-        var ipad = Playwright.Devices["iPad Pro 11"];
-        ipad.BaseURL = baseUrl.ToString();
+        // Devices[...] hands back a shared object: copy it, or parallel tests overwrite each other's BaseURL.
+        var ipad = new BrowserNewContextOptions(Playwright.Devices["iPad Pro 11"]) { BaseURL = baseUrl.ToString() };
         var forceChromium = Environment.GetEnvironmentVariable("E2E_RECORD_BROWSER") == "chromium";
         if (microphone && (forceChromium || !await WebKitCanRecordAsync()))
         {
@@ -79,7 +79,12 @@ public sealed class BrowsersFixture : IAsyncLifetime
 /// <summary>The real app on a real Kestrel port, so a real browser can reach it.</summary>
 public sealed class KestrelAppFactory : AppFactory
 {
-    public KestrelAppFactory(PostgresFixture postgres) : base(postgres) => UseKestrel(0);
+    /// <summary>
+    /// Binds 127.0.0.1 only. Binding "localhost" on port 0 gives IPv4 and IPv6 different random ports,
+    /// so a browser resolving localhost to ::1 could reach another test's server.
+    /// </summary>
+    public KestrelAppFactory(PostgresFixture postgres) : base(postgres) =>
+        UseKestrel(o => o.Listen(System.Net.IPAddress.Loopback, 0));
 
     public Uri BaseUrl { get; private set; } = null!;
 
@@ -88,6 +93,6 @@ public sealed class KestrelAppFactory : AppFactory
         await base.InitializeAsync();
         StartServer();
         var address = Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
-        BaseUrl = new Uri(address.Replace("[::]", "localhost").Replace("127.0.0.1", "localhost"));
+        BaseUrl = new Uri(address);
     }
 }
