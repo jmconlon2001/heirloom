@@ -1,0 +1,63 @@
+@{
+    var prefs = DisplayPreferences.From(Context);
+    var title = ViewData["Title"] as string;
+    // On re-executed error pages, return to the page the person asked for, not "/error/...".
+    var reExecute = Context.Features.Get<Microsoft.AspNetCore.Diagnostics.IStatusCodeReExecuteFeature>();
+    var returnUrl = reExecute is not null
+        ? reExecute.OriginalPath + reExecute.OriginalQueryString
+        : Context.Request.Path.StartsWithSegments("/error") ? "/" : Context.Request.Path + Context.Request.QueryString;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+<!DOCTYPE html>
+<html lang="en" class="@prefs.HtmlClasses">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="same-origin">
+    <title>@(string.IsNullOrEmpty(title) ? AppOptions.AppName : $"{title} · {AppOptions.AppName}")</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
+    <script type="module" src="~/js/display.js" asp-append-version="true"></script>
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+        <div class="wrap header-row">
+            <a class="brand" href="/">@AppOptions.AppName</a>
+            @if (signedIn)
+            {
+                <div class="signed-in">
+                    <span class="signed-in-name">Signed in as <strong>@User.DisplayName()</strong></span>
+                    <form method="post" asp-page="/Account/Logout">
+                        <button type="submit" class="button button-quiet">Sign out</button>
+                    </form>
+                </div>
+            }
+        </div>
+
+        <form class="wrap display-controls" method="post" asp-page="/Display" data-display-controls>
+            <input type="hidden" name="returnUrl" value="@returnUrl">
+            <div class="control-group" role="group" aria-labelledby="text-size-label">
+                <span id="text-size-label" class="control-label">Text size</span>
+                @for (var i = 0; i < DisplayPreferences.SizeLabels.Length; i++)
+                {
+                    <button type="submit" name="size" value="@i" class="button button-toggle size-@i"
+                            aria-pressed="@(prefs.TextSize == i ? "true" : "false")" data-size="@i">
+                        @DisplayPreferences.SizeLabels[i]<span class="visually-hidden"> (@DisplayPreferences.SizeNames[i])</span>
+                    </button>
+                }
+            </div>
+            <button type="submit" name="contrast" value="@(prefs.HighContrast ? "off" : "on")" class="button button-toggle"
+                    aria-pressed="@(prefs.HighContrast ? "true" : "false")" data-contrast>
+                High contrast
+            </button>
+        </form>
+    </header>
+
+    <main id="main" class="wrap" tabindex="-1">
+        @RenderBody()
+    </main>
+
+    <partial name="_NeedHelp" />
+</body>
+</html>

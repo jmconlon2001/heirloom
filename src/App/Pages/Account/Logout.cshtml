@@ -1,0 +1,11 @@
+@page "/account/logout"
+@model FamilyMemories.Pages.Account.LogoutModel
+@{
+    ViewData["Title"] = "Sign out";
+}
+<h1>Sign out?</h1>
+<p class="lead">You'll need a new email link to sign in on this device again.</p>
+<form method="post">
+    <button type="submit" class="button button-primary button-large">Yes, sign me out</button>
+</form>
+<p><a href="/">No, take me back</a></p>

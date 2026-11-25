@@ -1,0 +1,17 @@
+bin/
+obj/
+*.user
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+TestResults/
+playwright-traces/
+
+# Local runtime data and secrets
+.env
+.data/
+/data/
+/backups/
+*.dump

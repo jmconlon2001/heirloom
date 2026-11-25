@@ -1,0 +1,8 @@
+@page "/error/{code:int?}"
+@model FamilyMemories.Pages.ErrorModel
+@{
+    ViewData["Title"] = Model.Heading;
+}
+<h1>@Model.Heading</h1>
+<p class="lead">@Model.Message</p>
+<p><a class="button button-primary" href="/">Go to the home page</a></p>

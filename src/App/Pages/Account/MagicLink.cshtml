@@ -1,0 +1,28 @@
+@page "/account/magic-link"
+@model FamilyMemories.Pages.Account.MagicLinkModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+@if (Model.Failure == FamilyMemories.Auth.MagicLinkFailure.None)
+{
+    <h1>Welcome back</h1>
+    <p class="lead">Tap the button to finish signing in. This device will remember you after that.</p>
+    <form method="post">
+        <input type="hidden" name="token" value="@Model.Token">
+        <button type="submit" class="button button-primary button-large">Sign me in</button>
+    </form>
+}
+else
+{
+    <h1>@Model.FailureHeading</h1>
+    <p class="lead">@Model.FailureMessage</p>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <p>You're already signed in on this device.</p>
+        <p><a class="button button-primary button-large" href="/">Go to my stories</a></p>
+    }
+    else
+    {
+        <p><a class="button button-primary button-large" href="/account/login">Email me a new link</a></p>
+    }
+}

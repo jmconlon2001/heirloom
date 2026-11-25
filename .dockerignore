@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/TestResults/
+.git/
+.data/
+.env
+docs/
+src/App.Tests/
+src/App.E2E/

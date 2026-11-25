@@ -1,0 +1,23 @@
+@{
+    var hasName = !string.IsNullOrWhiteSpace(AppOptions.HelpName);
+    var hasPhone = !string.IsNullOrWhiteSpace(AppOptions.HelpPhone);
+    var tel = new string(AppOptions.HelpPhone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+}
+<aside class="wrap need-help" aria-labelledby="need-help-title">
+    <h2 id="need-help-title">Need help?</h2>
+    @if (hasName || hasPhone)
+    {
+        @if (hasPhone)
+        {
+            <p>Call @(hasName ? AppOptions.HelpName : "us") at <a href="tel:@tel" class="help-phone">@AppOptions.HelpPhone</a>. Nothing you've written will be lost.</p>
+        }
+        else
+        {
+            <p>Ask @AppOptions.HelpName. Nothing you've written will be lost.</p>
+        }
+    }
+    else
+    {
+        <p>Ask the family member who invited you. Nothing you've written will be lost.</p>
+    }
+</aside>

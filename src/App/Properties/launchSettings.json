@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5039",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DATA_DIR": "../../.data/dev",
+        "PUBLIC_BASE_URL": "http://localhost:5039",
+        "POSTGRES_HOST": "localhost",
+        "POSTGRES_PORT": "5432",
+        "POSTGRES_DB": "family_memories_dev",
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD": "postgres",
+        "PRE_MIGRATION_BACKUP": "false",
+        "ADMIN_EMAIL": "admin@example.test",
+        "ADMIN_NAME": "Dev Admin",
+        "HELP_NAME": "Jacob",
+        "HELP_PHONE": "(555) 010-0199",
+        "SMTP_HOST": "localhost",
+        "SMTP_PORT": "1025",
+        "SMTP_SECURITY": "None"
+      }
+    }
+  }
+}

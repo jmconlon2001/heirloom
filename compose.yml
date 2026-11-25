@@ -1,0 +1,92 @@
+# Family Memories stack.
+#   docker compose up -d                          production-style (needs .env)
+#   docker compose --profile dev up -d            + Mailpit (catches all email, UI on :8025)
+#   docker compose --profile dev --profile proxy up -d
+#                                                 + a local Caddy at https://memories.localhost:8443
+#                                                   that behaves like the OPNsense reverse proxy
+name: family-memories
+
+services:
+  app:
+    image: ${APP_IMAGE:-family-memories}:${APP_VERSION:-local}
+    build:
+      context: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      POSTGRES_HOST: db
+      GOTENBERG_URL: http://gotenberg:3000
+    ports:
+      - "${APP_PORT:-8095}:8080"
+    volumes:
+      - ${DATA_ROOT:?set DATA_ROOT in .env}/data:/data
+      - ${BACKUP_ROOT:?set BACKUP_ROOT in .env}:/backups
+    networks: [frontend, backend]
+    depends_on:
+      db:
+        condition: service_healthy
+      gotenberg:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  db:
+    image: postgres:17.12-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-family_memories}
+      POSTGRES_USER: ${POSTGRES_USER:-family_memories}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - ${DATA_ROOT}/postgres:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  gotenberg:
+    image: gotenberg/gotenberg:8.40.0
+    restart: unless-stopped
+    networks: [backend]
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    profiles: [dev]
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [frontend, backend]
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    profiles: [proxy]
+    restart: unless-stopped
+    ports:
+      - "${PROXY_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./deploy/dev/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks: [frontend]
+    depends_on: [app]
+
+networks:
+  # Reaches the outside world; the published app port lives here.
+  frontend:
+    ipam:
+      config:
+        - subnet: ${FRONTEND_SUBNET:-172.30.95.0/24}
+  # Database, Gotenberg, Mailpit SMTP: no route out, no published ports.
+  backend:
+    internal: true

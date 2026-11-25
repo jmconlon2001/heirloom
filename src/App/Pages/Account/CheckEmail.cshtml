@@ -1,0 +1,15 @@
+@page "/account/check-email"
+@{
+    ViewData["Title"] = "Check your email";
+    var address = TempData["LoginEmail"] as string;
+}
+<h1>Check your email</h1>
+<p class="lead">
+    If @(address is null ? "that address" : address) is on our family list, a sign-in link is on its way.
+</p>
+<ol class="steps">
+    <li>Open your email. It can take a minute or two to arrive.</li>
+    <li>Look for a message called <strong>"Your sign-in link for @AppOptions.AppName"</strong>. If you don't see it, check the Junk or Spam folder.</li>
+    <li>Tap the <strong>Sign me in</strong> button in that email.</li>
+</ol>
+<p><a class="button button-secondary" href="/account/login">Send a new link</a></p>

@@ -1,0 +1,11 @@
+# Local stand-in for the Caddy reverse proxy on OPNsense (see docs/CADDY.md).
+# Terminates TLS for a sub-domain and forwards to the app over plain HTTP,
+# adding X-Forwarded-For / X-Forwarded-Proto exactly like production.
+{
+	local_certs
+}
+
+memories.localhost {
+	tls internal
+	reverse_proxy app:8080
+}
