@@ -1,6 +1,82 @@
 # Progress
 
-## Phase 0: Foundation ✅ (2026-11-25, awaiting review)
+## Phase 1: Prompts and memories (the core loop) ✅ (2026-11-25, awaiting review)
+
+**Done criterion met:** `AnswerTests.IPad_storyteller_answers_with_text_a_photo_and_a_voice_clip` runs on the iPad Pro 11 profile (WebKit), with these steps:
+- sign in by magic link;
+- tap **Answer this question**;
+- type two paragraphs, and autosave shows "Saved ✓";
+- add a photo through **Add photos** and give it a caption;
+- **Record my voice** for 2.5 s with WebKit's mock microphone, then **Stop recording**; ffmpeg turns the clip into AAC `.m4a`;
+- keep typing (autosave still works);
+- **I'm finished with this story** shows the thank-you page, then the story is read back.
+
+axe runs at every step with zero serious/critical violations. Also checked inside the Linux container image: HEIC → JPEG and WebM → M4A through Hangfire, and the pre-migration `pg_dump` ran when the Phase 1 migration was applied to the Phase 0 database.
+
+### Built
+- **Prompts:**
+  - 12 chapters and 52 prompts with 2–4 hints each, in `seed/prompts.json` (★ = Core 26). The seed is an idempotent upsert by key that respects admin edits (D-017).
+  - Prompt sets: built-in Core 26 and Full 52, plus custom hand-picked sets.
+  - Per-person assignment and weekly or all-at-once pacing (D-024).
+  - One-off questions for one person, shown first with "Lily asked:".
+- **Writing page** (`/answer/{promptId}` → `/stories/{id}/write`):
+  - One question per screen: large serif question, gentle hints, suggested photos, an auto-growing plain-text box with spellcheck, and the keyboard-microphone tip.
+  - **Record my voice** and **Add photos** buttons, optional when and where (fuzzy date + place), **Save** and **I'm finished with this story**.
+  - Gentle **Skip for now** and **I'd rather not answer**.
+  - Works without JavaScript (the full form posts, files included).
+  - `answer.js` adds autosave every 5 s and on blur, plus a `localStorage` copy: if the session expires, the words come back after signing in again (covered by an e2e test).
+- **Uploads:** chunked and resumable (D-020), validated by magic bytes with per-kind limits. Originals are stored untouched with a SHA-256. Captions, **Move up / Move down**, and **Remove** with **Put it back**.
+- **Media processing** (Hangfire, D-015):
+  - Magick.NET turns photos (including iPhone HEIC) into EXIF-rotated 2048/400 px JPEGs with metadata stripped (D-021).
+  - ffmpeg normalises Safari mp4/aac and Chrome webm/opus to AAC `.m4a`; ffprobe works out whether an mp4/webm is audio or video (D-022); videos get a poster frame.
+  - `/media/{id}/{variant}` is access-checked and supports range requests.
+- **Fuzzy dates:** year, month, day, "around", decade, or a phrase, e.g. "around 1965", "1970s", "June 3, 1972", "summer after the war (around 1945)". Impossible parts are dropped rather than rejected.
+- **Version history:** every save kept, autosaves coalesced (D-018). Admins can restore from `/admin/stories/{id}/history`. Old tabs can't overwrite newer words (D-019).
+- **Storyteller home:**
+  - "Hello, Rose", the next question (or "That's everything for now, your next question arrives Tuesday"), and "You've shared 12 stories".
+  - A chapter checklist with "3 of 5"; no streaks.
+  - **See all my questions**, **Read my stories**, **Add a story of your own**.
+- **Proxy entry:** admins and named helpers can write for a storyteller, attributed "Told by … · written by …" and audited (D-023).
+- **Admin:**
+  - People: invite with an emailed link, edit name/email/roles/set/pacing, resend invitation, pause/unpause, signed-in devices with **Sign out this device**, helpers, and one-off questions.
+  - **Printable QR login cards** (D-026).
+  - Questions: edit, reorder, turn on/off, add. Question sets. Activity log. Version history and restore. Hangfire dashboard.
+- **Audit log:** invites, user changes, pauses, device sign-outs, login cards, helpers, question and set changes, proxy writing, restores.
+- **Deploy:** image now includes `ffmpeg` and `libgomp1` (for Magick.NET); CI installs ffmpeg. New settings are in `.env.example`.
+
+### Tests: 126 passing (`dotnet test`)
+- **119 unit and integration tests**, including:
+  - fuzzy-date formatting and normalising, magic-byte detection, device names;
+  - seeding (counts, idempotency, admin edits kept), pacing and next-question rules, custom sets;
+  - versioning, coalescing, conflict, restore, proxy attribution;
+  - HEIC → JPEG, EXIF rotation, GPS stripped from copies but kept in the original;
+  - Safari and Chrome voice → m4a, audio-only mp4 → audio, chunk resume, early refusal by type and size;
+  - media access control and range requests, antiforgery on the API;
+  - the no-JavaScript save path with a photo, finish, skip and decline, locked prompts, autosave with captions, expired-session 401;
+  - cross-user access denied, helper writing;
+  - all admin pages (access, invite, duplicate email, login card, device sign-out, pause, question editing, restore);
+  - the real Hangfire path.
+- **7 e2e tests:** the 4 from Phase 0, plus:
+  - the done-criterion test above;
+  - the writing page at A++ on iPad (axe, tap targets, no sideways scroll, skip);
+  - words surviving an expired session.
+
+### Not done / deviations
+- **Drag-to-reorder:** the reorder API exists, but the page offers only **Move up / Move down** for now. Those buttons are the required non-drag alternative, so drag would be an extra.
+- **"Who's in this photo" picker:** needs People from the family tree (Phase 3).
+- **Uploads in flight:** if the tab is closed mid-upload, that upload has to be redone (resume works only within the same page). A recording that hasn't finished uploading is lost if the page is closed.
+- **PDFs:** shown as a download link; no preview.
+- **Video:** not transcoded for older Safari.
+- **Admin chapter editing:** chapters come from the seed file; admins can't rename or add chapters in the UI yet.
+- **Web font:** Atkinson Hyperlegible still isn't vendored; system fonts are used.
+- **Optional password and passkeys:** still to do.
+
+### Known issues / notes
+- Voice recording in e2e uses WebKit's mock microphone. A real iPad mic test is a manual check before family use.
+- Test databases each get a small pool, and the test PostgreSQL runs with `max_connections=500`, because many test classes run in parallel.
+
+
+## Phase 0: Foundation ✅ (2026-11-25, reviewed and pushed)
 
 **Done criterion met:** `docker compose up` gives a working magic-link login via Mailpit behind a reverse proxy at a sub-domain. `scripts/smoke-proxy.sh` proves it end to end through a local Caddy at `https://memories.localhost:8443`: the link uses `PUBLIC_BASE_URL`, cookies are Secure because the forwarded proto is trusted, and the session is remembered for 180 days. A manual check also confirmed the session survives an app container restart, because Data Protection keys are persisted.
 

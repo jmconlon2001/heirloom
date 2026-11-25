@@ -1,5 +1,3 @@
-using Deque.AxeCore.Commons;
-using Deque.AxeCore.Playwright;
 using FamilyMemories.Tests.Infrastructure;
 using Microsoft.Playwright;
 using static Microsoft.Playwright.Assertions;
@@ -13,39 +11,10 @@ public sealed class LoginTests(PostgresFixture postgres, BrowsersFixture browser
     public ValueTask InitializeAsync() => app.InitializeAsync();
     public ValueTask DisposeAsync() => app.DisposeAsync();
 
-    /// <summary>Fails on any serious or critical axe violation (BUILD_PROMPT §13).</summary>
-    private static async Task AssertAccessibleAsync(IPage page, string because)
-    {
-        var result = await page.RunAxe(new AxeRunOptions
-        {
-            RunOnly = new RunOnlyOptions { Type = "tag", Values = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"] },
-        });
-        Assert.NotEmpty(result.Passes); // proves axe actually ran against the page
-        var bad = result.Violations.Where(v => v.Impact is "serious" or "critical").ToList();
-        Assert.True(bad.Count == 0, $"{because}: " + string.Join("\n", bad.Select(v =>
-            $"[{v.Impact}] {v.Id}: {v.Help} -> {string.Join(", ", v.Nodes.Select(n => n.Html))}")));
-    }
-
-    /// <summary>Full-page screenshots for human review, under TestResults/screenshots.</summary>
-    private static Task ScreenshotAsync(IPage page, string name) =>
-        page.ScreenshotAsync(new() { Path = Path.Combine(AppContext.BaseDirectory, "TestResults", "screenshots", name + ".png"), FullPage = true });
-
-    private static async Task AssertNoHorizontalScrollAsync(IPage page)
-    {
-        var overflow = await page.EvaluateAsync<int>("document.documentElement.scrollWidth - document.documentElement.clientWidth");
-        Assert.True(overflow <= 0, $"page scrolls sideways by {overflow}px");
-    }
-
-    private static async Task AssertTapTargetsAsync(IPage page)
-    {
-        foreach (var button in await page.Locator("button:visible, a.button:visible").AllAsync())
-        {
-            var box = await button.BoundingBoxAsync();
-            Assert.NotNull(box);
-            Assert.True(box.Height >= 48 && box.Width >= 48,
-                $"tap target too small ({box.Width}×{box.Height}): {await button.InnerTextAsync()}");
-        }
-    }
+    private static Task AssertAccessibleAsync(IPage page, string because) => Accessibility.AssertAccessibleAsync(page, because);
+    private static Task AssertNoHorizontalScrollAsync(IPage page) => Accessibility.AssertNoHorizontalScrollAsync(page);
+    private static Task AssertTapTargetsAsync(IPage page) => Accessibility.AssertTapTargetsAsync(page);
+    private static Task ScreenshotAsync(IPage page, string name) => Accessibility.ScreenshotAsync(page, name);
 
     private async Task SignInAsync(IPage page)
     {
@@ -58,7 +27,7 @@ public sealed class LoginTests(PostgresFixture postgres, BrowsersFixture browser
         var link = CapturingEmailSender.ExtractMagicLink(app.Email.To(AppFactory.AdminEmail).Last());
         await page.GotoAsync(link.PathAndQuery);
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
-        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Welcome, Jacob Admin" })).ToBeVisibleAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Hello, Jacob" })).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -81,7 +50,7 @@ public sealed class LoginTests(PostgresFixture postgres, BrowsersFixture browser
         await AssertAccessibleAsync(page, "magic-link page");
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
 
-        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Welcome, Jacob Admin" })).ToBeVisibleAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Hello, Jacob" })).ToBeVisibleAsync();
         await ScreenshotAsync(page, "ipad-home");
         await AssertAccessibleAsync(page, "home page");
         await AssertTapTargetsAsync(page);
@@ -89,7 +58,7 @@ public sealed class LoginTests(PostgresFixture postgres, BrowsersFixture browser
         // Remembered device: a fresh tab in the same browser is still signed in.
         var again = await context.NewPageAsync();
         await again.GotoAsync("/");
-        await Expect(again.GetByRole(AriaRole.Heading, new() { Name = "Welcome, Jacob Admin" })).ToBeVisibleAsync();
+        await Expect(again.GetByRole(AriaRole.Heading, new() { Name = "Hello, Jacob" })).ToBeVisibleAsync();
     }
 
     [Fact]

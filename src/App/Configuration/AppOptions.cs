@@ -40,7 +40,26 @@ public sealed class AppOptions
     /// <summary>Sign-in form posts allowed per client IP per 10 minutes.</summary>
     public int AuthRateLimit { get; init; } = 10;
 
+    /// <summary>Visibility for new memories (DEFAULT_VISIBILITY: Private | AllFamily). Default All family.</summary>
+    public FamilyMemories.Data.Visibility DefaultVisibility { get; init; } = FamilyMemories.Data.Visibility.AllFamily;
+
+    /// <summary>Upload limits in bytes (MAX_IMAGE_MB, MAX_AUDIO_MB, MAX_VIDEO_MB). Images and PDFs share the image limit.</summary>
+    public long MaxImageBytes { get; init; } = 25L * 1024 * 1024;
+    public long MaxAudioBytes { get; init; } = 200L * 1024 * 1024;
+    public long MaxVideoBytes { get; init; } = 1024L * 1024 * 1024;
+
+    /// <summary>How long a printed QR login card works (LOGIN_CARD_DAYS, default 30).</summary>
+    public TimeSpan LoginCardLifetime { get; init; } = TimeSpan.FromDays(30);
+
+    /// <summary>Run Hangfire (JOBS_ENABLED, default true). Tests turn it off and run jobs inline.</summary>
+    public bool JobsEnabled { get; init; } = true;
+
+    public string FfmpegPath { get; init; } = "ffmpeg";
+    public string FfprobePath { get; init; } = "ffprobe";
+
     public string KeysDir => Path.Combine(DataDir, "keys");
+    public string MediaDir => Path.Combine(DataDir, "media");
+    public string UploadsDir => Path.Combine(DataDir, "uploads");
     public string LogsDir => Path.Combine(DataDir, "logs");
     public string PreMigrationBackupDir => Path.Combine(DataDir, "backups", "pre-migration");
 
@@ -64,6 +83,15 @@ public sealed class AppOptions
             HelpName = c["HELP_NAME"] ?? "",
             HelpPhone = c["HELP_PHONE"] ?? "",
             PreMigrationBackup = !string.Equals(c["PRE_MIGRATION_BACKUP"], "false", StringComparison.OrdinalIgnoreCase),
+            DefaultVisibility = string.Equals(c["DEFAULT_VISIBILITY"], "Private", StringComparison.OrdinalIgnoreCase)
+                ? FamilyMemories.Data.Visibility.Private : FamilyMemories.Data.Visibility.AllFamily,
+            MaxImageBytes = Megabytes(c["MAX_IMAGE_MB"], 25),
+            MaxAudioBytes = Megabytes(c["MAX_AUDIO_MB"], 200),
+            MaxVideoBytes = Megabytes(c["MAX_VIDEO_MB"], 1024),
+            LoginCardLifetime = TimeSpan.FromDays(int.TryParse(c["LOGIN_CARD_DAYS"], out var cardDays) && cardDays > 0 ? cardDays : 30),
+            JobsEnabled = !string.Equals(c["JOBS_ENABLED"], "false", StringComparison.OrdinalIgnoreCase),
+            FfmpegPath = NonEmpty(c["FFMPEG_PATH"]) ?? "ffmpeg",
+            FfprobePath = NonEmpty(c["FFPROBE_PATH"]) ?? "ffprobe",
             AuthRateLimit = int.TryParse(c["AUTH_RATE_LIMIT"], out var limit) && limit > 0 ? limit : 10,
             Smtp = new SmtpOptions
             {
@@ -101,6 +129,9 @@ public sealed class AppOptions
         }
         return result;
     }
+
+    private static long Megabytes(string? value, long fallback) =>
+        (long.TryParse(value, out var mb) && mb > 0 ? mb : fallback) * 1024 * 1024;
 
     private static string? NonEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

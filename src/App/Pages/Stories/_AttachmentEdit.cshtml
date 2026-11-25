@@ -1,0 +1,25 @@
+@model (FamilyMemories.Data.Attachment Item, bool IsFirst, bool IsLast)
+@{
+    var a = Model.Item;
+}
+<li class="attachment" id="attachment-@a.Id" data-attachment-id="@a.Id" data-state="@a.State.ToString().ToLowerInvariant()">
+    <partial name="_AttachmentPreview" model="a" />
+    <div class="attachment-details">
+        <div class="field">
+            <label for="caption-@a.Id">Caption</label>
+            <input type="text" id="caption-@a.Id" name="Captions[@a.Id]" value="@a.Caption" maxlength="1000"
+                   placeholder="Who is in it? Where? When?" autocomplete="off" data-caption>
+        </div>
+        <div class="button-row attachment-buttons">
+            @if (!Model.IsFirst)
+            {
+                <button type="submit" class="button button-quiet" asp-page-handler="Move" asp-route-direction="-1" name="attachmentId" value="@a.Id">Move up</button>
+            }
+            @if (!Model.IsLast)
+            {
+                <button type="submit" class="button button-quiet" asp-page-handler="Move" asp-route-direction="1" name="attachmentId" value="@a.Id">Move down</button>
+            }
+            <button type="submit" class="button button-quiet" asp-page-handler="Remove" name="attachmentId" value="@a.Id">Remove</button>
+        </div>
+    </div>
+</li>

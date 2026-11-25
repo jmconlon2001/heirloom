@@ -1,0 +1,35 @@
+@model FamilyMemories.Data.Attachment
+@{
+    var a = Model;
+    var label = string.IsNullOrWhiteSpace(a.Caption) ? (a.IsVoiceRecording ? "Voice recording" : a.OriginalFileName) : a.Caption;
+    var duration = a.DurationSeconds is { } s ? TimeSpan.FromSeconds(Math.Round(s)).ToString(s >= 3600 ? @"h\:mm\:ss" : @"m\:ss") : null;
+}
+<div class="attachment-preview">
+    @if (a.State == ProcessingState.Pending)
+    {
+        <p class="preparing" data-preparing>Getting it ready…</p>
+    }
+    else if (a.State == ProcessingState.Failed)
+    {
+        <p class="muted">We couldn't make a preview of <strong>@a.OriginalFileName</strong>, but the original is saved.</p>
+    }
+    else
+    {
+        switch (a.Kind)
+        {
+            case AttachmentKind.Photo:
+                <a href="/media/@a.Id/web"><img src="/media/@a.Id/thumb" alt="@label" loading="lazy" width="200"></a>
+                break;
+            case AttachmentKind.Audio:
+                <p class="audio-label">@(a.IsVoiceRecording ? "Voice recording" : a.OriginalFileName)@(duration is null ? "" : $" ({duration})")</p>
+                <audio controls preload="metadata" src="/media/@a.Id/audio">Your browser can't play this recording.</audio>
+                break;
+            case AttachmentKind.Video:
+                <video controls preload="none" poster="/media/@a.Id/poster" src="/media/@a.Id/original" width="320">Your browser can't play this video.</video>
+                break;
+            default:
+                <a class="document-link" href="/media/@a.Id/original">Open @a.OriginalFileName</a>
+                break;
+        }
+    }
+</div>

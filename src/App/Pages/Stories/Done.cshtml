@@ -1,0 +1,23 @@
+@page "/stories/{id:guid}/done"
+@model FamilyMemories.Pages.Stories.DoneModel
+@{
+    ViewData["Title"] = "Thank you";
+    var forSuffix = Model.ForOther ? $"?for={Model.StorytellerId}" : "";
+}
+<h1>Thank you</h1>
+<partial name="_Flash" />
+<p class="lead">@(Model.ForOther ? $"{Model.StorytellerName}'s story is saved." : "Your story is saved.") The family will treasure it.</p>
+<p class="progress-line">@(Model.ForOther ? Model.StorytellerName + " has" : "You've") shared <strong>@Model.SharedCount @(Model.SharedCount == 1 ? "story" : "stories")</strong>.</p>
+
+@if (Model.Next is { } next)
+{
+    <section class="card card-feature" aria-labelledby="next-heading">
+        <p class="eyebrow" id="next-heading">Ready for another? No rush.</p>
+        <p class="prompt-question">@next.Prompt.Question</p>
+        <a class="button button-primary button-large" href="/answer/@next.Prompt.Id@forSuffix">Answer this question</a>
+    </section>
+}
+<div class="button-row">
+    <a class="button button-secondary" href="/stories/@Model.Id">Read the story</a>
+    <a class="button button-secondary" href="@(Model.ForOther ? $"/questions?for={Model.StorytellerId}" : "/")">@(Model.ForOther ? "Back to their questions" : "Go to my home page")</a>
+</div>

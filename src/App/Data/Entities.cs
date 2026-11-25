@@ -8,6 +8,16 @@ public sealed class AppUser : IdentityUser<Guid>
     public string DisplayName { get; set; } = "";
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
+
+    // ---- Storyteller settings ----
+    /// <summary>The prompt set this person is answering. Null = not a storyteller yet.</summary>
+    public Guid? PromptSetId { get; set; }
+    public PromptSet? PromptSet { get; set; }
+    public Pacing Pacing { get; set; } = Pacing.Weekly;
+    /// <summary>When weekly pacing started; prompt N unlocks N-1 weeks after this.</summary>
+    public DateTime? PacingStartedAt { get; set; }
+
+    public DateTime? InvitedAt { get; set; }
 }
 
 public sealed class AppRole : IdentityRole<Guid>
@@ -28,8 +38,10 @@ public enum MagicLinkPurpose
 {
     /// <summary>Requested from the login page; emailed to the user.</summary>
     Login = 1,
-    /// <summary>Printed on a QR login card by an admin (Phase 1).</summary>
+    /// <summary>Printed on a QR login card by an admin.</summary>
     DeviceEnrollment = 2,
+    /// <summary>Sent in an invitation email.</summary>
+    Invitation = 3,
 }
 
 /// <summary>A single-use sign-in link. Only the SHA-256 hash of the token is stored.</summary>

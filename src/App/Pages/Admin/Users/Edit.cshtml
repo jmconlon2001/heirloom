@@ -1,0 +1,123 @@
+@page "/admin/users/{id:guid}"
+@model FamilyMemories.Pages.Admin.Users.EditModel
+@{
+    var u = Model.Person;
+    ViewData["Title"] = u.DisplayName;
+}
+<h1>@u.DisplayName</h1>
+<partial name="_Flash" />
+@if (Model.Paused)
+{
+    <p class="notice"><strong>This account is paused.</strong> @u.DisplayName can't sign in until you unpause it.</p>
+}
+
+<div class="button-row">
+    <a class="button button-primary" href="/questions?for=@u.Id">Write a story for @u.DisplayName</a>
+    <form method="post" action="/admin/users/@u.Id/login-card">
+        <button type="submit" class="button button-secondary">Print a login card</button>
+    </form>
+    <form method="post" asp-page-handler="Invite">
+        <button type="submit" class="button button-secondary">Email a new sign-in invitation</button>
+    </form>
+</div>
+
+<section aria-labelledby="details-heading">
+    <h2 id="details-heading">Details</h2>
+    @if (Model.Error is not null)
+    {
+        <p class="field-error" role="alert">@Model.Error</p>
+    }
+    <form method="post" asp-page-handler="Save" class="stack">
+        <partial name="_UserFields" model="Model.Form" />
+        <button type="submit" class="button button-primary">Save changes</button>
+    </form>
+</section>
+
+<section aria-labelledby="questions-heading">
+    <h2 id="questions-heading">Questions just for @u.DisplayName</h2>
+    <p>These go to the front of their list, with your name: "@User.DisplayName() asked:".</p>
+    @if (Model.OneOffs.Count > 0)
+    {
+        <ul>
+            @foreach (var p in Model.OneOffs)
+            {
+                <li>@p.Question <span class="muted small">(asked by @(p.AskedByUser?.DisplayName ?? "an admin"))</span></li>
+            }
+        </ul>
+    }
+    <form method="post" asp-page-handler="AddQuestion" class="stack">
+        <div class="field">
+            <label for="NewQuestion">A question for them</label>
+            <textarea id="NewQuestion" name="NewQuestion" rows="3" maxlength="2000" placeholder="What was it like the first time you saw the ocean?"></textarea>
+        </div>
+        <button type="submit" class="button button-secondary">Add this question</button>
+    </form>
+</section>
+
+<section aria-labelledby="helpers-heading">
+    <h2 id="helpers-heading">People who can write for @u.DisplayName</h2>
+    <p>Helpers can type stories on @(u.DisplayName)'s behalf, for example while sitting together. Each story will say who wrote it down. Admins can always do this.</p>
+    @if (Model.Helpers.Count > 0)
+    {
+        <ul class="plain-list">
+            @foreach (var h in Model.Helpers)
+            {
+                <li>
+                    @h.DisplayName
+                    <form method="post" asp-page-handler="RemoveHelper" class="inline-form">
+                        <input type="hidden" name="helperId" value="@h.Id">
+                        <button type="submit" class="button button-quiet">Remove @h.DisplayName</button>
+                    </form>
+                </li>
+            }
+        </ul>
+    }
+    @if (Model.HelperCandidates.Count > 0)
+    {
+        <form method="post" asp-page-handler="AddHelper" class="field-row">
+            <div class="field">
+                <label for="helperId">Add a helper</label>
+                <select id="helperId" name="helperId">
+                    @foreach (var c in Model.HelperCandidates)
+                    {
+                        <option value="@c.Id">@c.DisplayName</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="button button-secondary">Add helper</button>
+        </form>
+    }
+</section>
+
+<section aria-labelledby="devices-heading">
+    <h2 id="devices-heading">Devices signed in</h2>
+    @if (Model.Devices.Count == 0)
+    {
+        <p>@u.DisplayName isn't signed in anywhere right now.</p>
+    }
+    else
+    {
+        <ul class="plain-list">
+            @foreach (var d in Model.Devices)
+            {
+                <li>
+                    <strong>@FamilyMemories.Web.DeviceNames.Describe(d.UserAgent)</strong>,
+                    signed in @d.CreatedAt.ToLocalTime().ToString("MMM d, yyyy"), last used @d.LastSeenAt.ToLocalTime().ToString("MMM d, yyyy")
+                    <form method="post" asp-page-handler="RevokeDevice" class="inline-form">
+                        <input type="hidden" name="deviceId" value="@d.Id">
+                        <button type="submit" class="button button-quiet">Sign out this device</button>
+                    </form>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+<section aria-labelledby="pause-heading">
+    <h2 id="pause-heading">@(Model.Paused ? "Unpause account" : "Pause account")</h2>
+    <p>@(Model.Paused ? "Let them sign in again." : "Pausing stops them signing in on every device. Their stories are kept.")</p>
+    <form method="post" asp-page-handler="Pause">
+        <input type="hidden" name="paused" value="@(Model.Paused ? "false" : "true")">
+        <button type="submit" class="button button-quiet">@(Model.Paused ? "Unpause" : "Pause") @u.DisplayName</button>
+    </form>
+</section>

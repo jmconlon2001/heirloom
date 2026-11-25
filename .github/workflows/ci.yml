@@ -23,6 +23,9 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Install ffmpeg (voice and video processing)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Restore
         run: dotnet restore
 

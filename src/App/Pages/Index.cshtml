@@ -1,7 +1,109 @@
 @page
+@model FamilyMemories.Pages.IndexModel
 @{
     ViewData["Title"] = "Home";
+    var plan = Model.Plan;
 }
-<h1>Welcome, @User.DisplayName()</h1>
-<p class="lead">This is where your stories will live.</p>
-<p>The first questions are on their way. When they're ready, you'll find them here, one at a time.</p>
+<h1>Hello, @Model.FirstName</h1>
+<partial name="_Flash" />
+
+@if (plan is not null)
+{
+    @if (plan.Next is { } next)
+    {
+        <section class="card card-feature" aria-labelledby="next-heading">
+            <p class="eyebrow" id="next-heading">@(next.Status == MemoryStatus.Draft ? "Keep going with" : "Your next question")</p>
+            @if (next.IsOneOff && next.Prompt.AskedByUser is { } asker)
+            {
+                <p class="asked-by">@asker.DisplayName asked:</p>
+            }
+            <p class="prompt-question">@next.Prompt.Question</p>
+            <a class="button button-primary button-large" href="/answer/@next.Prompt.Id">
+                @(next.Status == MemoryStatus.Draft ? "Keep writing" : "Answer this question")
+            </a>
+        </section>
+    }
+    else if (plan.IsComplete)
+    {
+        <section class="card card-feature">
+            <p class="prompt-question">You've answered every question. Thank you for sharing your stories.</p>
+            <p>You can always add another story of your own, or go back and add to one you've written.</p>
+        </section>
+    }
+    else if (plan.NextLocked is { } locked)
+    {
+        <section class="card card-feature">
+            <p class="prompt-question">That's everything for now.</p>
+            <p>Your next question arrives on <strong>@locked.UnlocksAt!.Value.ToString("dddd, MMMM d")</strong>.</p>
+        </section>
+    }
+
+    <p class="progress-line">
+        @if (plan.SharedCount == 0)
+        {
+            <text>Your stories will be kept here, safe, for the whole family.</text>
+        }
+        else
+        {
+            <text>You've shared <strong>@plan.SharedCount @(plan.SharedCount == 1 ? "story" : "stories")</strong>.</text>
+        }
+    </p>
+
+    @if (plan.Chapters.Count > 0)
+    {
+        <h2>Chapters</h2>
+        <ul class="checklist">
+            @foreach (var chapter in plan.Chapters)
+            {
+                <li class="@(chapter.IsFinished ? "is-done" : "")">
+                    <span class="check" aria-hidden="true">@(chapter.IsFinished ? "✓" : "")</span>
+                    <span>@chapter.Title</span>
+                    <span class="muted">@chapter.Shared of @chapter.Total</span>
+                </li>
+            }
+        </ul>
+    }
+    <div class="button-row">
+        <a class="button button-secondary" href="/questions">See all my questions</a>
+        <a class="button button-secondary" href="/stories">Read my stories</a>
+    </div>
+}
+
+<form method="post" asp-page="/Stories/New" class="add-story">
+    <button type="submit" class="button button-secondary">Add a story of your own</button>
+</form>
+
+@if (Model.WriteFor.Count > 0)
+{
+    <section aria-labelledby="write-for-heading">
+        <h2 id="write-for-heading">Write for someone else</h2>
+        <p>Sitting with someone and writing down their stories for them? Choose who is telling the story.</p>
+        <ul class="link-list">
+            @foreach (var person in Model.WriteFor)
+            {
+                <li><a class="button button-secondary" href="/questions?for=@person.Id">Write for @person.DisplayName</a></li>
+            }
+        </ul>
+    </section>
+}
+
+@if (User.IsAdmin())
+{
+    <section class="card" aria-labelledby="admin-heading">
+        <h2 id="admin-heading">Family admin</h2>
+        <ul class="link-list">
+            <li><a href="/admin/users">People and invitations</a></li>
+            <li><a href="/admin/prompts">Questions and chapters</a></li>
+            <li><a href="/admin/prompt-sets">Question sets</a></li>
+            <li><a href="/admin/audit">Activity log</a></li>
+            @if (AppOptions.JobsEnabled)
+            {
+                <li><a href="/admin/jobs">Background jobs</a></li>
+            }
+        </ul>
+    </section>
+}
+else if (plan is null && Model.WriteFor.Count == 0)
+{
+    <p class="lead">Stories that family members share with you will appear here.</p>
+}

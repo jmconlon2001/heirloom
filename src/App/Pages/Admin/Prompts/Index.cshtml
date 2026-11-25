@@ -1,0 +1,37 @@
+@page "/admin/prompts"
+@model FamilyMemories.Pages.Admin.Prompts.IndexModel
+@{
+    ViewData["Title"] = "Questions";
+}
+<h1>Questions</h1>
+<partial name="_Flash" />
+<p>★ marks the 26 core questions. Questions you turn off disappear from everyone's list, but stories already written are kept.</p>
+<p><a class="button button-primary" href="/admin/prompts/new">Add a question</a></p>
+
+@foreach (var chapter in Model.Chapters)
+{
+    <section aria-labelledby="chapter-@chapter.Id">
+        <h2 id="chapter-@chapter.Id">@chapter.Title</h2>
+        <ol class="admin-prompts">
+            @for (var i = 0; i < chapter.Prompts.Count; i++)
+            {
+                var p = chapter.Prompts[i];
+                <li class="@(p.IsActive ? "" : "is-off")">
+                    <p><a href="/admin/prompts/@p.Id">@(p.IsCore ? "★ " : "")@p.Question</a>@(p.IsActive ? "" : " (turned off)")</p>
+                    <form method="post" class="button-row">
+                        <input type="hidden" name="promptId" value="@p.Id">
+                        @if (i > 0)
+                        {
+                            <button type="submit" class="button button-quiet" asp-page-handler="Move" asp-route-direction="-1">Move up</button>
+                        }
+                        @if (i < chapter.Prompts.Count - 1)
+                        {
+                            <button type="submit" class="button button-quiet" asp-page-handler="Move" asp-route-direction="1">Move down</button>
+                        }
+                        <button type="submit" class="button button-quiet" asp-page-handler="Toggle">@(p.IsActive ? "Turn off" : "Turn on")</button>
+                    </form>
+                </li>
+            }
+        </ol>
+    </section>
+}

@@ -66,7 +66,7 @@ days=$(( (expires - $(date +%s)) / 86400 ))
 echo "fm_auth is Secure + HttpOnly, remembered for ${days} days"
 [ "$days" -ge 179 ] || { echo "FAIL: device should be remembered ~180 days"; exit 1; }
 home="$(curl_proxy "${BASE}/")"
-printf '%s' "$home" | grep -o "<h1>Welcome, [^<]*</h1>" || { echo "FAIL: not signed in"; exit 1; }
+printf '%s' "$home" | grep -o "<h1>Hello, [^<]*</h1>" || { echo "FAIL: not signed in"; exit 1; }
 
 step "Checking the app saw the real client address"
 docker compose logs app --since 2m | grep -q '"RequestPath":"/account/magic-link"' && echo "request log ok"

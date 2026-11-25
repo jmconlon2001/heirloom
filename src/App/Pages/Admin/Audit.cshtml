@@ -1,0 +1,27 @@
+@page "/admin/audit"
+@model FamilyMemories.Pages.Admin.AuditModel
+@{
+    ViewData["Title"] = "Activity log";
+}
+<h1>Activity log</h1>
+<p>Sensitive actions, newest first: changes to people and questions, login cards, stories written on someone's behalf, and restored versions.</p>
+<div class="table-wrap">
+    <table class="data-table">
+        <caption class="visually-hidden">Recent activity</caption>
+        <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th></tr></thead>
+        <tbody>
+            @foreach (var e in Model.Entries)
+            {
+                <tr>
+                    <td>@e.At.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</td>
+                    <td>@e.ActorName</td>
+                    <td>@e.Summary <span class="muted small">(@e.Action)</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+@if (Model.Entries.Count == Model.PageSize)
+{
+    <p><a class="button button-secondary" href="/admin/audit?before=@Model.Entries[^1].Id">Older entries</a></p>
+}

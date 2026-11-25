@@ -1,0 +1,30 @@
+@page "/admin/users/{id:guid}/login-card"
+@model FamilyMemories.Pages.Admin.Users.LoginCardModel
+@{
+    ViewData["Title"] = $"Login card for {Model.Name}";
+}
+<div class="no-print">
+    <h1>Login card for @Model.Name</h1>
+    <p>Print this and give it to @Model.Name. Pointing an iPad or phone camera at the square signs them in on that device, which then stays signed in.</p>
+    <p>The card works <strong>once</strong> and expires on <strong>@Model.ExpiresOn</strong>. Treat it like a house key.</p>
+    <div class="button-row">
+        <button type="button" class="button button-primary" data-print>Print this card</button>
+        <a class="button button-secondary" href="/admin/users/@Model.Id">Back to @Model.Name</a>
+    </div>
+</div>
+
+<section class="login-card" aria-label="Printable login card">
+    <p class="login-card-app">@AppOptions.AppName</p>
+    <p class="login-card-name">For @Model.Name</p>
+    <img src="@Model.QrDataUri" alt="QR code that signs @Model.Name in" width="320" height="320">
+    <ol class="login-card-steps">
+        <li>Open the Camera on your iPad or phone.</li>
+        <li>Point it at the square above.</li>
+        <li>Tap the link that appears, then tap <strong>Sign me in</strong>.</li>
+    </ol>
+    @if (!string.IsNullOrWhiteSpace(AppOptions.HelpPhone))
+    {
+        <p class="login-card-help">Need help? Call @AppOptions.HelpName at @AppOptions.HelpPhone.</p>
+    }
+</section>
+<script type="module" src="~/js/print.js" asp-append-version="true"></script>

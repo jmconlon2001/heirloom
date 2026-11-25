@@ -9,12 +9,14 @@ COPY global.json Directory.Build.props Directory.Packages.props ./
 COPY src/App/App.csproj src/App/
 RUN dotnet restore src/App/App.csproj
 COPY src/App/ src/App/
+COPY seed/ seed/
 RUN dotnet publish src/App/App.csproj -c Release --no-restore -o /app /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-noble AS runtime
 
 # postgresql-client-17 comes from the PostgreSQL project's apt repo (Ubuntu 24.04 ships 16,
-# which cannot dump a PostgreSQL 17 server). ffmpeg, pandoc and restic arrive in later phases.
+# which cannot dump a PostgreSQL 17 server). ffmpeg normalises voice recordings and makes video posters;
+# libgomp1 is the OpenMP runtime Magick.NET's native library needs on Linux. pandoc and restic arrive later.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends ca-certificates curl tzdata; \
@@ -23,7 +25,7 @@ RUN set -eux; \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
         > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
-    apt-get install -y --no-install-recommends postgresql-client-17; \
+    apt-get install -y --no-install-recommends postgresql-client-17 ffmpeg libgomp1; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 

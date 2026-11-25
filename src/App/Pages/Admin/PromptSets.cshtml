@@ -1,0 +1,46 @@
+@page "/admin/prompt-sets/{id?}"
+@model FamilyMemories.Pages.Admin.PromptSetsModel
+@{
+    ViewData["Title"] = "Question sets";
+}
+<h1>Question sets</h1>
+<partial name="_Flash" />
+<p>Each storyteller answers one set. <strong>Core 26</strong> and <strong>Full 52</strong> follow the question list automatically. You can also hand-pick your own.</p>
+
+<ul class="plain-list">
+    @foreach (var s in Model.Sets)
+    {
+        <li>
+            <strong>@s.Name</strong>
+            <span class="muted">@(s.Kind == PromptSetKind.Custom ? $"{s.Items.Count} questions, hand-picked" : "built in")</span>
+            @if (s.Kind == PromptSetKind.Custom)
+            {
+                <a class="button button-quiet" href="/admin/prompt-sets/@s.Id">Edit</a>
+            }
+        </li>
+    }
+</ul>
+
+<section aria-labelledby="set-editor">
+    <h2 id="set-editor">@(Model.Editing is null ? "Make a new set" : $"Edit \"{Model.Editing.Name}\"")</h2>
+    <form method="post" class="stack">
+        <div class="field">
+            <label for="Name">Name of the set</label>
+            <input id="Name" name="Name" type="text" maxlength="200" value="@(Model.Editing?.Name)" placeholder="Questions for Grandpa">
+        </div>
+        @foreach (var chapter in Model.Chapters)
+        {
+            <fieldset>
+                <legend>@chapter.Title</legend>
+                @foreach (var p in chapter.Prompts)
+                {
+                    <div class="checkbox">
+                        <input type="checkbox" id="p-@p.Id" name="PromptIds" value="@p.Id" @(Model.Selected.Contains(p.Id) ? "checked" : "")>
+                        <label for="p-@p.Id">@(p.IsCore ? "★ " : "")@p.Question</label>
+                    </div>
+                }
+            </fieldset>
+        }
+        <button type="submit" class="button button-primary button-large">Save this set</button>
+    </form>
+</section>

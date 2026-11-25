@@ -34,11 +34,13 @@ public sealed class BrowsersFixture : IAsyncLifetime
     }
 
     /// <summary>iPad Safari: Playwright's iPad Pro 11 descriptor (834×1194, touch, WebKit).</summary>
-    public Task<IBrowserContext> NewIPadAsync(Uri baseUrl)
+    public async Task<IBrowserContext> NewIPadAsync(Uri baseUrl, bool microphone = false)
     {
         var ipad = Playwright.Devices["iPad Pro 11"];
         ipad.BaseURL = baseUrl.ToString();
-        return WebKit.NewContextAsync(ipad);
+        var context = await WebKit.NewContextAsync(ipad);
+        if (microphone) await context.GrantPermissionsAsync(["microphone"]);
+        return context;
     }
 }
 
