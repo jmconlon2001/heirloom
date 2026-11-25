@@ -1,0 +1,42 @@
+@model FamilyMemories.Backup.BackupHealth
+@inject TimeProvider Clock
+@{
+    var now = Clock.GetUtcNow().UtcDateTime;
+    string Ago(DateTime t)
+    {
+        var d = now - t;
+        return d.TotalMinutes < 2 ? "just now" : d.TotalHours < 1 ? $"{(int)d.TotalMinutes} minutes ago"
+            : d.TotalDays < 1 ? $"{(int)d.TotalHours} hours ago" : d.TotalDays < 2 ? "yesterday" : $"{(int)d.TotalDays} days ago";
+    }
+    string When(DateTime t) => TimeZoneInfo.ConvertTimeFromUtc(t, AppOptions.TimeZone).ToString("dddd, MMM d 'at' h:mm tt");
+}
+<div class="backup-health @(Model.Healthy(now) ? "is-ok" : "is-warn")">
+    @if (!Model.Configured)
+    {
+        <p><strong>Backups are not set up yet.</strong> Set <code>RESTIC_PASSWORD</code> in the <code>.env</code> file and restart. Until then, nothing is backed up.</p>
+    }
+    else
+    {
+        <p class="backup-line">
+            <span aria-hidden="true">@(Model.Healthy(now) ? "✓" : "!")</span>
+            Last good backup:
+            <strong>@(Model.LastGoodBackup is { } b ? $"{When(b.FinishedAt!.Value)} ({Ago(b.FinishedAt!.Value)})" : "none yet")</strong>
+        </p>
+        <p class="backup-line">
+            Last successful check:
+            <strong>@(Model.LastGoodVerify is { } v ? $"{When(v.FinishedAt!.Value)} ({Ago(v.FinishedAt!.Value)})" : "none yet")</strong>
+        </p>
+        @if (Model.LastBackup?.Outcome == BackupOutcome.Failed)
+        {
+            <p class="field-error">The most recent backup failed: @Model.LastBackup.Message</p>
+        }
+        @if (Model.LastVerify?.Outcome == BackupOutcome.Failed)
+        {
+            <p class="field-error">The most recent backup check failed: @Model.LastVerify.Message</p>
+        }
+        @if (Model.Running)
+        {
+            <p><em>A backup task is running now.</em></p>
+        }
+    }
+</div>

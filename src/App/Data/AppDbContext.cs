@@ -18,6 +18,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<UploadSession> UploadSessions => Set<UploadSession>();
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
+    public DbSet<BackupRun> BackupRuns => Set<BackupRun>();
+    public DbSet<AppSetting> Settings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -125,6 +127,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             e.HasIndex(u => u.UserId);
             e.Property(u => u.FileName).HasMaxLength(300);
+        });
+
+        b.Entity<BackupRun>(e =>
+        {
+            e.HasIndex(r => new { r.Kind, r.StartedAt });
+            e.Property(r => r.SnapshotId).HasMaxLength(100);
+            e.Property(r => r.OffsiteSnapshotId).HasMaxLength(100);
+            e.Property(r => r.Message).HasMaxLength(4000);
+        });
+        b.Entity<AppSetting>(e =>
+        {
+            e.HasKey(s => s.Key);
+            e.Property(s => s.Key).HasMaxLength(100);
         });
 
         b.Entity<AuditEntry>(e =>

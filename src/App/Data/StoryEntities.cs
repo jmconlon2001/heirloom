@@ -235,3 +235,34 @@ public sealed class AuditEntry
     public string Summary { get; set; } = "";
     public string? Ip { get; set; }
 }
+
+// ---------------------------------------------------------------------------
+// Backups and settings
+// ---------------------------------------------------------------------------
+
+public enum BackupKind { Backup = 1, Verify = 2, Restore = 3 }
+public enum BackupTrigger { Nightly = 1, Manual = 2, PreMigration = 3, PreRestore = 4, Weekly = 5 }
+public enum BackupOutcome { Running = 0, Succeeded = 1, Failed = 2 }
+
+/// <summary>One backup, verification or restore, shown on the admin dashboard.</summary>
+public sealed class BackupRun
+{
+    public Guid Id { get; set; }
+    public BackupKind Kind { get; set; }
+    public BackupTrigger Trigger { get; set; }
+    public BackupOutcome Outcome { get; set; }
+    public DateTime StartedAt { get; set; }
+    public DateTime? FinishedAt { get; set; }
+    public string? SnapshotId { get; set; }
+    public string? OffsiteSnapshotId { get; set; }
+    public string Message { get; set; } = "";
+    public Guid? StartedById { get; set; }
+}
+
+/// <summary>Small key/value settings changed from the admin UI (banner dismissals, SMTP, templates…).</summary>
+public sealed class AppSetting
+{
+    public string Key { get; set; } = "";
+    public string Value { get; set; } = "";
+    public DateTime UpdatedAt { get; set; }
+}

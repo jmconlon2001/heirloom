@@ -1,0 +1,31 @@
+@page "/admin/backups/restore/{snapshotId}"
+@model FamilyMemories.Pages.Admin.RestoreModel
+@{
+    ViewData["Title"] = "Restore a backup";
+}
+<h1>Restore a backup</h1>
+@if (Model.Snapshot is null)
+{
+    <p class="lead">That backup couldn't be found.</p>
+}
+else
+{
+    <p class="lead">You're about to restore the backup from <strong>@TimeZoneInfo.ConvertTimeFromUtc(Model.Snapshot.Time, AppOptions.TimeZone).ToString("dddd, MMMM d, yyyy 'at' h:mm tt")</strong>.</p>
+    <ul>
+        <li>Everything written or added after that moment will be replaced by the backup's copy.</li>
+        <li>A safety backup of the current state is taken first, so you can undo this.</li>
+        <li>The site shows "Back in a few minutes" to everyone while it works.</li>
+    </ul>
+    @if (Model.Error is not null)
+    {
+        <p class="field-error" role="alert">@Model.Error</p>
+    }
+    <form method="post" class="stack">
+        <div class="field">
+            <label for="Confirm">To go ahead, type RESTORE in capital letters</label>
+            <input id="Confirm" name="Confirm" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        </div>
+        <button type="submit" class="button button-primary button-large">Restore this backup</button>
+    </form>
+    <p><a href="/admin/backups">No, go back</a></p>
+}

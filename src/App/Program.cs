@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using FamilyMemories.Admin;
 using FamilyMemories.Auth;
+using FamilyMemories.Backup;
 using FamilyMemories.Configuration;
 using FamilyMemories.Data;
 using FamilyMemories.Email;
@@ -118,6 +119,12 @@ builder.Services.AddScoped<UserAdminService>();
 builder.Services.AddSingleton<MediaStorage>();
 builder.Services.AddScoped<AttachmentService>();
 builder.Services.AddScoped<MediaProcessor>();
+builder.Services.AddScoped<AdminAlerts>();
+builder.Services.AddSingleton<MaintenanceMode>();
+builder.Services.AddSingleton<BackupService>();
+builder.Services.AddScoped<BackupJobs>();
+builder.Services.AddScoped<BackupStatusQuery>();
+builder.Services.AddHttpClient("ntfy", c => c.Timeout = TimeSpan.FromSeconds(10));
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Admin", p => p.RequireRole(Roles.Admin));
@@ -137,10 +144,12 @@ if (options.JobsEnabled)
             new PostgreSqlStorageOptions { SchemaName = "hangfire", PrepareSchemaIfNecessary = true, EnableLongPolling = true }));
     builder.Services.AddHangfireServer(o => o.WorkerCount = Math.Max(2, Environment.ProcessorCount / 2));
     builder.Services.AddScoped<IMediaJobs, HangfireMediaJobs>();
+    builder.Services.AddScoped<IBackupQueue, HangfireBackupQueue>();
 }
 else
 {
     builder.Services.AddScoped<IMediaJobs, InlineMediaJobs>();
+    builder.Services.AddScoped<IBackupQueue, InlineBackupQueue>();
 }
 builder.Services.AddSingleton<EmailTemplates>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
@@ -204,6 +213,7 @@ app.UseExceptionHandler("/error");
 app.UseStatusCodePagesWithReExecute("/error/{0}");
 app.UseSecurityHeaders();
 app.UseStaticFiles();
+app.UseMaintenancePage();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -224,6 +234,8 @@ if (options.JobsEnabled)
     });
     app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<UploadCleanup>(
         "upload-cleanup", c => c.RunAsync(), Cron.Daily(3));
+    if (options.BackupsConfigured)
+        BackupJobs.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), options);
 }
 
 app.Run();

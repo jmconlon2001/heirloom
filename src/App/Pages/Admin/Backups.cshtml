@@ -1,0 +1,68 @@
+@page "/admin/backups"
+@model FamilyMemories.Pages.Admin.BackupsModel
+@inject TimeProvider Clock
+@{
+    ViewData["Title"] = "Backups";
+    string Local(DateTime t) => TimeZoneInfo.ConvertTimeFromUtc(t, AppOptions.TimeZone).ToString("MMM d, yyyy h:mm tt");
+}
+<h1>Backups</h1>
+<partial name="_Flash" />
+
+@if (Model.Health.ShowPasswordBanner)
+{
+    <section class="card card-feature" aria-labelledby="pw-heading">
+        <h2 id="pw-heading">Please save the backup password</h2>
+        <p>Every backup is encrypted with the <code>RESTIC_PASSWORD</code> from your <code>.env</code> file. <strong>Without that password, the backups can never be opened</strong>, not even by you. Copy it into a password manager now, and somewhere a family member can find it.</p>
+        <form method="post" asp-page-handler="DismissBanner">
+            <button type="submit" class="button button-primary">I've saved the password somewhere safe</button>
+        </form>
+    </section>
+}
+
+<partial name="_BackupHealth" model="Model.Health" />
+
+@if (Model.Health.Configured)
+{
+    <p>Backups run every night at @AppOptions.BackupTime (@AppOptions.TimeZoneId) to <code>@AppOptions.ResticRepository</code>@(AppOptions.OffsiteRepository is null ? "" : $" and to {AppOptions.OffsiteRepository}"), and are checked every Sunday. Admins get an email@(AppOptions.NtfyTopic is null ? "" : " and an ntfy alert") if anything goes wrong.</p>
+    <div class="button-row">
+        <form method="post" asp-page-handler="BackupNow"><button type="submit" class="button button-primary">Back up now</button></form>
+        <form method="post" asp-page-handler="VerifyNow"><button type="submit" class="button button-secondary">Check backups now</button></form>
+    </div>
+
+    <h2>Recent activity</h2>
+    <div class="table-wrap">
+        <table class="data-table">
+            <caption class="visually-hidden">Recent backups and checks</caption>
+            <thead><tr><th scope="col">Started</th><th scope="col">What</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+                @foreach (var r in Model.Runs)
+                {
+                    <tr>
+                        <td>@Local(r.StartedAt)</td>
+                        <td>@r.Kind (@r.Trigger.ToString().ToLowerInvariant())</td>
+                        <td>@(r.Outcome switch { BackupOutcome.Succeeded => "✓ ", BackupOutcome.Failed => "Failed: ", _ => "Running… " })@r.Message</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Restore from a backup</h2>
+    <p>Restoring replaces every story, photo and person with the backup's copy. A safety backup of the current state is taken first, so a restore can itself be undone.</p>
+    @if (Model.Snapshots.Count == 0)
+    {
+        <p>No backups yet.</p>
+    }
+    else
+    {
+        <ul class="plain-list">
+            @foreach (var s in Model.Snapshots)
+            {
+                <li>
+                    <strong>@Local(s.Time)</strong> <span class="muted small">(@s.ShortId, @string.Join(", ", s.Tags))</span>
+                    <a class="button button-quiet" href="/admin/backups/restore/@s.Id">Restore this one…</a>
+                </li>
+            }
+        </ul>
+    }
+}

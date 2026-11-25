@@ -17,19 +17,34 @@ public sealed class DatabaseInitializer(
     UserManager<AppUser> users,
     RoleManager<AppRole> roles,
     FamilyMemories.Stories.PromptSeeder prompts,
+    IServiceProvider services,
     AppOptions options,
     TimeProvider clock,
     ILogger<DatabaseInitializer> log)
 {
-    public async Task InitializeAsync(CancellationToken ct = default)
+    public async Task InitializeAsync(CancellationToken ct = default) => await InitializeAsync(skipBackup: false, ct);
+
+    public async Task InitializeAsync(bool skipBackup, CancellationToken ct = default)
     {
         var pending = (await db.Database.GetPendingMigrationsAsync(ct)).ToList();
         if (pending.Count > 0)
         {
             var applied = (await db.Database.GetAppliedMigrationsAsync(ct)).ToList();
-            if (applied.Count > 0 && options.PreMigrationBackup)
+            if (applied.Count > 0 && options.PreMigrationBackup && !skipBackup)
             {
-                await BackupBeforeMigrationAsync(pending, ct);
+                if (options.BackupsConfigured)
+                {
+                    // Full restic backup (database, media, keys) when backups are set up.
+                    var backups = services.GetRequiredService<FamilyMemories.Backup.BackupService>();
+                    var result = await backups.BackupWithoutRecordAsync(BackupTrigger.PreMigration, ct);
+                    if (!result.Succeeded)
+                        throw new InvalidOperationException("Migrations are pending but the safety backup failed: " + result.Message);
+                    log.LogInformation("Pre-migration backup saved as snapshot {Snapshot}", result.SnapshotId);
+                }
+                else
+                {
+                    await BackupBeforeMigrationAsync(pending, ct);
+                }
             }
             log.LogInformation("Applying {Count} database migration(s): {Migrations}", pending.Count, pending);
             await db.Database.MigrateAsync(ct);
@@ -48,7 +63,7 @@ public sealed class DatabaseInitializer(
 
         log.LogInformation("Pending migrations {Migrations}; backing up database to {File} first", pending, file);
 
-        var psi = new ProcessStartInfo("pg_dump")
+        var psi = new ProcessStartInfo(options.PgTool("pg_dump"))
         {
             RedirectStandardError = true,
             UseShellExecute = false,

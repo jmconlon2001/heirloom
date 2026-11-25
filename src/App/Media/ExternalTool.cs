@@ -11,7 +11,9 @@ public sealed record ToolResult(int ExitCode, string StdOut, string StdErr)
 /// <summary>Runs ffmpeg/ffprobe (and later restic, pandoc) with argument lists, never a shell string.</summary>
 public static class ExternalTool
 {
-    public static async Task<ToolResult> RunAsync(string fileName, IEnumerable<string> args, TimeSpan timeout, CancellationToken ct = default)
+    /// <param name="environment">Extra environment variables (passwords go here, never in arguments).</param>
+    public static async Task<ToolResult> RunAsync(string fileName, IEnumerable<string> args, TimeSpan timeout, CancellationToken ct = default,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         var psi = new ProcessStartInfo(fileName)
         {
@@ -20,6 +22,8 @@ public static class ExternalTool
             UseShellExecute = false,
         };
         foreach (var a in args) psi.ArgumentList.Add(a);
+        if (environment is not null)
+            foreach (var (k, v) in environment) psi.Environment[k] = v;
 
         using var process = Process.Start(psi) ?? throw new InvalidOperationException($"{fileName} did not start");
         var stdout = new StringBuilder();
@@ -36,6 +40,7 @@ public static class ExternalTool
         catch (OperationCanceledException)
         {
             try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            if (ct.IsCancellationRequested) throw;
             throw new TimeoutException($"{fileName} took longer than {timeout}");
         }
         await Task.WhenAll(outTask, errTask);

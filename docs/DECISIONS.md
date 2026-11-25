@@ -110,3 +110,57 @@ Test runner is xUnit v3 on Microsoft.Testing.Platform (the .NET 10 SDK default; 
 
 ### D-026 · QR login cards are POST-only and single-use
 **Decision:** "Print a login card" is a POST that mints a `DeviceEnrollment` link (single use, `LOGIN_CARD_DAYS`, default 30) and renders the card. A GET only redirects, so reloads, link previews and prefetching can't mint extra working links. Every card print is audited. The QR is a PNG `data:` URI (allowed by the CSP's `img-src`).
+
+---
+## Phase 2
+
+### D-027 · restic 0.20.0 from the upstream release, pinned by checksum
+**Decision:** Ubuntu's restic package (0.16) is years behind, so the image and CI download the official 0.20.0 binary and check it against SHA-256 values written in the Dockerfile and workflow. A tampered download fails the build. Passwords and repository locations reach restic only through environment variables or a password file, never command-line arguments.
+
+### D-028 · What a backup contains
+**Decision:** Each snapshot (`--host family-memories`, tagged `nightly`/`manual`/`premigration`/`prerestore`) holds:
+- a `pg_dump -Fc` of the database, *excluding the `hangfire` schema* (the job queue rebuilds itself, and must not be rewound underneath a running restore);
+- `/data/media`, `/data/keys` and `/data/config`.
+
+Logs, exports and half-finished uploads are left out. Retention is `forget --prune` with 7 daily, 4 weekly and 12 monthly snapshots. The offsite repository gets an independent `restic backup`, not `restic copy`, so either repository can be used on its own. If the offsite copy fails, the run is marked failed and admins are alerted, even though the local copy succeeded.
+
+### D-029 · How a restore works
+**Decision:**
+1. Maintenance mode on (an in-memory flag; the middleware runs *before* authentication, because the database is being replaced).
+2. Safety backup of the current state. If it fails, nothing is restored.
+3. `restic restore` into a staging folder.
+4. `DROP SCHEMA public CASCADE`, then `pg_restore`. Starting from an empty schema means tables from newer migrations don't linger.
+5. Swap the media and config folders.
+6. *Merge* the Data Protection keys (backup's ∪ current), so both old cookies and today's sessions stay valid.
+7. Run migrations. Maintenance mode off.
+
+Only one backup, check or restore runs at a time.
+
+### D-030 · Weekly verification
+**Decision:**
+- `restic check --read-data-subset=5%`.
+- `restic restore` of the newest dump into a throwaway database (`fm_verify_*`, dropped afterwards `WITH (FORCE)`), which must contain users and prompts. The row counts are recorded.
+- Any failure emails every admin, plus ntfy (`NTFY_URL`, `NTFY_TOPIC`, `NTFY_TOKEN`) if configured.
+
+The admin home and **Backups** page show the last *good* backup and check, and turn red after 36 hours or after a failure.
+
+### D-031 · Repository probing
+**Decision:** `restic cat config` decides whether to `init`, and only exit code 10 ("no repository here") triggers it. Any other error (wrong password, unreadable disk) is reported in plain words instead of attempting an `init`. The probe has a 3-minute limit, because restic retries some backend errors for up to 15 minutes, and an unmounted disk must not hang the nightly job.
+
+### D-032 · Disaster restore uses the app image's own tools
+**Decision:** `scripts/restore.sh` needs only Docker on the new host. It runs `restic` and `pg_restore` inside a one-off `app` container on the stack's network:
+- **Local repositories** are mounted read-only, and restic uses `--no-lock`.
+- **URL repositories** (b2:, s3:, sftp:…) are passed through as-is.
+- **The password** goes into a temporary file inside `DATA_ROOT` (mode 600, deleted on exit). The script was tested end to end by deleting the local data folder and restoring it: database rows and photo checksums matched.
+
+### D-033 · Portable archive moves to Phase 5
+**Context:** §10 lists a portable `.zip` (JSON, media, GEDCOM, README). GEDCOM and the people data arrive in Phase 3, and the zip shares its pipeline with the other exports.
+**Decision:** Build it with the exports in Phase 5.
+
+### D-034 · Every release ships a pullable image and a pinned compose file
+**Decision:** Pushing a `vX.Y.Z` tag does the following:
+- Runs the full test workflow.
+- Builds the image for `linux/amd64` and `linux/arm64` and pushes `ghcr.io/jmconlon2001/family-memories:{X.Y.Z, X.Y, latest}`.
+- Publishes a GitHub Release with `compose.yml` and `family-memories.yml` (the same file, named for OMV), pinned to that version and with no build section, plus `.env.example`, `restore.sh` and a tarball. These are generated from the repo's `compose.yml` by removing the `build:` block.
+
+From a source checkout, `docker compose up --build` still builds locally. The repository is private, so the GHCR package is private too: hosts must `docker login ghcr.io` with a token that has `read:packages`, unless you make the package public.

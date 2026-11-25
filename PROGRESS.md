@@ -1,5 +1,46 @@
 # Progress
 
+## Phase 2: Backup and restore ✅ (2026-11-25)
+
+**Done:** everything in §10 except the portable archive, which moves to Phase 5 with the other exports (D-033).
+- **Nightly backup** (`BACKUP_TIME`, `APP_TIMEZONE`) and **Back up now**:
+  - `pg_dump`, then restic of the database dump, media, keys and config, then retention;
+  - optional offsite repository (D-027, D-028);
+  - automatic backup before migrations and before every restore.
+- **Weekly check:** restic reads back 5% of the data, and the latest database is test-restored into a throwaway database (D-030). Failures email every admin, plus optional ntfy.
+- **Admin:**
+  - the **Backups** page shows the last good backup and check, recent runs and every snapshot, with **Restore this one…** (you type `RESTORE`);
+  - a one-time "save the backup password" banner;
+  - the admin home shows the backup status prominently.
+- **Restore** with maintenance mode, a safety backup, a schema-clean database restore, a media and config swap, merged keys, and migrations (D-029).
+- **Disaster restore:** `scripts/restore.sh` plus `docs/RESTORE.md` (D-032).
+- **Releases:** every `v*` tag publishes a multi-arch image to GHCR and a GitHub Release with a pinned compose file (D-034).
+
+### Tests: 133 passing
+- `BackupRestoreTests.Backup_wipe_restore_brings_back_identical_files_and_rows`, the round trip §10 requires:
+  - 3 stories with HEIC photos and voice clips;
+  - back up, drop the schema and delete the media folder, restore;
+  - media SHA-256s and row counts in 9 tables match;
+  - Rose can sign in and sees "You've shared 3 stories".
+- Plus:
+  - the weekly check, including the throwaway database being cleaned up;
+  - a check with no backups, which alerts admins;
+  - a wrong-password repository, which fails clearly and alerts admins;
+  - the admin page (banner, Back up now, status);
+  - the RESTORE confirmation;
+  - the maintenance page while health checks still answer.
+- **By hand, in the Linux image:**
+  - Back up now through the admin UI;
+  - delete the whole data folder;
+  - `scripts/restore.sh --repo .data/backups/restic --snapshot latest`;
+  - photo checksums match, rows match, and the stack is healthy.
+
+### Bugs found and fixed
+- `pg_dump` was dumping the default database, not the app's. Caught by the round-trip test.
+- restic retried a bad path for 15 minutes. Fixed with a probe time limit and exit-code handling.
+- `restore.sh` failed on read-only repositories (now uses `--no-lock`) and on Docker hosts that don't share `/tmp` (the password file now lives in `DATA_ROOT`).
+
+
 ## Phase 1: Prompts and memories (the core loop) ✅ (2026-11-25, awaiting review)
 
 **Done criterion met:** `AnswerTests.IPad_storyteller_answers_with_text_a_photo_and_a_voice_clip` runs on the iPad Pro 11 profile (WebKit), with these steps:

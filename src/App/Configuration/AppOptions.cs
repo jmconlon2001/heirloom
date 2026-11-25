@@ -57,7 +57,37 @@ public sealed class AppOptions
     public string FfmpegPath { get; init; } = "ffmpeg";
     public string FfprobePath { get; init; } = "ffprobe";
 
+    // ---- Backups (Phase 2) ----
+    /// <summary>Primary restic repository (RESTIC_REPOSITORY). Put /backups on a different disk from /data.</summary>
+    public string ResticRepository { get; init; } = "/backups/restic";
+    /// <summary>RESTIC_PASSWORD. Backups are off until it is set.</summary>
+    public string? ResticPassword { get; init; }
+    /// <summary>Optional second repository (any restic backend), e.g. "b2:bucket:family-memories".</summary>
+    public string? OffsiteRepository { get; init; }
+    public string? OffsitePassword { get; init; }
+    /// <summary>Local time of the nightly backup, "HH:mm" (BACKUP_TIME, default 02:30).</summary>
+    public string BackupTime { get; init; } = "02:30";
+    public int KeepDaily { get; init; } = 7;
+    public int KeepWeekly { get; init; } = 4;
+    public int KeepMonthly { get; init; } = 12;
+    /// <summary>Folder holding pg_dump/pg_restore/psql; empty = use PATH (PG_BIN_DIR).</summary>
+    public string PgBinDir { get; init; } = "";
+    public string ResticPath { get; init; } = "restic";
+    /// <summary>The family's time zone for schedules and emails (APP_TIMEZONE).</summary>
+    public string TimeZoneId { get; init; } = "America/New_York";
+    public bool BackupsConfigured => !string.IsNullOrWhiteSpace(ResticPassword);
+
+    // ---- Admin alerts ----
+    public string? NtfyUrl { get; init; }
+    public string? NtfyTopic { get; init; }
+    public string? NtfyToken { get; init; }
+
+    public TimeZoneInfo TimeZone => TimeZoneInfo.TryFindSystemTimeZoneById(TimeZoneId, out var tz) ? tz : TimeZoneInfo.Utc;
+    public string PgTool(string name) => string.IsNullOrEmpty(PgBinDir) ? name : Path.Combine(PgBinDir, name);
+
     public string KeysDir => Path.Combine(DataDir, "keys");
+    public string ConfigDir => Path.Combine(DataDir, "config");
+    public string BackupStagingDir => Path.Combine(DataDir, "backup-staging");
     public string MediaDir => Path.Combine(DataDir, "media");
     public string UploadsDir => Path.Combine(DataDir, "uploads");
     public string LogsDir => Path.Combine(DataDir, "logs");
@@ -89,6 +119,20 @@ public sealed class AppOptions
             MaxAudioBytes = Megabytes(c["MAX_AUDIO_MB"], 200),
             MaxVideoBytes = Megabytes(c["MAX_VIDEO_MB"], 1024),
             LoginCardLifetime = TimeSpan.FromDays(int.TryParse(c["LOGIN_CARD_DAYS"], out var cardDays) && cardDays > 0 ? cardDays : 30),
+            ResticRepository = NonEmpty(c["RESTIC_REPOSITORY"]) ?? "/backups/restic",
+            ResticPassword = NonEmpty(c["RESTIC_PASSWORD"]),
+            OffsiteRepository = NonEmpty(c["OFFSITE_RESTIC_REPOSITORY"]),
+            OffsitePassword = NonEmpty(c["OFFSITE_RESTIC_PASSWORD"]) ?? NonEmpty(c["RESTIC_PASSWORD"]),
+            BackupTime = NonEmpty(c["BACKUP_TIME"]) ?? "02:30",
+            KeepDaily = int.TryParse(c["BACKUP_KEEP_DAILY"], out var kd) ? kd : 7,
+            KeepWeekly = int.TryParse(c["BACKUP_KEEP_WEEKLY"], out var kw) ? kw : 4,
+            KeepMonthly = int.TryParse(c["BACKUP_KEEP_MONTHLY"], out var km) ? km : 12,
+            PgBinDir = c["PG_BIN_DIR"] ?? "",
+            ResticPath = NonEmpty(c["RESTIC_PATH"]) ?? "restic",
+            TimeZoneId = NonEmpty(c["APP_TIMEZONE"]) ?? NonEmpty(c["TZ"]) ?? "America/New_York",
+            NtfyUrl = NonEmpty(c["NTFY_URL"]),
+            NtfyTopic = NonEmpty(c["NTFY_TOPIC"]),
+            NtfyToken = NonEmpty(c["NTFY_TOKEN"]),
             JobsEnabled = !string.Equals(c["JOBS_ENABLED"], "false", StringComparison.OrdinalIgnoreCase),
             FfmpegPath = NonEmpty(c["FFMPEG_PATH"]) ?? "ffmpeg",
             FfprobePath = NonEmpty(c["FFPROBE_PATH"]) ?? "ffprobe",

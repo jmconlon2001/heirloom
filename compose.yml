@@ -8,7 +8,9 @@ name: family-memories
 
 services:
   app:
-    image: ${APP_IMAGE:-family-memories}:${APP_VERSION:-local}
+    # Released images: ghcr.io/jmconlon2001/family-memories:<version> (see GitHub Releases).
+    # From a source checkout, `docker compose up --build` builds it locally instead.
+    image: ${APP_IMAGE:-ghcr.io/jmconlon2001/family-memories}:${APP_VERSION:-latest}
     build:
       context: .
     restart: unless-stopped
