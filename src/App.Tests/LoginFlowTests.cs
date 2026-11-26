@@ -44,7 +44,10 @@ public sealed class LoginFlowTests(PostgresFixture postgres) : IAsyncLifetime
     public async Task Signed_out_visitors_see_the_landing_page_and_private_pages_send_them_to_sign_in()
     {
         var landing = WebUtility.HtmlDecode(await NewBrowser().GetStringAsync("/"));
-        Assert.Contains("Every family has stories worth keeping.", landing);
+        Assert.Contains("Stories worth handing down.", landing);
+        Assert.Contains("<title>Heirloom</title>", landing);
+        Assert.Contains("class=\"mark\"", landing);
+        Assert.DoesNotContain("Kept with", landing);   // only when the family has named its own site
         Assert.Contains("href=\"/account/login\"", landing);
         Assert.DoesNotContain("Need help? Call", "");
         foreach (var url in new[] { "/library", "/questions", "/tree", "/people" })
@@ -190,5 +193,34 @@ public sealed class LoginFlowTests(PostgresFixture postgres) : IAsyncLifetime
             new FormUrlEncodedContent([new("Email", AppFactory.AdminEmail)]));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(app.Email.Sent);
+    }
+}
+
+/// <summary>Branding: a family's own site name, with "Kept with Heirloom" at the foot, and the icons.</summary>
+public sealed class BrandingTests(PostgresFixture postgres) : IAsyncLifetime
+{
+    private sealed class NamedFactory(PostgresFixture postgres) : AppFactory(postgres)
+    {
+        protected override IDictionary<string, string?> Settings => new Dictionary<string, string?> { ["APP_NAME"] = "The Conlon Stories" };
+    }
+
+    private readonly NamedFactory app = new(postgres);
+    public ValueTask InitializeAsync() => app.InitializeAsync();
+    public ValueTask DisposeAsync() => app.DisposeAsync();
+
+    [Fact]
+    public async Task A_family_named_site_keeps_its_name_and_credits_Heirloom()
+    {
+        var client = app.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        var landing = WebUtility.HtmlDecode(await client.GetStringAsync("/"));
+        Assert.Contains("<title>The Conlon Stories</title>", landing);
+        Assert.Contains("Kept with Heirloom", landing);
+
+        foreach (var (path, type) in new[] { ("/favicon.svg", "image/svg+xml"), ("/favicon.ico", "image/x-icon"), ("/img/apple-touch-icon.png", "image/png") })
+        {
+            var response = await client.GetAsync(path);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(type, response.Content.Headers.ContentType?.MediaType);
+        }
     }
 }

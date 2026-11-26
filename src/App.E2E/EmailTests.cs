@@ -94,7 +94,7 @@ public sealed class LandingTests(PostgresFixture postgres, BrowsersFixture brows
         await using var context = await browsers.NewIPadAsync(app.BaseUrl);
         var page = await context.NewPageAsync();
         await page.GotoAsync("/");
-        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Every family has stories worth keeping." })).ToBeVisibleAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Stories worth handing down." })).ToBeVisibleAsync();
         await Accessibility.ScreenshotAsync(page, "ipad-landing");
         await Accessibility.AssertAccessibleAsync(page, "landing page");
         await Accessibility.AssertTapTargetsAsync(page);

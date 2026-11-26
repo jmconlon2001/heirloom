@@ -8,7 +8,13 @@ namespace FamilyMemories.Configuration;
 /// </summary>
 public sealed class AppOptions
 {
-    public string AppName { get; init; } = "Family Memories";
+    /// <summary>The product's own name. A family can name its site anything with APP_NAME; the footer then says "Kept with Heirloom".</summary>
+    public const string ProductName = "Heirloom";
+
+    public string AppName { get; init; } = ProductName;
+
+    /// <summary>True when the family has given its site its own name.</summary>
+    public bool HasOwnName => !string.Equals(AppName, ProductName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Absolute public URL (no trailing slash). Used for every link that leaves the app (emails, QR codes).</summary>
     public Uri PublicBaseUrl { get; init; } = new("http://localhost:8095");
@@ -146,7 +152,7 @@ public sealed class AppOptions
 
         return new AppOptions
         {
-            AppName = NonEmpty(c["APP_NAME"]) ?? "Family Memories",
+            AppName = NonEmpty(c["APP_NAME"]) ?? ProductName,
             PublicBaseUrl = new Uri(baseUrl, UriKind.Absolute),
             DataDir = NonEmpty(c["DATA_DIR"]) ?? "/data",
             ConnectionString = NonEmpty(c.GetConnectionString("Default")) ?? BuildConnectionString(c),
@@ -205,7 +211,7 @@ public sealed class AppOptions
                 Username = NonEmpty(c["SMTP_USERNAME"]),
                 Password = NonEmpty(c["SMTP_PASSWORD"]),
                 FromAddress = NonEmpty(c["SMTP_FROM_ADDRESS"]) ?? "memories@localhost",
-                FromName = NonEmpty(c["SMTP_FROM_NAME"]) ?? NonEmpty(c["APP_NAME"]) ?? "Family Memories",
+                FromName = NonEmpty(c["SMTP_FROM_NAME"]) ?? NonEmpty(c["APP_NAME"]) ?? AppOptions.ProductName,
             },
         };
     }
@@ -254,6 +260,6 @@ public sealed class SmtpOptions
     public string? Username { get; init; }
     public string? Password { get; init; }
     public string FromAddress { get; init; } = "memories@localhost";
-    public string FromName { get; init; } = "Family Memories";
+    public string FromName { get; init; } = AppOptions.ProductName;
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Host);
 }

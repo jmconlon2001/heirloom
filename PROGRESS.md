@@ -1,5 +1,12 @@
 # Progress
 
+## The rename to Heirloom (2026-11-26, unreleased)
+
+- **Heirloom** is the product's name; "Stories worth handing down." is the tagline. A family's own `APP_NAME` still comes first, with "Kept with Heirloom" at the foot.
+- **New look:** a locket-and-seed mark, heirloom green instead of navy, new favicons and an iPad home-screen icon. Contrast and high-contrast mode are unchanged; all accessibility tests pass.
+- **Image:** published as `ghcr.io/jmconlon2001/heirloom`, and still as `family-memories`. Releases include `heirloom.yml` for OpenMediaVault. Nothing has to change on existing installs.
+- README screenshots retaken.
+
 ## Getting ready for v1 (2026-11-26, v0.9.0)
 
 - **OpenMediaVault:** the app container reads `family-memories.env` directly, and `restore.sh` understands the OMV file names. The `.env` link is still needed, because Compose fills in `DATA_ROOT` and the rest from it.

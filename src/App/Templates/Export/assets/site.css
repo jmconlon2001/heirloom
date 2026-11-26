@@ -3,7 +3,7 @@
 @font-face { font-family: "Atkinson Hyperlegible"; src: url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
 @font-face { font-family: "Literata"; src: url("fonts/literata-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
 @font-face { font-family: "Literata"; src: url("fonts/literata-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
-:root { --bg: #fffdf8; --alt: #f6f1e7; --text: #1f1b16; --muted: #4a4238; --border: #8a7f70; --accent: #1d4f91; }
+:root { --bg: #fffdf8; --alt: #f6f1e7; --text: #1f1b16; --muted: #4a4238; --border: #8a7f70; --accent: #2f5d46; }
 html { font-size: 125%; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: "Atkinson Hyperlegible", system-ui, sans-serif; line-height: 1.6; }
 .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1rem; }
@@ -15,7 +15,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: "Atkin
 .main-nav a { font-weight: 700; color: var(--text); text-decoration: none; min-height: 3rem; display: inline-flex; align-items: center; border-bottom: 0.2rem solid transparent; }
 .main-nav a[aria-current="page"] { border-bottom-color: var(--accent); color: var(--accent); }
 a { color: var(--accent); }
-:focus-visible { outline: 0.2rem solid #b35c00; outline-offset: 0.2rem; }
+:focus-visible { outline: 0.2rem solid #8c5f16; outline-offset: 0.2rem; }
 h1, h2 { font-family: "Literata", Georgia, serif; line-height: 1.25; }
 .lead { font-size: 1.15rem; }
 .muted, .card-meta { color: var(--muted); }

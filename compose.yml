@@ -1,16 +1,18 @@
-# Family Memories stack.
+# Heirloom stack.
 #   docker compose up -d                          production-style (needs .env)
 #   docker compose --profile dev up -d            + Mailpit (catches all email, UI on :8025)
 #   docker compose --profile dev --profile proxy up -d
 #                                                 + a local Caddy at https://memories.localhost:8443
 #                                                   that behaves like the OPNsense reverse proxy
+# The project name stays "family-memories" so existing installs keep their containers and network.
 name: family-memories
 
 services:
   app:
-    # Released images: ghcr.io/jmconlon2001/family-memories:<version> (see GitHub Releases).
+    # Released images: ghcr.io/jmconlon2001/heirloom:<version> (see GitHub Releases).
+    # ghcr.io/jmconlon2001/family-memories is the same image under its old name, still published for older compose files.
     # From a source checkout, `docker compose up --build` builds it locally instead.
-    image: ${APP_IMAGE:-ghcr.io/jmconlon2001/family-memories}:${APP_VERSION:-latest}
+    image: ${APP_IMAGE:-ghcr.io/jmconlon2001/heirloom}:${APP_VERSION:-latest}
     build:
       context: .
     restart: unless-stopped
@@ -19,6 +21,8 @@ services:
     # DATA_ROOT and the other ${…} values in this file from .env (see docs/DEPLOY_OMV.md).
     env_file:
       - path: .env
+        required: false
+      - path: heirloom.env
         required: false
       - path: family-memories.env
         required: false

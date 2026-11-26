@@ -13,7 +13,7 @@ Either way, the family's data lives on a ZFS dataset (or any storage), and backu
 ```sh
 # On the Proxmox host
 pct create 120 local:vztmpl/debian-13-standard_13.*_amd64.tar.zst \
-  --hostname family-memories --memory 3072 --cores 2 --rootfs local-zfs:16 \
+  --hostname heirloom --memory 3072 --cores 2 --rootfs local-zfs:16 \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp --unprivileged 1 --features nesting=1,keyctl=1 --onboot 1
 ```
 
@@ -22,16 +22,16 @@ pct create 120 local:vztmpl/debian-13-standard_13.*_amd64.tar.zst \
 ### Data on ZFS, bind-mounted in
 
 ```sh
-zfs create rpool/family-memories            # the family's data (snapshot it too, if you like)
-zfs create backup-pool/family-memories      # on a DIFFERENT disk or pool
-pct set 120 -mp0 /rpool/family-memories,mp=/data/family-memories
-pct set 120 -mp1 /backup-pool/family-memories,mp=/backups/family-memories
+zfs create rpool/heirloom            # the family's data (snapshot it too, if you like)
+zfs create backup-pool/heirloom      # on a DIFFERENT disk or pool
+pct set 120 -mp0 /rpool/heirloom,mp=/data/heirloom
+pct set 120 -mp1 /backup-pool/heirloom,mp=/backups/heirloom
 ```
 
 **UID mapping (important):** in an unprivileged container, user 1000 inside is user **101000** on the host. Give that host user the folders:
 
 ```sh
-chown -R 101000:101000 /rpool/family-memories /backup-pool/family-memories
+chown -R 101000:101000 /rpool/heirloom /backup-pool/heirloom
 ```
 
 Inside the container, use `PUID=1000`, `PGID=1000`. PostgreSQL's own folder is fixed up by the database container on first start.
@@ -42,10 +42,10 @@ Inside the container, use `PUID=1000`, `PGID=1000`. PostgreSQL's own folder is f
 pct enter 120
 apt update && apt install -y ca-certificates curl
 curl -fsSL https://get.docker.com | sh
-mkdir -p /opt/family-memories && cd /opt/family-memories
+mkdir -p /opt/heirloom && cd /opt/heirloom
 # Download compose.yml and env.example from the latest GitHub release into this folder.
 cp env.example .env && nano .env
-#   DATA_ROOT=/data/family-memories   BACKUP_ROOT=/backups/family-memories   PUID=1000 PGID=1000 …
+#   DATA_ROOT=/data/heirloom   BACKUP_ROOT=/backups/heirloom   PUID=1000 PGID=1000 …
 docker login ghcr.io          # if the image is private (token with read:packages)
 docker compose up -d
 curl -s localhost:8095/readyz   # Healthy

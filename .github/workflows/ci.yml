@@ -64,11 +64,11 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
-          tags: family-memories:ci
+          tags: heirloom:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
       # Fails the build on any HIGH or CRITICAL vulnerability that already has a fix (OS packages, .NET, restic).
       - name: Scan the image for known vulnerabilities
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.69.3 \
-            image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 family-memories:ci
+            image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 heirloom:ci

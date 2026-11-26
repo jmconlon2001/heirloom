@@ -387,3 +387,13 @@ The `whisper` service now runs in the standard stack (no profile), and compose g
 - **Upgrade rehearsal:** a v0.6.0 demo site was upgraded to this build. The pre-migration backup was taken, the migration applied, and every row count matched.
 - **Password and passkey sign-in:** dropped from v1. Sign-in links, login cards and 180-day sessions cover the people this app is for, and passwords would add reset flows and a weaker factor.
 - **Still for the family to do before v1:** a restore drill on the real server and the offsite copy, a real iPad microphone check, and acting on beta feedback.
+
+### D-072 · The product is called Heirloom
+
+**Decision:** The product is **Heirloom**, tagline "Stories worth handing down." `APP_NAME` is still the family's own name for its site. It now defaults to "Heirloom", and when a family sets its own name a small "Kept with Heirloom" line appears at the foot of each page.
+
+- **Mark:** a locket with a sprouting seed inside (`_Mark.cshtml`, inline SVG, decorative). It appears in the header, on the landing page and on the printed book cover. `favicon.svg`, `favicon.ico` and a 180px home-screen icon use it.
+- **Colour:** the accent goes from navy `#1d4f91` to heirloom green `#2f5d46` (7.6:1 on white, 6.7:1 on the header background), with hover `#23463a` and focus ring brass `#8c5f16` (5.5:1). The page background, text and high-contrast mode are unchanged. Emails, the exported website and the book follow.
+- **Type:** unchanged. Literata is the brand face (wordmark, questions, the book); Atkinson Hyperlegible does everything people read and tap.
+- **Image:** published as `ghcr.io/<owner>/heirloom` and, with the same tags, under the old name `ghcr.io/<owner>/family-memories`, so older compose files keep pulling. Releases ship `heirloom.yml` for OpenMediaVault, plus `family-memories.yml` as the same file.
+- **Not renamed, on purpose:** the Compose project name (`family-memories`), the restic `--host` tag, the archive format id, `family-memories.env` support, the C# namespace and data folders. Renaming any of them would break existing installs or backups for no visible gain.

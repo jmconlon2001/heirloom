@@ -3,7 +3,8 @@ name: Release
 # Pushing a tag like v0.2.0:
 #   1. runs the full test suite,
 #   2. builds the app image for linux/amd64 (Intel N100, most servers) and linux/arm64 (Raspberry Pi, Apple silicon),
-#   3. pushes it to ghcr.io/<owner>/family-memories as 0.2.0, 0.2 and latest,
+#   3. pushes it to ghcr.io/<owner>/heirloom as 0.2.0, 0.2 and latest, and the same tags to the old
+#      name ghcr.io/<owner>/family-memories so compose files from before the rename keep pulling,
 #   4. publishes a GitHub Release with a ready-to-use compose file pinned to that exact image,
 #      plus .env.example and the disaster-restore script.
 on:
@@ -15,7 +16,8 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/family-memories
+  IMAGE: ghcr.io/${{ github.repository_owner }}/heirloom
+  OLD_IMAGE: ghcr.io/${{ github.repository_owner }}/family-memories
 
 jobs:
   test:
@@ -43,13 +45,15 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: |
+            ${{ env.IMAGE }}
+            ${{ env.OLD_IMAGE }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
           labels: |
-            org.opencontainers.image.title=Family Memories
+            org.opencontainers.image.title=Heirloom
             org.opencontainers.image.description=Self-hosted family storytelling: guided prompts, voice and photo memories, family tree, website, PDF and book exports.
 
       - uses: docker/build-push-action@v6
@@ -76,11 +80,12 @@ jobs:
               compose.yml > dist/compose.yml
           grep -q "image: \${APP_IMAGE:-${IMAGE}}:\${APP_VERSION:-${VERSION}}" dist/compose.yml
           ! grep -q "^    build:" dist/compose.yml
-          cp dist/compose.yml dist/family-memories.yml   # OpenMediaVault Compose plugin naming
+          cp dist/compose.yml dist/heirloom.yml          # OpenMediaVault Compose plugin naming
+          cp dist/compose.yml dist/family-memories.yml   # the same file under the old name, for existing OMV stacks
           cp .env.example dist/env.example   # GitHub renames dotfile assets, so ship it without the dot
           cp scripts/restore.sh dist/restore.sh
           mkdir -p dist/deploy/dev && cp deploy/dev/Caddyfile dist/deploy/dev/Caddyfile
-          (cd dist && cp env.example .env.example && tar czf ../family-memories-${VERSION}-stack.tar.gz compose.yml family-memories.yml .env.example restore.sh deploy)
+          (cd dist && cp env.example .env.example && tar czf ../heirloom-${VERSION}-stack.tar.gz compose.yml heirloom.yml .env.example restore.sh deploy)
 
       - name: Publish GitHub Release
         env:
@@ -94,7 +99,7 @@ jobs:
           docker pull ${IMAGE}:${VERSION}
           \`\`\`
 
-          Download **compose.yml** (or **family-memories.yml** for OpenMediaVault) and **env.example** below, then:
+          Download **compose.yml** (or **heirloom.yml** for OpenMediaVault; **family-memories.yml** is the same file for stacks set up before the rename) and **env.example** below, then:
 
           \`\`\`sh
           cp env.example .env   # fill it in (see the comments)
@@ -103,7 +108,7 @@ jobs:
 
           Upgrading: replace compose.yml with this release's copy (or set \`APP_VERSION=${VERSION}\`) and run \`docker compose pull && docker compose up -d\`. The app backs everything up before changing the database.
 
-          Image: \`${IMAGE}:${VERSION}\` (linux/amd64, linux/arm64)
+          Image: \`${IMAGE}:${VERSION}\` (linux/amd64, linux/arm64), also published as \`${OLD_IMAGE}:${VERSION}\`
           EOF
-          gh release create "$GITHUB_REF_NAME" --title "Family Memories ${VERSION}" --notes-file notes.md --generate-notes \
-            dist/compose.yml dist/family-memories.yml dist/env.example dist/restore.sh "family-memories-${VERSION}-stack.tar.gz"
+          gh release create "$GITHUB_REF_NAME" --title "Heirloom ${VERSION}" --notes-file notes.md --generate-notes \
+            dist/compose.yml dist/heirloom.yml dist/family-memories.yml dist/env.example dist/restore.sh "heirloom-${VERSION}-stack.tar.gz"

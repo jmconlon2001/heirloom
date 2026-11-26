@@ -27,17 +27,19 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-[ -f compose.yml ] || [ -f family-memories.yml ] || { echo "Run this from the stack folder (compose.yml not found)." >&2; exit 2; }
-# .env for plain docker compose; OpenMediaVault's Compose plugin saves it as family-memories.env.
-ENV_FILE=".env"
-[ -f "$ENV_FILE" ] || ENV_FILE="family-memories.env"
-[ -f "$ENV_FILE" ] || { echo ".env not found. Copy your old .env here first (or create one from .env.example)." >&2; exit 2; }
+# OpenMediaVault's Compose plugin names the files after the stack: heirloom.yml/.env, or family-memories.yml/.env from before the rename.
+COMPOSE_FILE_NAME=""
+for f in compose.yml heirloom.yml family-memories.yml; do [ -f "$f" ] && { COMPOSE_FILE_NAME="$f"; break; }; done
+[ -n "$COMPOSE_FILE_NAME" ] || { echo "Run this from the stack folder (compose.yml not found)." >&2; exit 2; }
+ENV_FILE=""
+for f in .env heirloom.env family-memories.env; do [ -f "$f" ] && { ENV_FILE="$f"; break; }; done
+[ -n "$ENV_FILE" ] || { echo ".env not found. Copy your old .env here first (or create one from .env.example)." >&2; exit 2; }
 [ -n "$REPO" ] || { echo "--repo is required (e.g. /mnt/usb/family-memories/restic or b2:bucket:path)" >&2; exit 2; }
 
 # The compose file and env file this stack actually uses (OMV names them after the stack).
 COMPOSE=(docker compose)
-if [ ! -f compose.yml ]; then
-  COMPOSE+=(-f family-memories.yml)
+if [ "$COMPOSE_FILE_NAME" != compose.yml ]; then
+  COMPOSE+=(-f "$COMPOSE_FILE_NAME")
   [ -f compose.override.yml ] && COMPOSE+=(-f compose.override.yml)   # only picked up automatically next to compose.yml
 fi
 [ "$ENV_FILE" = ".env" ] || COMPOSE+=(--env-file "$ENV_FILE")

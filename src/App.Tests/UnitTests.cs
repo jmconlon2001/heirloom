@@ -73,7 +73,8 @@ public sealed class AppOptionsTests
     public void Defaults_are_sensible()
     {
         var options = From();
-        Assert.Equal("Family Memories", options.AppName);
+        Assert.Equal("Heirloom", options.AppName);
+        Assert.False(options.HasOwnName);
         Assert.Equal("/data/keys", options.KeysDir);
         Assert.Equal(TimeSpan.FromDays(14), options.MagicLinkLifetime);
         Assert.Equal(TimeSpan.FromDays(180), options.RememberedDeviceLifetime);

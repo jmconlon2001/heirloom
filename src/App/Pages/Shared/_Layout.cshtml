@@ -28,6 +28,11 @@
     {
         <link rel="stylesheet" href="~/lib/family-chart/family-chart.css" asp-append-version="true">
     }
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" asp-append-version="true">
+    <link rel="icon" href="~/favicon.ico" sizes="48x48" asp-append-version="true">
+    <link rel="apple-touch-icon" href="~/img/apple-touch-icon.png" asp-append-version="true">
+    <meta name="apple-mobile-web-app-title" content="@AppOptions.AppName">
+    <meta name="theme-color" content="#f6f1e7">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
     <script type="module" src="~/js/display.js" asp-append-version="true"></script>
 </head>
@@ -36,7 +41,7 @@
 
     <header class="site-header">
         <div class="wrap header-row">
-            <a class="brand" href="/">@AppOptions.AppName</a>
+            <a class="brand" href="/"><partial name="_Mark" />@AppOptions.AppName</a>
             @if (!signedIn && !Context.Request.Path.StartsWithSegments("/account"))
             {
                 <a class="button button-primary" href="/account/login">Sign in</a>
@@ -130,5 +135,9 @@
     }
 
     <partial name="_NeedHelp" />
+    @if (AppOptions.HasOwnName)
+    {
+        <footer class="wrap kept-with"><partial name="_Mark" />Kept with @AppOptions.ProductName</footer>
+    }
 </body>
 </html>

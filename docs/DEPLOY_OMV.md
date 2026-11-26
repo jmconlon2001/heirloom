@@ -6,8 +6,8 @@ This uses OMV 7's **Compose** plugin (`openmediavault-compose`). You'll need abo
 
 Use **two different physical disks**: one for the family's data, one for backups. A backup on the same disk doesn't survive that disk failing.
 
-- **Data disk**: create a shared folder, e.g. `appdata`. `DATA_ROOT` will be `/srv/dev-disk-by-uuid-XXXX/appdata/family-memories`.
-- **Backup disk**: create a shared folder, e.g. `backups`. `BACKUP_ROOT` will be `/srv/dev-disk-by-uuid-YYYY/backups/family-memories`.
+- **Data disk**: create a shared folder, e.g. `appdata`. `DATA_ROOT` will be `/srv/dev-disk-by-uuid-XXXX/appdata/heirloom`.
+- **Backup disk**: create a shared folder, e.g. `backups`. `BACKUP_ROOT` will be `/srv/dev-disk-by-uuid-YYYY/backups/heirloom`.
 
 Find your user's ids under **Users → Users** (or `id <user>` over SSH). Most OMV setups use `PUID=1000`, `PGID=100`.
 
@@ -15,8 +15,8 @@ Find your user's ids under **Users → Users** (or `id <user>` over SSH). Most O
 
 1. **Services → Compose → Settings**: set the shared folder where compose files live (e.g. `appdata/compose`).
 2. **Services → Compose → Files → Create**:
-   - **Name:** `family-memories` (any name works; the steps below assume this one).
-   - **File:** paste the contents of `family-memories.yml` from the latest [release](https://github.com/jmconlon2001/heirloom/releases). It pulls `ghcr.io/jmconlon2001/family-memories:<version>`, so no building is needed.
+   - **Name:** `heirloom` (any name works; the steps below assume this one).
+   - **File:** paste the contents of `heirloom.yml` from the latest [release](https://github.com/jmconlon2001/heirloom/releases). It pulls `ghcr.io/jmconlon2001/heirloom:<version>`, so no building is needed.
    - **Environment:** paste `env.example` from the same release and fill it in (each line is explained). At minimum:
 
      ```dotenv
@@ -24,8 +24,8 @@ Find your user's ids under **Users → Users** (or `id <user>` over SSH). Most O
      ADMIN_EMAIL=you@example.com
      POSTGRES_PASSWORD=<openssl rand -base64 32>
      RESTIC_PASSWORD=<openssl rand -base64 32>   # store this in your password manager!
-     DATA_ROOT=/srv/dev-disk-by-uuid-XXXX/appdata/family-memories
-     BACKUP_ROOT=/srv/dev-disk-by-uuid-YYYY/backups/family-memories
+     DATA_ROOT=/srv/dev-disk-by-uuid-XXXX/appdata/heirloom
+     BACKUP_ROOT=/srv/dev-disk-by-uuid-YYYY/backups/heirloom
      PUID=1000
      PGID=100
      SMTP_HOST=smtp.gmail.com   # plus SMTP_USERNAME / SMTP_PASSWORD (a Gmail app password)
@@ -34,8 +34,8 @@ Find your user's ids under **Users → Users** (or `id <user>` over SSH). Most O
 3. If the image is private: SSH in and run `docker login ghcr.io` once, with a GitHub token that has `read:packages`.
 4. **Link the environment file once, over SSH.** The plugin saves the environment as `<name>.env`, but Compose fills in `DATA_ROOT` and the other values in the file from `.env`:
    ```sh
-   cd /<compose shared folder>/family-memories
-   ln -sf family-memories.env .env
+   cd /<compose shared folder>/heirloom
+   ln -sf heirloom.env .env
    ```
    Without the link, **Up** fails with "required variable DATA_ROOT is missing a value".
 5. Select the file and press **Up**. The first start takes a minute: it creates the database and seeds the 52 questions.
@@ -57,10 +57,12 @@ Open `PUBLIC_BASE_URL`, tap **Sign in**, type `ADMIN_EMAIL`, and tap the link in
 
 ## Upgrading
 
-1. Download the new release's `family-memories.yml` and paste it over the old one, or just change `APP_VERSION` in the environment.
+1. Download the new release's `heirloom.yml` and paste it over the old one, or just change `APP_VERSION` in the environment.
 2. Press **Pull**, then **Up**.
 
-**Upgrading to v0.9.0 or later:** paste in the new `family-memories.yml`; changing `APP_VERSION` alone isn't enough. It fixes speech-to-text, which couldn't download its model before. Keep the `.env` link. If your old file had the folders written into it, add `DATA_ROOT` and `BACKUP_ROOT` to the environment (run `docker inspect <old app container>` to see the folders it used). Stop the old containers before pressing **Up**, because the new file names its containers differently.
+**Upgrading to v0.9.0 or later:** paste in the new `heirloom.yml`; changing `APP_VERSION` alone isn't enough. It fixes speech-to-text, which couldn't download its model before. Keep the `.env` link. If your old file had the folders written into it, add `DATA_ROOT` and `BACKUP_ROOT` to the environment (run `docker inspect <old app container>` to see the folders it used). Stop the old containers before pressing **Up**, because the new file names its containers differently.
+
+**The rename to Heirloom (v0.10.0):** nothing has to change. New releases ship `heirloom.yml`; `family-memories.yml` is the same file under the old name, and the image is published under both names. A stack named `family-memories` keeps its name, folders and environment.
 
 The app takes a full backup automatically before it changes the database.
 

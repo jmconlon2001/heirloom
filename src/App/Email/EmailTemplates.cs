@@ -105,7 +105,7 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
             """,
             """
             <p style="font-size:22px;margin:0 0 16px">Hello {{ name }},</p>
-            {{ for story in stories }}<p style="margin:0 0 12px"><strong>{{ story.readers }}</strong> read your story <a href="{{ story.url }}" style="color:#1d4f91">“{{ story.title }}”</a>.</p>{{ end }}
+            {{ for story in stories }}<p style="margin:0 0 12px"><strong>{{ story.readers }}</strong> read your story <a href="{{ story.url }}" style="color:#2f5d46">“{{ story.title }}”</a>.</p>{{ end }}
             <p style="margin:16px 0">Your stories mean a lot to the family. Thank you for sharing them.</p>
             """),
 
@@ -122,7 +122,7 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
             """
             <p style="font-size:22px;margin:0 0 16px">Hello {{ name }},</p>
             <p style="margin:0 0 16px">Here's what the family shared this week:</p>
-            {{ for story in stories }}<p style="margin:0 0 14px"><a href="{{ story.url }}" style="color:#1d4f91;font-weight:bold;font-size:21px">{{ story.title }}</a><br><span style="color:#4a4238">told by {{ story.teller }}</span></p>{{ end }}
+            {{ for story in stories }}<p style="margin:0 0 14px"><a href="{{ story.url }}" style="color:#2f5d46;font-weight:bold;font-size:21px">{{ story.title }}</a><br><span style="color:#4a4238">told by {{ story.teller }}</span></p>{{ end }}
             """),
 
         [EmailKind.ExportReady] = new(
@@ -278,7 +278,7 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
 
     /// <summary>The single big button. Arguments are already HTML-encoded.</summary>
     private static string Button(string url, string label) =>
-        $"""<p style="margin:0 0 24px"><a href="{url}" style="display:inline-block;background:#1d4f91;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;font-size:24px;font-weight:bold;padding:18px 32px;border-radius:10px">{label}</a></p>""";
+        $"""<p style="margin:0 0 24px"><a href="{url}" style="display:inline-block;background:#2f5d46;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;font-size:24px;font-weight:bold;padding:18px 32px;border-radius:10px">{label}</a></p>""";
 
     private string HelpLine() =>
         string.IsNullOrWhiteSpace(options.HelpName) && string.IsNullOrWhiteSpace(options.HelpPhone)
@@ -303,7 +303,7 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
             <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
             <body style="margin:0;padding:24px;background:#fffdf8;font-family:Georgia,'Times New Roman',serif;color:#1f1b16;font-size:20px;line-height:1.6">
             <div style="max-width:600px;margin:0 auto">
-            <p style="font-family:Arial,sans-serif;font-weight:bold;color:#4a4238;margin:0 0 24px">{WebUtility.HtmlEncode(options.AppName)}</p>
+            <p style="font-family:Georgia,'Times New Roman',serif;font-weight:bold;font-size:22px;color:#2f5d46;margin:0 0 24px">{WebUtility.HtmlEncode(options.AppName)}</p>
             {content}
             {(footer.Length > 0 ? $"""<hr style="border:0;border-top:1px solid #d8d0c2;margin:32px 0 16px"><p style="font-size:16px;color:#4a4238;margin:0">{footer}</p>""" : "")}
             </div></body></html>

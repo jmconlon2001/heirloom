@@ -42,20 +42,20 @@ Restoring keeps today's sign-in keys as well as the backup's, so people who are 
 
 You need four things:
 - a machine with Docker and the Compose plugin;
-- this stack's files (`compose.yml`, or `family-memories.yml` on OpenMediaVault);
-- your old `.env` (on OpenMediaVault, `family-memories.env` also works), or a new one from `.env.example` with the same `POSTGRES_*` values if you can;
+- this stack's files (`compose.yml`, or `heirloom.yml` on OpenMediaVault);
+- your old `.env` (on OpenMediaVault, `heirloom.env` also works), or a new one from `.env.example` with the same `POSTGRES_*` values if you can;
 - access to a backup repository and its password.
 
 ```sh
 # 1. Put the stack files and .env in a folder, and point DATA_ROOT and BACKUP_ROOT at the new disks.
-cd /appdata/family-memories
+cd /appdata/heirloom
 
 # 2a. From a local repository (a USB disk, or the old BACKUP_ROOT disk):
-scripts/restore.sh --repo /mnt/usb/family-memories/restic --snapshot latest --password-file ~/restic-password.txt
+scripts/restore.sh --repo /mnt/usb/heirloom/restic --snapshot latest --password-file ~/restic-password.txt
 
 # 2b. Or from the offsite repository (export the backend's credentials first):
 export B2_ACCOUNT_ID=…  B2_ACCOUNT_KEY=…
-scripts/restore.sh --repo b2:my-bucket:family-memories --snapshot latest --password-file ~/restic-password.txt
+scripts/restore.sh --repo b2:my-bucket:heirloom --snapshot latest --password-file ~/restic-password.txt
 ```
 
 The script does the following:

@@ -1,11 +1,11 @@
-# Heirloom: Family Memories
+# Heirloom
 
-**Every family has stories worth keeping.** Family Memories gently asks the people you love one question a week about their life. They answer by typing, by talking, or with a photo, and the family ends up with a library of their stories, a family tree, a website that works from a USB stick, and a real printed book.
+**Stories worth handing down.** Heirloom gently asks the people you love one question a week about their life. They answer by typing, by talking, or with a photo, and the family ends up with a library of their stories, a family tree, a website that works from a USB stick, and a real printed book.
 
 It's self-hosted (your server, your data) and designed first for storytellers aged 70 to 90+, most of them on an iPad.
 
 <p align="center">
-  <img src="docs/images/landing.jpg" alt="The landing page: Every family has stories worth keeping" width="32%">
+  <img src="docs/images/landing.jpg" alt="The landing page: Stories worth handing down" width="32%">
   <img src="docs/images/answer.jpg" alt="Grandma Rose answering her granddaughter's follow-up question" width="32%">
   <img src="docs/images/story.jpg" alt="Reading Grandma Rose's story about the county fair, with an old photo" width="32%">
 </p>
@@ -75,13 +75,13 @@ Backups at a glance, people and invitations, and exports to a website, a PDF and
 Every release publishes a multi-architecture image (amd64 for an Intel N100 server, arm64 too) and a ready-to-use compose file. See **[Releases](https://github.com/jmconlon2001/heirloom/releases)**.
 
 ```sh
-mkdir -p /appdata/family-memories && cd /appdata/family-memories
-# From the latest release: compose.yml (or family-memories.yml for OpenMediaVault) and env.example
+mkdir -p /appdata/heirloom && cd /appdata/heirloom
+# From the latest release: compose.yml (or heirloom.yml for OpenMediaVault) and env.example
 cp env.example .env        # fill it in: PUBLIC_BASE_URL, ADMIN_EMAIL, POSTGRES_PASSWORD, SMTP_*, RESTIC_PASSWORD, DATA_ROOT, BACKUP_ROOT
 docker compose pull && docker compose up -d
 ```
 
-Then open `PUBLIC_BASE_URL`, type the `ADMIN_EMAIL` address, and tap the link in the email. The repository is private, so the image is too: run `docker login ghcr.io` with a GitHub token that has `read:packages` (or make the package public under GitHub → Packages).
+Then open `PUBLIC_BASE_URL`, type the `ADMIN_EMAIL` address, and tap the link in the email. The image is also published under its old name, `ghcr.io/jmconlon2001/family-memories`, so compose files from before the rename keep working.
 
 - The app speaks plain HTTP on `APP_PORT` (default 8095) and expects a reverse proxy for HTTPS: **[docs/CADDY.md](docs/CADDY.md)**.
 - OpenMediaVault: **[docs/DEPLOY_OMV.md](docs/DEPLOY_OMV.md)**. Proxmox (LXC or VM): **[docs/DEPLOY_PVE.md](docs/DEPLOY_PVE.md)**.

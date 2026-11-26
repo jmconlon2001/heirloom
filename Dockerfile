@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# Family Memories app image. Production target is linux/amd64 (Intel N100).
+# Heirloom app image. Production target is linux/amd64 (Intel N100).
 # The app is published framework-dependent and architecture-neutral (no RID), so the same
 # Dockerfile builds on amd64 or arm64 with or without BuildKit.
 
