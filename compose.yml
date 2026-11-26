@@ -14,8 +14,9 @@ services:
     build:
       context: .
     restart: unless-stopped
-    # .env for a plain `docker compose` setup; OpenMediaVault's Compose plugin saves the environment
-    # as <stack name>.env instead, so name the stack "family-memories" there (see docs/DEPLOY_OMV.md).
+    # .env for a plain `docker compose` setup. OpenMediaVault's Compose plugin saves the environment as
+    # <stack name>.env: link it to .env once (`ln -sf <stack>.env .env`), because Compose fills in
+    # DATA_ROOT and the other ${…} values in this file from .env (see docs/DEPLOY_OMV.md).
     env_file:
       - path: .env
         required: false

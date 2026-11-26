@@ -2,7 +2,7 @@
 
 ## Getting ready for v1 (2026-11-26, v0.9.0)
 
-- **OpenMediaVault:** a stack named `family-memories` works without the `.env` symlink, and `restore.sh` understands the OMV file names.
+- **OpenMediaVault:** the app container reads `family-memories.env` directly, and `restore.sh` understands the OMV file names. The `.env` link is still needed, because Compose fills in `DATA_ROOT` and the rest from it.
 - **Chapters:** rename, move, add, and remove (empty ones you added); upgrades keep your changes.
 - **Videos play on every iPad:** an H.264 MP4 copy of each video, with older videos converted hourly in the background.
 - **Recordings are never lost:** they're kept on the device until the server has them, and sent automatically the next time the story is opened.
