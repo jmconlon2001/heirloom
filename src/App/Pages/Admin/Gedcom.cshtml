@@ -5,7 +5,8 @@
 }
 <h1>Import or export the family tree</h1>
 <partial name="_Flash" />
-<p>GEDCOM is the file format every genealogy program (Ancestry, FamilySearch, MyHeritage, Gramps…) can save and open. Names, dates, places and relationships are imported; sources and citations are not.</p>
+<p>GEDCOM is the file format every genealogy program (Reunion, Family Tree Maker, RootsMagic, Gramps, Ancestry, FamilySearch…) can save and open. Names, dates, places, relationships, life events, notes, source citations and links are imported.</p>
+<p>Heirloom isn't a genealogy program. If the family keeps its tree in one, that program stays the master copy: export a GEDCOM from it now and then, import it here with <strong>This file is our main family tree</strong> ticked, and everyone sees the latest names, dates, events and sources next to the stories.</p>
 
 <div class="button-row">
     <a class="button button-secondary" href="/admin/gedcom?handler=Export">Download the family tree (.ged)</a>
@@ -28,7 +29,7 @@ else
 {
     var dupes = Model.Preview.Rows.Count(r => r.Match is not null);
     <h2>Check before importing</h2>
-    <p class="lead">@Model.Preview.Rows.Count people and @Model.Preview.FamilyCount families found. @(dupes == 0 ? "None of them look like people already in the tree." : $"{dupes} look like people already in the tree; they're marked below.")</p>
+    <p class="lead">@Model.Preview.Rows.Count people and @Model.Preview.FamilyCount families found, with @Model.Preview.EventCount life events, @Model.Preview.SourceCount sources and @Model.Preview.LinkCount links. @(dupes == 0 ? "None of them look like people already in the tree." : $"{dupes} look like people already in the tree; they're marked below.")</p>
     <form method="post" asp-page-handler="Commit">
         <input type="hidden" name="FileId" value="@Model.Preview.FileId">
         <div class="table-wrap">
@@ -58,6 +59,10 @@ else
                 </tbody>
             </table>
         </div>
+        <label class="checkbox">
+            <input type="checkbox" name="MainTree" value="true">
+            <span><strong>This file is our main family tree.</strong> For people marked "Same person", the file's names, dates and places win, and its life events, notes, sources and links replace the ones imported last time. Stories, photos, sign-in accounts and links you added by hand are never changed.</span>
+        </label>
         <div class="button-row">
             <button type="submit" class="button button-primary button-large">Import</button>
             <a class="button button-quiet" href="/admin/gedcom">Cancel</a>

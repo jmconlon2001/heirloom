@@ -1,5 +1,28 @@
 # Progress
 
+## Stories, raw material and the archive (2026-11-26, v0.12.0, unreleased)
+
+- **Formatting and photos in the text:** headings, lists, bold, italic, quotes, links, and "Place in the story" for photos and recordings, in Detailed view and for helpers. Simple view is unchanged. The PDF, book, website and e-book follow it.
+- **Raw material:** email replies, what speech-to-text heard, imports and pasted transcriptions are kept as they arrived, next to the edited story, for editors only.
+- **Family archive:** folders of letters, certificates, album pages and recordings, with scans, transcriptions, dates, places and where the originals are. Photo captions, dates and hierarchical keywords are read from the photos, and a whole photo CD can be added at once. Items link to stories, and the website and archive exports include it all.
+
+## Trust and the tree (2026-11-26, v0.11.0, unreleased)
+
+Prompted by a genealogist in the family who reviewed the site.
+
+- **Backups you can see:** what each backup held, where every copy is (with the server's own folder names), and a warning if they're on the same disk as the stories.
+- **OneDrive, Google Drive, Dropbox** as the offsite copy (rclone is built in), and an optional **plain copy** (a SQL dump plus a media folder) anyone can open or rsync.
+- **The genealogy program stays the master tree:** a GEDCOM from Reunion and similar programs now brings life events, notes, sources and links, and "This file is our main family tree" updates them each year without touching stories. Each person can also have links of their own.
+- **Running it safely** (docs/SECURITY.md), and a "newer version available" card on the admin home.
+- Fixed: the family-connections list on a person with none was invalid HTML for screen readers.
+
+## Spreadsheet imports (2026-11-26, unreleased)
+
+- **Add people from a spreadsheet:** the family tree, parents and partners, and sign-in accounts for anyone with an email, with invitations only if you choose.
+- **Add stories from a spreadsheet:** answers to questions or stories of their own, with when, where, who's in it and who wrote it down.
+- Both show a check-before-adding list, spot duplicates, and have a ready-to-fill spreadsheet to download.
+- **Site name, help phone number and display:** set in the app, not just `.env`; a new iPad can start at A+ or A++, or in high contrast.
+
 ## The rename to Heirloom (2026-11-26, unreleased)
 
 - **Heirloom** is the product's name; "Stories worth handing down." is the tagline. A family's own `APP_NAME` still comes first, with "Kept with Heirloom" at the foot.

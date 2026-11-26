@@ -49,6 +49,7 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
             {
                 case AttachmentKind.Photo:
                     ProcessPhoto(a, original, storage.PathFor(a, MediaVariant.Web), storage.PathFor(a, MediaVariant.Thumb));
+                    await ApplyPhotoInfoAsync(a, PhotoMetadata.Read(original), ct);
                     break;
                 case AttachmentKind.Audio:
                     await ProcessAudioAsync(a, original, ct);
@@ -76,6 +77,28 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
         await db.SaveChangesAsync(ct);
         if (a.TranscriptState == TranscriptState.Pending)
             services.GetRequiredService<IMediaJobs>().EnqueueTranscription(a.Id);
+    }
+
+    /// <summary>
+    /// The photo's own caption, keywords and date (D-080). A caption fills an empty one; for an archive item, an empty
+    /// description and date are filled too, and a title that's only the file name becomes the caption.
+    /// </summary>
+    private async Task ApplyPhotoInfoAsync(Attachment a, PhotoInfo info, CancellationToken ct)
+    {
+        a.Keywords = [.. info.Keywords];
+        a.TakenAt = info.TakenAt;
+        if (string.IsNullOrWhiteSpace(a.Caption) && info.Caption is not null) a.Caption = info.Caption;
+        if (a.ArchiveItemId is not { } itemId) return;
+        var item = await db.ArchiveItems.SingleOrDefaultAsync(i => i.Id == itemId, ct);
+        if (item is null) return;
+        if (info.Caption is { } caption)
+        {
+            if (item.Description is null) item.Description = caption;
+            if (item.Title == Path.GetFileNameWithoutExtension(a.OriginalFileName))
+                item.Title = caption.Length <= 120 ? caption : caption[..(caption[..120].LastIndexOf(' ') is > 40 and var cut ? cut : 120)] + "…";
+        }
+        if (item.WhenYear is null && item.WhenDecade is null && info.TakenAt is { } taken)
+            (item.WhenYear, item.WhenMonth, item.WhenDay) = (taken.Year, taken.Month, taken.Day);
     }
 
     internal static void ProcessPhoto(Attachment a, string source, string webPath, string thumbPath)

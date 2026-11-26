@@ -1,0 +1,128 @@
+@page "/admin/import/people"
+@model FamilyMemories.Pages.Admin.Import.PeopleModel
+@{
+    ViewData["Title"] = "Add people from a spreadsheet";
+}
+<h1>Add people from a spreadsheet</h1>
+@if (Model.Result is { } r)
+{
+    <section class="card" role="status">
+        <h2>Done</h2>
+        <ul>
+            <li>@r.Created new @(r.Created == 1 ? "person" : "people") added to the family tree</li>
+            @if (r.Matched > 0) { <li>@r.Matched matched to people already in the tree (only their blanks were filled in)</li> }
+            @if (r.Skipped > 0) { <li>@r.Skipped skipped</li> }
+            <li>@r.Relationships family @(r.Relationships == 1 ? "connection" : "connections") (parents and partners)</li>
+            @if (r.AccountsCreated > 0) { <li>@r.AccountsCreated sign-in @(r.AccountsCreated == 1 ? "account" : "accounts") made@(r.Invitations > 0 ? $", and {r.Invitations} invitation emails sent" : ", with no emails sent yet")</li> }
+            @if (r.AccountsLinked > 0) { <li>@r.AccountsLinked linked to accounts they already had</li> }
+        </ul>
+        @if (r.Warnings.Count > 0)
+        {
+            <h3>Please check</h3>
+            <ul>@foreach (var w in r.Warnings) { <li>@w</li> }</ul>
+        }
+        <div class="button-row">
+            <a class="button button-primary" href="/tree">See the family tree</a>
+            <a class="button button-secondary" href="/admin/users">People and invitations</a>
+        </div>
+    </section>
+}
+else if (Model.Preview is null)
+{
+    <p>Type everyone into a spreadsheet (Excel, Numbers or Google Sheets), one person per row, and save or download it as <strong>CSV</strong>. They're added to the family tree. Anyone with an email address also gets an account so they can sign in.</p>
+    <div class="button-row">
+        <a class="button button-secondary" href="/admin/import/people?handler=Template" download>Download a ready-to-fill spreadsheet</a>
+    </div>
+    <details class="follow-up">
+        <summary>Which columns can I use?</summary>
+        <ul>
+            <li><strong>First name</strong> and <strong>Last name</strong> (or one <strong>Name</strong> column). Every row needs a name.</li>
+            <li><strong>Maiden name</strong>, <strong>Nickname</strong>, <strong>Sex</strong> (F, M), <strong>About</strong>.</li>
+            <li><strong>Born</strong> and <strong>Died</strong>, written any usual way: 1931, about 1931, June 12, 1931, 6/12/1931, 1931-06-12, 1930s. Anyone with a <strong>Died</strong> date or place is added as no longer living.</li>
+            <li><strong>Birthplace</strong>, <strong>Death place</strong>.</li>
+            <li><strong>Parents</strong> and <strong>Partner</strong>: names of other people in the sheet or already in the tree. Separate two names with a semicolon: <em>Joseph Smith; Rose Smith</em>. You can use separate Mother and Father columns instead.</li>
+            <li><strong>Email</strong> and <strong>Role</strong> (Storyteller, Family or Admin; Family if left blank). Storytellers start on the core questions, one a week.</li>
+        </ul>
+        <p class="muted">Columns we don't recognise are ignored, and you'll see which ones before anything is added.</p>
+    </details>
+
+    <h2>Upload the spreadsheet</h2>
+    @if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="stack">
+        <div class="field">
+            <label for="File">Choose a .csv file</label>
+            <input type="file" id="File" name="File" accept=".csv,text/csv">
+        </div>
+        <button type="submit" class="button button-primary">Show me what's in it</button>
+    </form>
+    <p class="muted">Nothing is changed until you've checked the list and pressed Add these people. Have a GEDCOM file from a genealogy program instead? <a href="/admin/gedcom">Import it here</a>.</p>
+}
+else
+{
+    var p = Model.Preview;
+    var dupes = p.Rows.Count(r => r.Match is not null);
+    var accounts = p.Rows.Count(r => r.Account == FamilyMemories.Imports.AccountPlan.Create && r.Problem is null);
+    <h2>Check before adding</h2>
+    <p class="lead">@p.Rows.Count @(p.Rows.Count == 1 ? "person" : "people") found. @(dupes == 0 ? "None of them look like people already in the tree." : $"{dupes} look like people already in the tree; they're marked below.")</p>
+    @if (p.UnknownColumns.Count > 0)
+    {
+        <p class="muted">These columns will be ignored: @string.Join(", ", p.UnknownColumns).</p>
+    }
+    <form method="post" asp-page-handler="Commit">
+        <input type="hidden" name="FileId" value="@p.FileId">
+        <div class="table-wrap">
+            <table class="data-table">
+                <caption class="visually-hidden">People in the spreadsheet</caption>
+                <thead><tr><th scope="col">Line</th><th scope="col">Person</th><th scope="col">Family and sign-in</th><th scope="col">What to do</th></tr></thead>
+                <tbody>
+                    @foreach (var row in p.Rows)
+                    {
+                        var x = row.Person;
+                        <tr>
+                            <td>@x.Line</td>
+                            <th scope="row">
+                                @(x.DisplayName.Length > 0 ? x.DisplayName : "(no name)")
+                                <div class="muted">@x.Birth.Format()@(x.IsLiving ? "" : $" – {(x.Death.IsEmpty ? "died" : x.Death.Format())}")</div>
+                            </th>
+                            <td>
+                                @if (x.Parents.Count > 0) { <div>Parents: @string.Join(", ", x.Parents)</div> }
+                                @if (x.Partners.Count > 0) { <div>Partner: @string.Join(", ", x.Partners)</div> }
+                                @if (row.AccountText.Length > 0) { <div class="@(row.Account == FamilyMemories.Imports.AccountPlan.Problem ? "field-error" : "")">@row.AccountText</div> }
+                                @foreach (var n in row.Notes) { <div class="field-error">@n</div> }
+                            </td>
+                            <td>
+                                @if (row.Problem is not null)
+                                {
+                                    <span class="field-error">@row.Problem</span>
+                                }
+                                else
+                                {
+                                    <label class="visually-hidden" for="d-@x.Line">What to do with @x.DisplayName</label>
+                                    <select id="d-@x.Line" name="Decisions[@x.Line]">
+                                        @if (row.Match is { } m)
+                                        {
+                                            <option value="@m.Id" selected>Same person as @m.DisplayName (@row.MatchReason)</option>
+                                        }
+                                        <option value="new">Add as a new person</option>
+                                        <option value="skip">Skip</option>
+                                    </select>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (accounts > 0)
+        {
+            <label class="checkbox">
+                <input type="checkbox" name="SendInvitations" value="true">
+                <span>Email an invitation to the @accounts @(accounts == 1 ? "person" : "people") getting a new account now. If you leave this off, you can send each invitation later from their page under People.</span>
+            </label>
+        }
+        <div class="button-row">
+            <button type="submit" class="button button-primary button-large">Add these people</button>
+            <a class="button button-quiet" href="/admin/import/people">Cancel</a>
+        </div>
+    </form>
+}

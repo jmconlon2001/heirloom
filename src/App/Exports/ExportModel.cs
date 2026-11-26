@@ -52,11 +52,20 @@ public sealed record ExportStory(
     int ChapterOrder,
     int PromptOrder,
     string When,
-    IReadOnlyList<string[]> Paragraphs,
+    IReadOnlyList<FamilyMemories.Stories.StoryBlock> Blocks,
     IReadOnlyList<ExportPhoto> Photos,
     IReadOnlyList<ExportClip> Clips,
     IReadOnlyList<Attachment> Documents,
-    IReadOnlyList<Person> People);
+    IReadOnlyList<Person> People)
+{
+    public bool HasWords => Blocks.Any(b => b.IsText);
+    private HashSet<Guid> Placed => [.. Blocks.Where(b => b.MediaId is not null).Select(b => b.MediaId!.Value)];
+    /// <summary>Photos and clips not placed in the text: they follow it, as before.</summary>
+    public IEnumerable<ExportPhoto> UnplacedPhotos => Photos.Where(p => !Placed.Contains(p.Attachment.Id));
+    public IEnumerable<ExportClip> UnplacedClips => Clips.Where(c => !Placed.Contains(c.Attachment.Id));
+    public ExportPhoto? PhotoAt(Guid? id) => id is null ? null : Photos.FirstOrDefault(p => p.Attachment.Id == id);
+    public ExportClip? ClipAt(Guid? id) => id is null ? null : Clips.FirstOrDefault(c => c.Attachment.Id == id);
+}
 
 public sealed record ExportSection(string Id, string Title, IReadOnlyList<ExportStory> Stories);
 
@@ -70,7 +79,11 @@ public sealed record ExportContent(
     IReadOnlyList<Person> AllPeople,
     IReadOnlyList<ParentChild> Parents,
     IReadOnlyList<Partnership> Partnerships,
-    DateTime CreatedAt);
+    DateTime CreatedAt)
+{
+    /// <summary>The website export has an archive page (D-080).</summary>
+    public bool HasArchive { get; init; }
+}
 
 /// <summary>Gathers the stories, media and people for an export, applying the scope.</summary>
 public sealed class ExportContentBuilder(AppDbContext db)
@@ -96,7 +109,7 @@ public sealed class ExportContentBuilder(AppDbContext db)
 
         var ids = memories.Select(m => m.Id).ToList();
         var attachments = await db.Attachments.AsNoTracking()
-            .Where(a => ids.Contains(a.MemoryId) && a.RemovedAt == null && a.State == ProcessingState.Ready)
+            .Where(a => a.MemoryId != null && ids.Contains(a.MemoryId.Value) && a.RemovedAt == null && a.State == ProcessingState.Ready)
             .OrderBy(a => a.SortOrder).ThenBy(a => a.CreatedAt).ToListAsync();
         var attachmentIds = attachments.Select(a => a.Id).ToList();
         var photoPeople = (await db.AttachmentPeople.AsNoTracking().Include(x => x.Person).Where(x => attachmentIds.Contains(x.AttachmentId)).ToListAsync())
@@ -122,7 +135,7 @@ public sealed class ExportContentBuilder(AppDbContext db)
                 m.Prompt?.Chapter?.SortOrder ?? int.MaxValue,
                 m.Prompt?.SortOrder ?? int.MaxValue,
                 m.When.Format(),
-                [.. m.Body.Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(p => p.Split('\n'))],
+                FamilyMemories.Stories.StoryMarkup.Parse(m.Body),
                 [.. mine.Where(a => a.Kind == AttachmentKind.Photo).Select(a => new ExportPhoto(a, Caption(a), photoPeople.GetValueOrDefault(a.Id) ?? []))],
                 clips,
                 [.. mine.Where(a => a.Kind == AttachmentKind.Document)],

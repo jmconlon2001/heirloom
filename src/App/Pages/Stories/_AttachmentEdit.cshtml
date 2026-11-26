@@ -47,6 +47,10 @@
             </fieldset>
         }
         <div class="button-row attachment-buttons">
+            @if (ViewData["ShowFormatting"] is true && a.State != FamilyMemories.Data.ProcessingState.Failed && a.Kind != FamilyMemories.Data.AttachmentKind.Document)
+            {
+                <button type="button" class="button button-secondary" data-place-media="@a.Id" data-place-caption="@a.Caption" hidden>Place in the story<span class="visually-hidden">: @(a.Caption ?? a.OriginalFileName)</span></button>
+            }
             @if (!(Model.IsFirst && Model.IsLast))
             {
                 @* Shown by answer.js: drag (finger or mouse) or use the arrow keys. Move up/down below always work too. *@

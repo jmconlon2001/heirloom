@@ -1,0 +1,106 @@
+@page "/library/archive/{folder:guid?}"
+@model FamilyMemories.Pages.Library.Archive.IndexModel
+@{
+    var v = Model.View;
+    var here = v.Folder is { } hf ? $"/library/archive/{hf.Id}" : "/library/archive";
+    ViewData["Title"] = Model.Keyword is { } kw ? $"Archive: {kw.Replace("|", " › ")}" : v.Folder?.Title ?? "Family archive";
+    string When(FamilyMemories.Data.ArchiveItem i) => i.When.Format();
+}
+<partial name="/Pages/Library/_LibraryNav.cshtml" />
+<partial name="_Flash" />
+
+<nav class="breadcrumbs" aria-label="Where you are in the archive">
+    <a href="/library/archive">Family archive</a>
+    @foreach (var c in v.Path) { <span aria-hidden="true"> › </span><a href="/library/archive/@c.Id" aria-current="@(c.Id == v.Folder?.Id ? "page" : null)">@c.Title</a> }
+</nav>
+<h1>@(Model.Keyword is { } k ? k.Replace("|", " › ") : v.Folder?.Title ?? "Family archive")</h1>
+@if (Model.Keyword is not null)
+{
+    <p>Everything in the archive with this keyword. <a href="/library/archive">Back to the folders</a></p>
+}
+else if (v.Folder?.Description is { } description)
+{
+    <p class="lead">@description</p>
+}
+else if (v.Folder is null)
+{
+    <p class="lead">Letters, certificates, album pages, recordings: the family's papers and pictures, kept with what they say and where the originals are.</p>
+}
+
+<div class="button-row">
+    <a class="button button-primary" href="/library/archive/edit@(v.Folder is { } f ? $"?folder={f.Id}" : "")">Add to the archive</a>
+</div>
+
+@if (Model.Keyword is null && (v.Folders.Count > 0 || User.IsAdmin()))
+{
+    <section aria-labelledby="folders-heading">
+        <h2 id="folders-heading">Folders</h2>
+        @if (v.Folders.Count > 0)
+        {
+            <ul class="folder-list">
+                @foreach (var c in v.Folders) { <li><a href="/library/archive/@c.Id"><span aria-hidden="true">🗂</span> @c.Title</a></li> }
+            </ul>
+        }
+        @if (User.IsAdmin())
+        {
+            <details class="follow-up">
+                <summary>New folder@(v.Folder is null ? "" : $" in {v.Folder.Title}")</summary>
+                <form method="post" action="@here?handler=NewFolder" asp-antiforgery="true" class="stack">
+                    <div class="field"><label for="new-title">Name</label><input id="new-title" name="title" maxlength="200" required></div>
+                    <div class="field"><label for="new-description">What's in it <span class="muted">(optional)</span></label><input id="new-description" name="description" maxlength="4000"></div>
+                    <button type="submit" class="button button-secondary">Make the folder</button>
+                </form>
+            </details>
+            @if (v.Folder is { } current)
+            {
+                <details class="follow-up">
+                    <summary>Rename or remove this folder</summary>
+                    <form method="post" action="@here?handler=RenameFolder" asp-antiforgery="true" class="stack">
+                        <div class="field"><label for="rename-title">Name</label><input id="rename-title" name="title" value="@current.Title" maxlength="200" required></div>
+                        <div class="field"><label for="rename-description">What's in it</label><input id="rename-description" name="description" value="@current.Description" maxlength="4000"></div>
+                        <button type="submit" class="button button-secondary">Save</button>
+                    </form>
+                    <form method="post" action="@here?handler=DeleteFolder" asp-antiforgery="true" class="stack">
+                        <input type="hidden" name="parent" value="@current.ParentId">
+                        <button type="submit" class="button button-quiet">Remove this folder (only when it's empty)</button>
+                    </form>
+                </details>
+            }
+        }
+    </section>
+}
+
+<section aria-labelledby="items-heading">
+    <h2 id="items-heading">@(v.Items.Count == 0 ? "Nothing here yet" : v.Items.Count == 1 ? "1 item" : $"{v.Items.Count} items")</h2>
+    @if (v.Items.Count > 0)
+    {
+        <ul class="archive-grid">
+            @foreach (var i in v.Items)
+            {
+                var cover = i.Files.FirstOrDefault(f => f.State == FamilyMemories.Data.ProcessingState.Ready && f.Width is not null);
+                <li>
+                    <a class="archive-card" href="/library/archive/item/@i.Id">
+                        @if (cover is not null)
+                        {
+                            <img src="/media/@cover.Id/thumb" alt="" loading="lazy" width="400" height="400">
+                        }
+                        else
+                        {
+                            <span class="archive-card-icon" aria-hidden="true">@(i.Files.Any(f => f.Kind == FamilyMemories.Data.AttachmentKind.Audio) ? "🎙" : "📄")</span>
+                        }
+                        <span class="archive-card-title">@i.Title</span>
+                        @if (When(i).Length > 0) { <span class="muted">@When(i)</span> }
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@if (Model.Keywords.Count > 0)
+{
+    <details class="keyword-tree">
+        <summary>Browse by keyword</summary>
+        <partial name="_KeywordTree" model="Model.Keywords" />
+    </details>
+}

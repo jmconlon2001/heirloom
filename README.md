@@ -21,13 +21,15 @@ It's self-hosted (your server, your data) and designed first for storytellers ag
 - **Gentle reminder emails** with the question and one big button, on a schedule that survives daylight-saving changes, with snooze and stop links. Admins get a nudge if someone goes quiet.
 - **Sharing you control:** each story can be for all the family, certain people, only you, or anyone with a special link (optional passcode and expiry). Admins can always see everything, and every picker says so.
 - **Family Library:** newest stories, chapters, storytellers, a timeline, photos, search, ♥ and notes.
-- **Family tree** with person pages ("Stories told by them", "Stories about them", "Photos they appear in"), photo tagging, and GEDCOM import and export.
+- **Family tree** with person pages ("Stories told by them", "Stories about them", "Photos they appear in"), photo tagging, and GEDCOM import and export. Keep the master tree in Reunion, RootsMagic or another genealogy program if you like: its GEDCOM brings in life events, notes, **sources** and links, and importing it again each year updates them.
+- **Family archive:** letters, certificates, album pages and recordings in folders, each with its scans, a transcription, a date and place, and where the original is now. Photo captions, dates and hierarchical keywords are read from the photos themselves, so a whole photo CD files itself.
+- **Formatting and raw material:** headings, lists, bold, italic, links, and photos placed anywhere in a story (Detailed view and helpers; Simple view keeps the plain box). The raw material behind a story (an email reply, what speech-to-text heard, a letter's transcription) is kept next to the finished version.
 - **Exports:**
   - a family website (zip) that works offline from a USB stick;
   - a shareable PDF;
   - a **print-ready book package** for Lulu, Amazon KDP or a local printer: interior and cover PDFs with a calculated spine width, EPUB, DOCX, Markdown sources and a preflight report;
   - a complete archive in open formats.
-- **Backups:** encrypted with restic every night, checked every week, restorable from the admin page, plus a disaster-restore script for a new server.
+- **Backups:** encrypted with restic every night, checked every week, restorable from the admin page, plus a disaster-restore script for a new server. The Backups page shows exactly what each backup held and where every copy is. The offsite copy can go to OneDrive, Google Drive, Dropbox, Backblaze B2 and more, and an optional plain copy (a SQL dump plus files) can be rsynced anywhere.
 - **Status page and API:** `/status` says in plain words whether each part is working; `/api/status` gives monitors JSON (and a 503 when something breaks). `/healthz` and `/readyz` are there for container health checks.
 - **Simple or Detailed view, on every page:** **Simple** (the default) keeps the large, calm look; **Detailed** adds a sidebar with every section, compact tables and, for admins, a dashboard. Each person's choice is remembered.
 - **Optional extras**, off by default: local speech-to-text (Whisper), answering by replying to the email, and printable paper question packets.
@@ -87,6 +89,8 @@ Then open `PUBLIC_BASE_URL`, type the `ADMIN_EMAIL` address, and tap the link in
 - OpenMediaVault: **[docs/DEPLOY_OMV.md](docs/DEPLOY_OMV.md)**. Proxmox (LXC or VM): **[docs/DEPLOY_PVE.md](docs/DEPLOY_PVE.md)**.
 - Monitoring: `/api/status` (set `STATUS_TOKEN` for details), `/healthz`, `/readyz`. See [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md#is-everything-working).
 - Running it day to day: **[docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)**. Backups and disaster recovery: **[docs/RESTORE.md](docs/RESTORE.md)**.
+- What's exposed, how sign-in works, keeping it updated, and what's left to you: **[docs/SECURITY.md](docs/SECURITY.md)**.
+- **Customising without a fork:** questions, chapters, email wording, reminders, the site's name, the help number and the optional extras are all settings in the app, so updates never need merging. Already keep the family tree in Reunion, RootsMagic or another genealogy program? Keep it there, and import its GEDCOM now and then as the main tree: people, life events, sources and links appear next to the stories.
 - A one-page, large-type sheet to print for storytellers: **[docs/HELP_FOR_STORYTELLERS.pdf](docs/HELP_FOR_STORYTELLERS.pdf)**.
 
 ## Try it with a sample family (beta testing)

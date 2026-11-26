@@ -11,7 +11,8 @@ public sealed class AppOptions
     /// <summary>The product's own name. A family can name its site anything with APP_NAME; the footer then says "Kept with Heirloom".</summary>
     public const string ProductName = "Heirloom";
 
-    public string AppName { get; init; } = ProductName;
+    /// <summary>The site's name: from Site settings in the app if an admin set one, otherwise APP_NAME.</summary>
+    public string AppName { get; set; } = ProductName;
 
     /// <summary>True when the family has given its site its own name.</summary>
     public bool HasOwnName => !string.Equals(AppName, ProductName, StringComparison.OrdinalIgnoreCase);
@@ -32,8 +33,20 @@ public sealed class AppOptions
     public string? AdminEmail { get; init; }
     public string AdminName { get; init; } = "Family Admin";
 
-    public string HelpName { get; init; } = "";
-    public string HelpPhone { get; init; } = "";
+    /// <summary>Who to call for help, shown on every page, in emails and on login cards. Site settings override HELP_NAME/HELP_PHONE.</summary>
+    public string HelpName { get; set; } = "";
+    public string HelpPhone { get; set; } = "";
+
+    /// <summary>Text size (0–2) and high contrast for a device that hasn't chosen yet (Site settings).</summary>
+    public int DefaultTextSize { get; set; }
+    /// <summary>The family's main tree on the web (e.g. published from Reunion), from Site settings.</summary>
+    public string? MainTreeUrl { get; set; }
+    public bool DefaultHighContrast { get; set; }
+
+    /// <summary>The .env values, which Site settings fall back to when a field is left empty.</summary>
+    public string EnvAppName { get; init; } = ProductName;
+    public string EnvHelpName { get; init; } = "";
+    public string EnvHelpPhone { get; init; } = "";
 
     public SmtpOptions Smtp { get; init; } = new();
 
@@ -72,6 +85,18 @@ public sealed class AppOptions
     public string? ResticPassword { get; init; }
     /// <summary>Optional second repository (any restic backend), e.g. "b2:bucket:family-memories".</summary>
     public string? OffsiteRepository { get; init; }
+
+    /// <summary>PLAIN_COPY=true: after each backup, also keep an unencrypted, ordinary copy (SQL dump + media folder) that anyone can open or rsync.</summary>
+    public bool PlainCopy { get; init; }
+    /// <summary>UPDATE_CHECK (default on): once a day, ask GitHub whether a newer release exists, and say so on the admin home.</summary>
+    public bool UpdateCheck { get; init; } = true;
+    public string UpdateRepository { get; init; } = "jmconlon2001/heirloom";
+    public string PlainCopyDir { get; init; } = "/backups/plain";
+    /// <summary>The server's own folder names for DATA_ROOT and BACKUP_ROOT (passed in by compose.yml), so the Backups page can say where things really are.</summary>
+    public string? DataRootOnHost { get; init; }
+    public string? BackupRootOnHost { get; init; }
+    /// <summary>rclone's settings, for OFFSITE_RESTIC_REPOSITORY=rclone:remote:path (OneDrive, Google Drive, Dropbox…).</summary>
+    public string RcloneConfigPath => Environment.GetEnvironmentVariable("RCLONE_CONFIG") is { Length: > 0 } p ? p : Path.Combine(ConfigDir, "rclone.conf");
     public string? OffsitePassword { get; init; }
     /// <summary>Local time of the nightly backup, "HH:mm" (BACKUP_TIME, default 02:30).</summary>
     public string BackupTime { get; init; } = "02:30";
@@ -162,6 +187,9 @@ public sealed class AppOptions
             AdminName = NonEmpty(c["ADMIN_NAME"]) ?? "Family Admin",
             HelpName = c["HELP_NAME"] ?? "",
             HelpPhone = c["HELP_PHONE"] ?? "",
+            EnvAppName = NonEmpty(c["APP_NAME"]) ?? ProductName,
+            EnvHelpName = c["HELP_NAME"] ?? "",
+            EnvHelpPhone = c["HELP_PHONE"] ?? "",
             PreMigrationBackup = !string.Equals(c["PRE_MIGRATION_BACKUP"], "false", StringComparison.OrdinalIgnoreCase),
             DefaultVisibility = string.Equals(c["DEFAULT_VISIBILITY"], "Private", StringComparison.OrdinalIgnoreCase)
                 ? FamilyMemories.Data.Visibility.Private : FamilyMemories.Data.Visibility.AllFamily,
@@ -172,6 +200,12 @@ public sealed class AppOptions
             ResticRepository = NonEmpty(c["RESTIC_REPOSITORY"]) ?? "/backups/restic",
             ResticPassword = NonEmpty(c["RESTIC_PASSWORD"]),
             OffsiteRepository = NonEmpty(c["OFFSITE_RESTIC_REPOSITORY"]),
+            PlainCopy = Flag(c["PLAIN_COPY"]),
+            UpdateCheck = FlagDefaultOn(c["UPDATE_CHECK"]),
+            UpdateRepository = NonEmpty(c["UPDATE_REPOSITORY"]) ?? "jmconlon2001/heirloom",
+            PlainCopyDir = NonEmpty(c["PLAIN_COPY_DIR"]) ?? "/backups/plain",
+            DataRootOnHost = NonEmpty(c["DATA_ROOT_ON_HOST"]),
+            BackupRootOnHost = NonEmpty(c["BACKUP_ROOT_ON_HOST"]),
             OffsitePassword = NonEmpty(c["OFFSITE_RESTIC_PASSWORD"]) ?? NonEmpty(c["RESTIC_PASSWORD"]),
             BackupTime = NonEmpty(c["BACKUP_TIME"]) ?? "02:30",
             KeepDaily = int.TryParse(c["BACKUP_KEEP_DAILY"], out var kd) ? kd : 7,

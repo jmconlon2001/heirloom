@@ -129,6 +129,54 @@ public sealed class AnswerTests(PostgresFixture postgres, BrowsersFixture browse
     }
 
     [Fact]
+    public async Task In_detailed_view_the_toolbar_formats_words_and_places_a_photo_in_the_story()
+    {
+        var rose = await app.CreateUserAsync("Rose Smith", "rose-format@example.test", [Roles.Storyteller], PromptSetKind.Core, Pacing.Weekly);
+        var page = await SignedInIPadAsync("rose-format@example.test");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Detailed" }).ClickAsync();
+        await page.GotoAsync("/");
+        await page.GetByRole(AriaRole.Link, new() { Name = "Answer this question" }).First.ClickAsync();
+
+        var story = page.GetByLabel("Your story");
+        await story.FillAsync("I was born at home.");
+        await story.EvaluateAsync("el => el.setSelectionRange(14, 18)");   // "home"
+        await page.GetByRole(AriaRole.Button, new() { Name = "Bold" }).ClickAsync();
+        await Expect(story).ToHaveValueAsync("I was born at **home**.");
+
+        await page.Locator("#Files").SetInputFilesAsync(AppFactory.Fixture("photo.jpg"));
+        await Expect(page.Locator(".attachment img")).ToHaveCountAsync(1, new() { Timeout = 30_000 });
+        await page.GetByLabel("Caption").First.FillAsync("The farmhouse");
+        await story.EvaluateAsync("el => el.setSelectionRange(el.value.length, el.value.length)");
+        await page.GetByRole(AriaRole.Button, new() { NameRegex = new Regex("^Place in the story") }).ClickAsync();
+        await Expect(story).ToHaveValueAsync(new Regex(@"^I was born at \*\*home\*\*\.\n\n!\[The farmhouse\]\(media:[0-9a-f-]{36}\)\n\n$"));
+        await Accessibility.AssertAccessibleAsync(page, "writing page with the formatting toolbar");   // Detailed view is compact by design: no tap-size check
+
+        // "Saved ✓" is already showing from the first save, so wait for the placement itself to reach the server.
+        await page.GetByLabel("Your story").BlurAsync();
+        Guid memoryId = default;
+        for (var i = 0; i < 50 && memoryId == default; i++)
+        {
+            memoryId = await app.WithDbAsync(db => db.Memories.Where(m => m.StorytellerId == rose.Id && m.Body.Contains("(media:")).Select(m => m.Id).SingleOrDefaultAsync());
+            if (memoryId == default) await page.WaitForTimeoutAsync(300);
+        }
+        Assert.NotEqual(default, memoryId);
+        await page.GotoAsync($"/stories/{memoryId}");
+        await Expect(page.Locator(".story-body strong")).ToHaveTextAsync("home");
+        await Expect(page.Locator(".story-body figure.story-media img")).ToHaveCountAsync(1);
+        await Expect(page.Locator(".story-body figcaption")).ToHaveTextAsync("The farmhouse");
+    }
+
+    [Fact]
+    public async Task Simple_view_keeps_the_plain_story_box()
+    {
+        await app.CreateUserAsync("Rose Smith", "rose-simple@example.test", [Roles.Storyteller], PromptSetKind.Core, Pacing.Weekly);
+        var page = await SignedInIPadAsync("rose-simple@example.test");
+        await page.GetByRole(AriaRole.Link, new() { Name = "Answer this question" }).ClickAsync();
+        await Expect(page.GetByLabel("Your story")).ToBeVisibleAsync();
+        await Expect(page.GetByRole(AriaRole.Toolbar, new() { Name = "Formatting" })).ToHaveCountAsync(0);
+    }
+
+    [Fact]
     public async Task Photos_can_be_put_in_order_by_dragging_or_with_the_arrow_keys()
     {
         var rose = await app.CreateUserAsync("Rose Smith", "rose-drag@example.test", [Roles.Storyteller], PromptSetKind.Core, Pacing.Weekly);

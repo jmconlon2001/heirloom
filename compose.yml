@@ -28,6 +28,9 @@ services:
         required: false
     environment:
       DATA_DIR: /data
+      # The server's own folder names, so the Backups page can tell you where things really are.
+      DATA_ROOT_ON_HOST: ${DATA_ROOT}
+      BACKUP_ROOT_ON_HOST: ${BACKUP_ROOT}
       POSTGRES_HOST: db
       GOTENBERG_URL: http://gotenberg:3000
       # Speech-to-text: the whisper service below, unless WHISPER_URL in .env points elsewhere (e.g. a Mac mini).

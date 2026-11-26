@@ -112,7 +112,8 @@ public static class StoryApi
         api.MapGet("/attachments/{id:guid}", async (Guid id, HttpContext http, AppDbContext db, StoryAccess access) =>
         {
             var a = await db.Attachments.AsNoTracking().Include(x => x.Memory).SingleOrDefaultAsync(x => x.Id == id && x.RemovedAt == null);
-            if (a is null || !await access.CanViewAsync(http.User, a.Memory!)) return Results.NotFound();
+            // Archive files are for every signed-in family member (D-080); a story's follow the story.
+            if (a is null || (a.Memory is not null && !await access.CanViewAsync(http.User, a.Memory))) return Results.NotFound();
             return Results.Ok(AttachmentJson(a));
         });
 
@@ -219,9 +220,18 @@ public static class MediaEndpoints
         {
             if (!Enum.TryParse<MediaVariant>(variant, ignoreCase: true, out var v)) return Results.NotFound();
             var a = await db.Attachments.AsNoTracking().Include(x => x.Memory).SingleOrDefaultAsync(x => x.Id == id);
-            if (a is null || !await access.CanViewAsync(http.User, a.Memory!)) return Results.NotFound();
-            // Something the storyteller removed is only reachable by those who can put it back.
-            if (a.RemovedAt is not null && !await access.CanEditAsync(http.User, a.Memory!)) return Results.NotFound();
+            if (a is null) return Results.NotFound();
+            if (a.Memory is null)
+            {
+                // The family archive (D-080): every signed-in family member; a removed file only for admins.
+                if (a.ArchiveItemId is null || (a.RemovedAt is not null && !http.User.IsAdmin())) return Results.NotFound();
+            }
+            else
+            {
+                if (!await access.CanViewAsync(http.User, a.Memory)) return Results.NotFound();
+                // Something the storyteller removed is only reachable by those who can put it back.
+                if (a.RemovedAt is not null && !await access.CanEditAsync(http.User, a.Memory)) return Results.NotFound();
+            }
 
             if (v == MediaVariant.Video && !File.Exists(storage.PathFor(a, v))) v = MediaVariant.Original;   // not converted yet
             var path = storage.PathFor(a, v);

@@ -241,6 +241,29 @@ public sealed partial class ExportTests(PostgresFixture postgres, GotenbergFixtu
     }
 
     [Fact]
+    public async Task Family_website_keeps_formatting_and_photos_placed_in_the_text()
+    {
+        var s = await SeedAsync();
+        var photo = await app.WithDbAsync(db => db.Attachments.Where(a => a.MemoryId == s.PublicStory && a.OriginalFileName == "photo.jpg").Select(a => a.Id).SingleAsync());
+        await app.WithServiceAsync<MemoryService, SaveResult>(m => m.SaveAsync(s.PublicStory, new MemoryEdit(null,
+            $"## At the fair\n\nIt was **so** hot.\n\n{FamilyMemories.Stories.StoryMarkup.MediaMarker(photo, "The ribbon")}\n\nJoe won a ribbon for his tomatoes.",
+            default, "Akron"), s.Rose.Id, VersionKind.Save));
+
+        var job = await RunAsync(ExportKind.Website);
+        using var zip = ZipFile.OpenRead(PathOf(job));
+        var entry = zip.Entries.Single(e => e.FullName.StartsWith("story-"));
+        using var reader = new StreamReader(entry.Open());
+        var html = await reader.ReadToEndAsync();
+        Assert.Contains("<h2 class=\"story-heading\">At the fair</h2>", html);
+        Assert.Contains("<strong>so</strong>", html);
+        var placed = html.IndexOf("<figcaption>The ribbon");
+        Assert.True(placed > html.IndexOf("It was") && placed < html.IndexOf("Joe won a ribbon"), "the photo sits in the text");
+        // One figure (a link and an image) for the placed photo, and not repeated after the story.
+        Assert.Equal(2, Regex.Matches(html, $"media/{photo:N}/web.jpg").Count);
+        Assert.DoesNotContain("media:", html);
+    }
+
+    [Fact]
     public async Task Portable_archive_keeps_everything_in_open_formats()
     {
         var s = await SeedAsync();
@@ -257,6 +280,53 @@ public sealed partial class ExportTests(PostgresFixture postgres, GotenbergFixtu
         foreach (var a in withMedia.GetProperty("attachments").EnumerateArray())
             Assert.Contains(a.GetProperty("file").GetString(), names);  // every original is in the zip
         Assert.Equal(2, json.RootElement.GetProperty("family_tree").GetProperty("people").GetArrayLength());
+    }
+
+    private async Task<ArchiveItem> ArchiveLetterAsync(Guid userId)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var archive = scope.ServiceProvider.GetRequiredService<FamilyMemories.Archive.ArchiveService>();
+        var folder = await archive.CreateFolderAsync(null, "Letters", null);
+        await using var scan = File.OpenRead(AppFactory.Fixture("photo.jpg"));
+        await using var pdf = File.OpenRead(AppFactory.Fixture("recipe.pdf"));
+        var (ids, problems) = await archive.CreateAsync(new FamilyMemories.Archive.ArchiveItemInput("Letter from Joe", null,
+            new FuzzyDate(1944, null, null, true, null, null), "Normandy", "Dear Rose, the weather is fine.", "Aunt Ann's cedar chest", folder.Id),
+            [("page1.jpg", scan), ("recipe.pdf", pdf)], eachFileSeparately: false, userId);
+        Assert.Empty(problems);
+        return await app.WithDbAsync(db => db.ArchiveItems.Include(i => i.Files).SingleAsync(i => i.Id == ids[0]));
+    }
+
+    [Fact]
+    public async Task The_archive_is_in_the_family_website_and_the_portable_archive()
+    {
+        var s = await SeedAsync();
+        var letter = await ArchiveLetterAsync(s.Rose.Id);
+
+        var site = await RunAsync(ExportKind.Website);
+        using (var zip = ZipFile.OpenRead(PathOf(site)))
+        {
+            string Read(string name) { using var r = new StreamReader(zip.GetEntry(name)!.Open()); return r.ReadToEnd(); }
+            var names = zip.Entries.Select(e => e.FullName).ToList();
+            Assert.Contains("href=\"archive.html\"", Read("index.html"));
+            var html = WebUtility.HtmlDecode(Read("archive.html"));
+            Assert.Contains("<h2>Letters</h2>", html);
+            Assert.Contains("Dear Rose, the weather is fine.", html);
+            Assert.Contains("The original: Aunt Ann's cedar chest", html);
+            foreach (Match m in SrcRegex().Matches(html)) Assert.Contains(m.Groups[1].Value, names);
+            Assert.Contains(names, n => n.EndsWith("/original.pdf"));
+        }
+
+        var archive = await RunAsync(ExportKind.Archive);
+        using (var zip = ZipFile.OpenRead(PathOf(archive)))
+        {
+            var names = zip.Entries.Select(e => e.FullName).ToList();
+            using var json = JsonDocument.Parse(zip.GetEntry("data.json")!.Open());
+            var item = json.RootElement.GetProperty("archive").GetProperty("items").EnumerateArray().Single();
+            Assert.Equal("Letter from Joe", item.GetProperty("Title").GetString());
+            Assert.Equal(2, item.GetProperty("files").GetArrayLength());
+            foreach (var f in item.GetProperty("files").EnumerateArray())
+                Assert.Contains(f.GetProperty("file").GetString(), names);   // every original is in the zip
+        }
     }
 
     [Fact]

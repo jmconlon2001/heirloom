@@ -24,6 +24,12 @@
 {
     <p class="person-bio">@p.Bio</p>
 }
+@if (Model.Links.Count > 0)
+{
+    <ul class="person-links" aria-label="Links about @p.DisplayName">
+        @foreach (var l in Model.Links) { <li><a href="@l.Url" rel="noopener">@l.Label</a></li> }
+    </ul>
+}
 
 <div class="button-row">
     <form method="post" asp-page="/Stories/New">
@@ -33,6 +39,48 @@
     <a class="button button-secondary" href="/tree?focus=@p.Id">See in the family tree</a>
     <a class="button button-quiet" href="/people/@p.Id/edit">Edit</a>
 </div>
+
+@if (Model.Facts.Count > 0)
+{
+    var events = Model.Facts.Where(f => f.Kind is not ("NOTE" or "SOUR")).ToList();
+    var notes = Model.Facts.Where(f => f.Kind == "NOTE").ToList();
+    var general = Model.Facts.Where(f => f.Kind == "SOUR").SelectMany(f => f.Citations).ToList();
+    var sourceCount = Model.Facts.SelectMany(f => f.Citations).Select(c => c.Title).Distinct().Count();
+    <details class="life-events" open="@(Model.Detailed)">
+        <summary>Life events@(sourceCount > 0 ? $" and sources ({sourceCount})" : "")</summary>
+        @if (events.Count > 0)
+        {
+            <ol class="event-list">
+                @foreach (var f in events)
+                {
+                    <li>
+                        <span class="event-date">@f.Date.Format()</span>
+                        <span class="event-what"><strong>@f.Label</strong>@(f.Value is null ? "" : $": {f.Value}")@(f.Place is null ? "" : $", {f.Place}")</span>
+                        @if (f.Note is not null) { <span class="event-note">@f.Note</span> }
+                        @if (f.Citations.Count > 0)
+                        {
+                            <details class="sources">
+                                <summary>Sources (@f.Citations.Count)<span class="visually-hidden"> for @f.Label</span></summary>
+                                <partial name="_Citations" model="f.Citations" />
+                            </details>
+                        }
+                    </li>
+                }
+            </ol>
+        }
+        @foreach (var n in notes) { <p class="person-note">@n.Note</p> }
+        @if (general.Count > 0)
+        {
+            <h3>Sources about @p.GivenNames.Split(' ')[0]</h3>
+            <partial name="_Citations" model="general" />
+        }
+        @if (Model.Facts.Any(f => f.FromGedcom))
+        {
+            var treeUrl = AppOptions.MainTreeUrl;
+            <p class="muted">From the family's main tree. To change these, change them there and import it again.@if (treeUrl is not null) {<text> <a href="@treeUrl" rel="noopener">Open the main tree</a></text>}</p>
+        }
+    </details>
+}
 
 <section aria-labelledby="family-heading">
     <h2 id="family-heading">Close family</h2>

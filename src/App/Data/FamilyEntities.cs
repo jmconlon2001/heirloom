@@ -179,3 +179,46 @@ public sealed class ExportJob
     public DateTime CreatedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
 }
+
+/// <summary>Where a fact comes from: a source in the family's genealogy program (a census, a certificate, a book).</summary>
+public sealed record FactCitation(string Title, string? Page = null, string? Url = null);
+
+/// <summary>
+/// A life event or fact about a person (residence, occupation, military service, immigration, burial…), usually read from
+/// the family's main genealogy program's GEDCOM file, with its sources. Heirloom shows these; the genealogy program owns them.
+/// </summary>
+public sealed class PersonFact
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public Person? Person { get; set; }
+    /// <summary>The GEDCOM tag (RESI, OCCU, MILI…), "EVEN" for a custom event, "NOTE" for a note, "SOUR" for sources about the whole person.</summary>
+    public string Kind { get; set; } = "";
+    /// <summary>What people read: "Residence", "Occupation", or a custom event's own name.</summary>
+    public string Label { get; set; } = "";
+    public int? Year { get; set; }
+    public int? Month { get; set; }
+    public int? Day { get; set; }
+    public bool Circa { get; set; }
+    public string? Place { get; set; }
+    public string? Value { get; set; }
+    public string? Note { get; set; }
+    public List<FactCitation> Citations { get; set; } = [];
+    public int SortOrder { get; set; }
+    /// <summary>Came from a GEDCOM import; replaced when the main tree is imported again.</summary>
+    public bool FromGedcom { get; set; }
+
+    public FuzzyDate Date => new(Year, Month, Day, Circa, null, null);
+}
+
+/// <summary>A link from a person to somewhere else about them: the family's tree website, FamilySearch, Find a Grave, a memorial page.</summary>
+public sealed class PersonLink
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public Person? Person { get; set; }
+    public string Label { get; set; } = "";
+    public string Url { get; set; } = "";
+    public int SortOrder { get; set; }
+    public bool FromGedcom { get; set; }
+}

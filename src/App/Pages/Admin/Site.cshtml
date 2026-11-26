@@ -1,0 +1,73 @@
+@page "/admin/site"
+@model FamilyMemories.Pages.Admin.SiteModel
+@{
+    ViewData["Title"] = "Site name, help and display";
+    var o = Model.Options;
+    string FromEnv(string value) => string.IsNullOrWhiteSpace(value) ? "nothing is set in the .env file" : $"the .env file says \"{value}\"";
+}
+<h1>Site name, help and display</h1>
+<partial name="_Flash" />
+<p>What everyone sees. Changes take effect straight away; no restart is needed. Leave a box empty to use the value from the <code>.env</code> file.</p>
+
+<form method="post" class="stack">
+    <section class="card">
+        <h2>The site's name</h2>
+        <div class="field">
+            <label for="SiteName">Name</label>
+            <p class="muted" id="SiteName-hint">Shown at the top of every page and in every email, e.g. "The Conlon Family Stories". Empty: @FromEnv(o.EnvAppName).</p>
+            <input id="SiteName" name="SiteName" value="@Model.SiteName" maxlength="80" aria-describedby="SiteName-hint" placeholder="@o.EnvAppName">
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Who to call for help</h2>
+        <p>Shown in the "Need help?" box at the bottom of every page, in every email, and on printed login cards. Pick someone the storytellers know and will happily phone.</p>
+        <div class="field">
+            <label for="HelpName">Their name</label>
+            <p class="muted" id="HelpName-hint">How the storytellers know them, e.g. "Jacob" or "your grandson Jacob". Empty: @FromEnv(o.EnvHelpName).</p>
+            <input id="HelpName" name="HelpName" value="@Model.HelpName" maxlength="80" aria-describedby="HelpName-hint" placeholder="@o.EnvHelpName">
+        </div>
+        <div class="field">
+            <label for="HelpPhone">Their phone number</label>
+            <p class="muted" id="HelpPhone-hint">On a phone or iPad, tapping it calls them. Empty: @FromEnv(o.EnvHelpPhone).</p>
+            @if (Model.Errors.TryGetValue("HelpPhone", out var phoneError)) { <p class="field-error" id="HelpPhone-error" role="alert">@phoneError</p> }
+            <input id="HelpPhone" name="HelpPhone" type="tel" autocomplete="off" value="@Model.HelpPhone" maxlength="40"
+                   aria-describedby="HelpPhone-hint@(phoneError is null ? "" : " HelpPhone-error")" aria-invalid="@(phoneError is null ? "false" : "true")" placeholder="@o.EnvHelpPhone">
+        </div>
+        <p class="muted">The "Need help?" box at the bottom of this page shows what everyone sees now.</p>
+    </section>
+
+    <section class="card">
+        <h2>The family's main tree</h2>
+        <p>If the family keeps its tree in a genealogy program (Reunion, RootsMagic, Family Tree Maker…) and publishes it on the web, link to it here. It's shown on the family tree and People pages. Import that program's GEDCOM file now and then (Family admin → Import or export the family tree) to bring its people, life events and sources in.</p>
+        <div class="field">
+            <label for="MainTreeUrl">Web address of the main tree</label>
+            @if (Model.Errors.TryGetValue("MainTreeUrl", out var treeError)) { <p class="field-error" id="MainTreeUrl-error" role="alert">@treeError</p> }
+            <input id="MainTreeUrl" name="MainTreeUrl" type="url" inputmode="url" value="@Model.MainTreeUrl" maxlength="500" placeholder="https://"
+                   aria-describedby="@(treeError is null ? null : "MainTreeUrl-error")" aria-invalid="@(treeError is null ? "false" : "true")">
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>How the site looks at first</h2>
+        <p>The text size and contrast a new phone, iPad or computer starts with. Anyone can still change them with the buttons at the top of each page, and their choice is remembered on that device.</p>
+        <fieldset>
+            <legend>Text size to start with</legend>
+            @for (var i = 0; i < FamilyMemories.Web.DisplayPreferences.SizeLabels.Length; i++)
+            {
+                <div class="radio-option">
+                    <input type="radio" id="size-@i" name="TextSize" value="@i" checked="@(Model.TextSize == i)">
+                    <label for="size-@i"><strong>@FamilyMemories.Web.DisplayPreferences.SizeLabels[i]</strong> @FamilyMemories.Web.DisplayPreferences.SizeNames[i]@(i == 0 ? " (usual)" : "")</label>
+                </div>
+            }
+        </fieldset>
+        <label class="checkbox">
+            <input type="checkbox" name="HighContrast" value="true" checked="@Model.HighContrast">
+            <span>Start with high contrast (black on white)</span>
+        </label>
+    </section>
+
+    <div class="button-row">
+        <button type="submit" class="button button-primary button-large">Save</button>
+    </div>
+</form>

@@ -144,6 +144,10 @@ public sealed class TranscriptionTests(PostgresFixture postgres) : IAsyncLifetim
         Assert.Equal("My first words.\n\nI was born in a farmhouse outside Akron, Ohio.",
             await app.WithDbAsync(db => db.Memories.Where(m => m.Id == memoryId).Select(m => m.Body).SingleAsync()));
         Assert.Equal(TranscriptState.Approved, await app.WithDbAsync(db => db.Attachments.Where(x => x.Id == attachmentId).Select(x => x.TranscriptState).SingleAsync()));
+
+        // What speech-to-text heard, before the fix, is kept as raw material next to the story (D-079).
+        var raw = await app.WithDbAsync(db => db.MemorySources.SingleAsync(x => x.MemoryId == memoryId));
+        Assert.Equal((SourceKind.VoiceTranscript, "I was born in a farmhouse outside Akron.", (Guid?)attachmentId), (raw.Kind, raw.Text, raw.AttachmentId));
     }
 }
 
@@ -206,6 +210,9 @@ public sealed class EmailReplyTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal(MemoryStatus.Draft, memory.Status);
         Assert.NotNull(memory.EmailReplyAt);
         Assert.Single(memory.Attachments);
+        var raw = await app.WithDbAsync(db => db.MemorySources.SingleAsync(x => x.MemoryId == memory.Id));
+        Assert.Equal(SourceKind.EmailReply, raw.Kind);
+        Assert.Contains("> Here is this week's question", raw.Text);   // the whole reply, as it arrived
 
         var browser = await Browser.SignedInAsync(app, "reply-rose@example.test");
         var page = WebUtility.HtmlDecode(await browser.Http.GetStringAsync($"/stories/{memory.Id}/write"));

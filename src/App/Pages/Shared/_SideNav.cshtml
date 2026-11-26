@@ -5,14 +5,15 @@
     var groups = new List<(string Heading, (string Text, string Href, bool Exact)[] Links)>
     {
         ("Family", [("Home", "/", true), ("Family Library", "/library", true), ("Timeline", "/library/timeline", false), ("Photos", "/library/photos", false),
-                    ("Storytellers", "/library/storytellers", false), ("Search", "/library/search", false), ("Family tree", "/tree", false), ("People", "/people", false)]),
+                    ("Storytellers", "/library/storytellers", false), ("Search", "/library/search", false), ("Archive", "/library/archive", false), ("Family tree", "/tree", false), ("People", "/people", false)]),
     };
     if (User.IsInRole(Roles.Storyteller))
         groups.Add(("My stories", [("My questions", "/questions", false), ("Stories I've told", "/stories", true)]));
     if (User.IsInRole(Roles.Admin) && !FamilyMemories.Admin.ViewAs.IsActive(Context))
     {
         groups.Add(("Admin", [("Dashboard", "/admin", true), ("System status", "/status", false), ("Activity log", "/admin/audit", false),
-                              ("People and invitations", "/admin/users", false), ("Family tree import/export", "/admin/gedcom", false)]));
+                              ("People and invitations", "/admin/users", false), ("Site name, help and display", "/admin/site", false), ("Family tree import/export", "/admin/gedcom", false),
+                              ("Import people (spreadsheet)", "/admin/import/people", false), ("Import stories (spreadsheet)", "/admin/import/stories", false)]));
         groups.Add(("Questions", [("Questions and chapters", "/admin/prompts", false), ("Question sets", "/admin/prompt-sets", false)]));
         groups.Add(("Email", [("Mail server", "/admin/email", true), ("Reminder schedule", "/admin/reminders", false),
                               ("Email wording", "/admin/email/templates", false), ("Sent emails", "/admin/email/log", false)]));

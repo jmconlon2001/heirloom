@@ -16,6 +16,7 @@ public sealed class EditModel(AppDbContext db, PeopleService people, TimeProvide
     public List<AppUser> Users { get; private set; } = [];
     public List<Person> Others { get; private set; } = [];
     public List<Attachment> PhotoChoices { get; private set; } = [];
+    public List<PersonLink> Links { get; private set; } = [];
     public string? Error { get; private set; }
 
     [BindProperty] public string? GivenNames { get; set; }
@@ -44,6 +45,7 @@ public sealed class EditModel(AppDbContext db, PeopleService people, TimeProvide
         Kin = await people.KinAsync(pid);
         if (Kin is null) return false;
         Person = Kin.Person;
+        Links = await db.PersonLinks.AsNoTracking().Where(l => l.PersonId == pid).OrderBy(l => l.SortOrder).ToListAsync();
         Others = await db.People.AsNoTracking().Where(p => p.Id != pid).OrderBy(p => p.GivenNames).ThenBy(p => p.Surname).ToListAsync();
         PhotoChoices = await db.Attachments.AsNoTracking()
             .Where(a => a.Kind == AttachmentKind.Photo && a.State == ProcessingState.Ready && a.RemovedAt == null
@@ -119,6 +121,22 @@ public sealed class EditModel(AppDbContext db, PeopleService people, TimeProvide
             TempData["Flash"] = "Connection removed.";
         }
         return LocalRedirect($"/people/{Person.Id}/edit#rel-heading");
+    }
+
+    public async Task<IActionResult> OnPostAddLinkAsync(string id, string? linkLabel, string? linkUrl)
+    {
+        if (!await LoadAsync(id, false) || Person is null) return NotFound();
+        var error = await people.AddLinkAsync(Person.Id, linkLabel, linkUrl);
+        TempData["Flash"] = error ?? "Link added.";
+        return LocalRedirect($"/people/{Person.Id}/edit#links-heading");
+    }
+
+    public async Task<IActionResult> OnPostRemoveLinkAsync(string id, Guid linkId)
+    {
+        if (!await LoadAsync(id, false) || Person is null) return NotFound();
+        await people.RemoveLinkAsync(Person.Id, linkId);
+        TempData["Flash"] = "Link removed.";
+        return LocalRedirect($"/people/{Person.Id}/edit#links-heading");
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)

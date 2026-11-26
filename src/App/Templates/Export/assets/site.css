@@ -22,6 +22,7 @@ h1, h2 { font-family: "Literata", Georgia, serif; line-height: 1.25; }
 .eyebrow { color: var(--muted); font-weight: 700; margin-bottom: 0.25rem; }
 .byline { font-style: italic; }
 .story-body { font-family: "Literata", Georgia, serif; font-size: 1.1rem; line-height: 1.7; }
+.story-body blockquote { margin: 1rem 0; padding-left: 1rem; border-left: 0.3rem solid var(--border); font-style: italic; }
 .photo, .clip { margin: 1.5rem 0; }
 .photo img, .clip video { max-width: 100%; height: auto; border-radius: 0.5rem; }
 .clip audio { width: 100%; }
@@ -43,3 +44,5 @@ figcaption { font-style: italic; margin-top: 0.4rem; }
 .results li { margin-bottom: 0.5rem; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .site-footer { color: var(--muted); font-size: 0.85rem; padding: 2rem 1rem; }
+.transcription-text { white-space: pre-wrap; }
+.archive-item { border-top: 0.1rem solid var(--border); padding-top: 1rem; margin-top: 1.5rem; }

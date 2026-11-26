@@ -1,0 +1,89 @@
+@page "/library/archive/edit/{id:guid?}"
+@model FamilyMemories.Pages.Library.Archive.EditModel
+@{
+    var isNew = Model.Item is null;
+    ViewData["Title"] = isNew ? "Add to the archive" : $"Edit {Model.Item!.Title}";
+}
+<partial name="/Pages/Library/_LibraryNav.cshtml" />
+<partial name="_Flash" />
+<h1>@ViewData["Title"]</h1>
+@if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+@if (isNew)
+{
+    <p>A letter, a certificate, a page from an album, a recording: scan or photograph it (every page if there are several), then tell the family what it is. The original files are kept exactly as they are.</p>
+}
+
+<form method="post" asp-page-handler="Save" enctype="multipart/form-data" class="stack">
+    <div class="field">
+        <label for="Files">@(isNew ? "The scans, photos or recording" : "Add more pages")</label>
+        <input type="file" id="Files" name="Files" multiple accept="image/*,application/pdf,audio/*,video/*">
+        <p class="muted">Photos (iPhone HEIC too), scans, PDFs, recordings and videos. Choose several at once for a letter with several pages.</p>
+    </div>
+    @if (isNew)
+    {
+        <label class="checkbox">
+            <input type="checkbox" name="EachFileSeparately" value="true" checked="@Model.EachFileSeparately">
+            <span><strong>Each file is its own item</strong>, for a box of photos or a whole photo CD. Each one is named from its caption, if it has one, or its file name, and its date and keywords come from the photo itself.</span>
+        </label>
+    }
+    <div class="field">
+        <label for="Title">Title</label>
+        <input id="Title" name="Title" value="@Model.Title" maxlength="300" placeholder="e.g. Letter from Joe in France, 1944">
+    </div>
+    <div class="field">
+        <label for="When">When <span class="muted">(optional)</span></label>
+        <input id="When" name="When" value="@Model.When" maxlength="200" placeholder="1944, about 1950, the 1930s, June 3, 1944">
+    </div>
+    <div class="field">
+        <label for="Place">Where <span class="muted">(optional)</span></label>
+        <input id="Place" name="Place" value="@Model.Place" maxlength="300">
+    </div>
+    <div class="field">
+        <label for="Description">What it is <span class="muted">(optional)</span></label>
+        <textarea id="Description" name="Description" rows="3" maxlength="8000">@Model.Description</textarea>
+    </div>
+    <div class="field">
+        <label for="Transcription">What it says <span class="muted">(a transcription, optional)</span></label>
+        <textarea id="Transcription" name="Transcription" rows="8">@Model.Transcription</textarea>
+    </div>
+    <div class="field">
+        <label for="Provenance">Where the original is now <span class="muted">(optional)</span></label>
+        <input id="Provenance" name="Provenance" value="@Model.Provenance" maxlength="1000" placeholder="e.g. Aunt Ann's cedar chest">
+    </div>
+    <div class="field">
+        <label for="Folder">Folder</label>
+        <select id="Folder" name="Folder">
+            <option value="">The top of the archive</option>
+            @foreach (var (id, name) in Model.Folders) { <option value="@id" selected="@(Model.Folder == id)">@name</option> }
+        </select>
+    </div>
+    <button type="submit" class="button button-primary button-large">@(isNew ? "Add to the archive" : "Save")</button>
+</form>
+
+@if (!isNew)
+{
+    var item = Model.Item!;
+    @if (item.Files.Count > 0)
+    {
+        <section aria-labelledby="pages-heading">
+            <h2 id="pages-heading">Pages and files</h2>
+            <ul class="plain-list">
+                @foreach (var f in item.Files)
+                {
+                    <li>
+                        @f.OriginalFileName
+                        <form method="post" asp-page-handler="RemoveFile" class="inline-form">
+                            <input type="hidden" name="attachmentId" value="@f.Id">
+                            <button type="submit" class="button button-quiet">Remove<span class="visually-hidden"> @f.OriginalFileName</span></button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+    <form method="post" asp-page-handler="Delete" class="danger-zone">
+        <p>Remove "@item.Title" and all its files from the archive? Earlier backups still hold them.</p>
+        <label class="checkbox"><input type="checkbox" name="confirm" value="true"><span>Yes, remove it</span></label>
+        <button type="submit" class="button button-quiet">Remove from the archive</button>
+    </form>
+}

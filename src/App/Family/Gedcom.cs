@@ -17,20 +17,32 @@ public sealed class GedcomNode
     public IEnumerable<GedcomNode> All(string tag) => Children.Where(c => c.Tag == tag);
 }
 
+public sealed record GedcomFact(string Kind, string Label, FuzzyDate Date, string? Place, string? Value, string? Note, IReadOnlyList<FactCitation> Citations);
+
+public sealed record GedcomLink(string Label, string Url);
+
 public sealed record GedcomIndividual(
     string Xref, string Given, string Surname, string? Nickname, Sex Sex,
     FuzzyDate Birth, string? BirthPlace, bool Deceased, FuzzyDate Death, string? DeathPlace, string? Note)
 {
+    /// <summary>Life events with their places, notes and sources, in file order (birth and death included, for their sources).</summary>
+    public IReadOnlyList<GedcomFact> Facts { get; init; } = [];
+    public IReadOnlyList<GedcomLink> Links { get; init; } = [];
+
     public string DisplayName => string.Join(' ', new[] { Given, Surname }.Where(s => s.Length > 0)) is { Length: > 0 } n ? n : "Unnamed";
 }
 
-public sealed record GedcomFamily(string Xref, string? Husband, string? Wife, IReadOnlyList<string> Children, int? MarriageYear, bool Divorced);
+public sealed record GedcomFamily(string Xref, string? Husband, string? Wife, IReadOnlyList<string> Children, int? MarriageYear, bool Divorced)
+{
+    /// <summary>The couple's events (marriage, divorce…), shown on both partners.</summary>
+    public IReadOnlyList<GedcomFact> Facts { get; init; } = [];
+}
 
 public sealed record GedcomData(IReadOnlyList<GedcomIndividual> Individuals, IReadOnlyList<GedcomFamily> Families);
 
 /// <summary>
-/// GEDCOM 5.5.1 reading and writing: individuals, families, names, dates and places.
-/// Sources, citations and notes on events are deliberately ignored (§7).
+/// GEDCOM 5.5.1 reading and writing: individuals, families, names, dates, places, life events with their notes and source
+/// citations, and links. Heirloom shows these but isn't a genealogy editor: the family's main program owns them (D-076).
 /// </summary>
 public static class Gedcom
 {
@@ -78,21 +90,80 @@ public static class Gedcom
         return roots;
     }
 
+    /// <summary>Events and facts we show, with what people read. Anything else under EVEN/FACT uses its TYPE.</summary>
+    internal static readonly IReadOnlyDictionary<string, string> EventLabels = new Dictionary<string, string>
+    {
+        ["BIRT"] = "Birth", ["CHR"] = "Christening", ["BAPM"] = "Baptism", ["CONF"] = "Confirmation", ["BARM"] = "Bar mitzvah",
+        ["BASM"] = "Bat mitzvah", ["FCOM"] = "First communion", ["ADOP"] = "Adoption", ["GRAD"] = "Graduation", ["EDUC"] = "Education",
+        ["OCCU"] = "Occupation", ["RESI"] = "Residence", ["CENS"] = "Census", ["EMIG"] = "Emigration", ["IMMI"] = "Immigration",
+        ["NATU"] = "Naturalization", ["MILI"] = "Military service", ["_MILT"] = "Military service", ["_MILI"] = "Military service",
+        ["RELI"] = "Religion", ["ORDN"] = "Ordination", ["RETI"] = "Retirement", ["PROP"] = "Property", ["WILL"] = "Will",
+        ["PROB"] = "Probate", ["DEAT"] = "Death", ["BURI"] = "Burial", ["CREM"] = "Cremation", ["TITL"] = "Title",
+        ["NATI"] = "Nationality", ["DSCR"] = "Description",
+        ["MARR"] = "Marriage", ["MARB"] = "Marriage banns", ["MARL"] = "Marriage license", ["ENGA"] = "Engagement",
+        ["DIV"] = "Divorce", ["ANUL"] = "Annulment", ["EVEN"] = "Event", ["FACT"] = "Fact",
+    };
+
     public static GedcomData Parse(string text)
     {
         var nodes = ParseNodes(text);
-        var individuals = nodes.Where(n => n.Tag == "INDI" && n.Xref is not null).Select(ReadIndividual).ToList();
+        var sources = nodes.Where(n => n.Tag == "SOUR" && n.Xref is not null).ToDictionary(n => n.Xref!);
+        var notes = nodes.Where(n => n.Tag == "NOTE" && n.Xref is not null).ToDictionary(n => n.Xref!, n => n.Value);
+        var context = new ReadContext(sources, notes);
+        var individuals = nodes.Where(n => n.Tag == "INDI" && n.Xref is not null).Select(n => ReadIndividual(n, context)).ToList();
         var families = nodes.Where(n => n.Tag == "FAM" && n.Xref is not null).Select(f => new GedcomFamily(
             f.Xref!,
             f.Child("HUSB")?.Value.Trim(),
             f.Child("WIFE")?.Value.Trim(),
             [.. f.All("CHIL").Select(c => c.Value.Trim())],
             ParseDate(f.Child("MARR")?.Child("DATE")?.Value).Year,
-            f.Child("DIV") is not null)).ToList();
+            f.Child("DIV") is not null)
+        {
+            Facts = [.. f.Children.Where(c => c.Tag is "MARR" or "MARB" or "MARL" or "ENGA" or "DIV" or "ANUL" or "EVEN").Select(c => ReadFact(c, context))],
+        }).ToList();
         return new GedcomData(individuals, families);
     }
 
-    private static GedcomIndividual ReadIndividual(GedcomNode n)
+    private sealed record ReadContext(IReadOnlyDictionary<string, GedcomNode> Sources, IReadOnlyDictionary<string, string> Notes)
+    {
+        /// <summary>A NOTE's text, following a pointer to a shared NOTE record.</summary>
+        public string? Note(GedcomNode? node) => node is null ? null
+            : node.Value.Trim() is var v && v.StartsWith('@') ? Notes.GetValueOrDefault(v)?.Trim() is { Length: > 0 } shared ? shared : null
+            : v.Length > 0 ? v : null;
+
+        /// <summary>A SOUR citation: a pointer to a source record (title, URL) with this citation's PAGE, or a source written inline.</summary>
+        public FactCitation? Citation(GedcomNode sour)
+        {
+            var page = sour.Child("PAGE")?.Value.Trim() is { Length: > 0 } pg ? pg : null;
+            var value = sour.Value.Trim();
+            if (value.StartsWith('@'))
+            {
+                if (!Sources.TryGetValue(value, out var record)) return page is null ? null : new FactCitation("Source", page);
+                var title = record.Child("TITL")?.Value.Trim() is { Length: > 0 } t ? t
+                    : record.Child("ABBR")?.Value.Trim() is { Length: > 0 } a ? a : "Source";
+                var url = (record.Child("WWW") ?? record.Child("_URL") ?? record.Child("URL"))?.Value.Trim();
+                return new FactCitation(title, page, IsWebLink(url) ? url : null);
+            }
+            return value.Length > 0 ? new FactCitation(value, page) : null;
+        }
+    }
+
+    internal static bool IsWebLink(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp);
+
+    private static GedcomFact ReadFact(GedcomNode n, ReadContext context)
+    {
+        var type = n.Child("TYPE")?.Value.Trim();
+        var label = n.Tag is "EVEN" or "FACT" && type is { Length: > 0 } ? type : EventLabels.GetValueOrDefault(n.Tag, n.Tag);
+        var value = n.Value.Trim() is { Length: > 0 } v && v != "Y" && !v.StartsWith('@') ? v : null;
+        if (value is null && n.Child("ADDR") is { } addr && addr.Value.Trim().Length > 0) value = addr.Value.Trim();
+        var notes = n.All("NOTE").Select(context.Note).OfType<string>().ToList();
+        return new GedcomFact(n.Tag, label, ParseDate(n.Child("DATE")?.Value), Place(n), value,
+            notes.Count == 0 ? null : string.Join("\n\n", notes),
+            [.. n.All("SOUR").Select(context.Citation).OfType<FactCitation>()]);
+    }
+
+    private static GedcomIndividual ReadIndividual(GedcomNode n, ReadContext context)
     {
         var name = n.Child("NAME");
         var (given, surname) = SplitName(name?.Value ?? "");
@@ -110,10 +181,44 @@ public static class Gedcom
         var birt = n.Child("BIRT");
         var deat = n.Child("DEAT");
         var deceased = deat is not null || n.Child("BURI") is not null;
+        var notes = n.All("NOTE").Select(context.Note).OfType<string>().ToList();
+        var facts = n.Children.Where(c => EventLabels.ContainsKey(c.Tag)).Select(c => ReadFact(c, context)).ToList();
+        if (n.All("SOUR").Select(context.Citation).OfType<FactCitation>().ToList() is { Count: > 0 } general)
+            facts.Add(new GedcomFact("SOUR", "Sources", default, null, null, null, general));
+
+        var links = new List<GedcomLink>();
+        foreach (var w in n.Children.Where(c => c.Tag is "WWW" or "_URL" or "URL"))
+            if (IsWebLink(w.Value.Trim())) links.Add(new GedcomLink(LinkLabel(w.Value.Trim()), w.Value.Trim()));
+        if (n.Child("_FSFTID")?.Value.Trim() is { Length: > 0 } fs && System.Text.RegularExpressions.Regex.IsMatch(fs, "^[A-Z0-9-]{4,12}$"))
+            links.Add(new GedcomLink("FamilySearch", $"https://www.familysearch.org/tree/person/details/{fs}"));
+        foreach (var obje in n.All("OBJE"))
+            if (obje.Child("FILE")?.Value.Trim() is { } file && IsWebLink(file))
+                links.Add(new GedcomLink(obje.Child("TITL")?.Value.Trim() is { Length: > 0 } t ? t : obje.Child("FILE")!.Child("TITL")?.Value.Trim() ?? LinkLabel(file), file));
+
         return new GedcomIndividual(n.Xref!, given, surname, string.IsNullOrEmpty(nick) ? null : nick, sex,
             ParseDate(birt?.Child("DATE")?.Value), Place(birt), deceased,
             ParseDate(deat?.Child("DATE")?.Value), Place(deat),
-            n.Child("NOTE")?.Value is { Length: > 0 and < 4000 } note && !note.StartsWith('@') ? note : null);
+            notes.Count == 0 ? null : string.Join("\n\n", notes))
+        {
+            Facts = facts,
+            Links = [.. links.DistinctBy(l => l.Url)],
+        };
+    }
+
+    /// <summary>"conlon.org", "FamilySearch", "Find a Grave"… from a link's address.</summary>
+    internal static string LinkLabel(string url)
+    {
+        var host = Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host.ToLowerInvariant() : url;
+        if (host.StartsWith("www.")) host = host[4..];
+        return host switch
+        {
+            _ when host.EndsWith("familysearch.org") => "FamilySearch",
+            _ when host.EndsWith("findagrave.com") => "Find a Grave",
+            _ when host.EndsWith("ancestry.com") => "Ancestry",
+            _ when host.EndsWith("wikitree.com") => "WikiTree",
+            _ when host.EndsWith("billiongraves.com") => "BillionGraves",
+            _ => host,
+        };
     }
 
     private static string? Place(GedcomNode? evt) => evt?.Child("PLAC")?.Value.Trim() is { Length: > 0 } p ? p : null;
@@ -156,8 +261,20 @@ public static class Gedcom
 
     // ------------------------------------------------------------------ writing
 
-    public static string Export(IReadOnlyList<Person> people, IReadOnlyList<ParentChild> parents, IReadOnlyList<Partnership> partnerships, string appName)
+    /// <summary>Tags that belong to a couple (written under FAM), not to one person.</summary>
+    internal static readonly HashSet<string> FamilyEventTags = ["MARR", "MARB", "MARL", "ENGA", "DIV", "ANUL"];
+
+    public static string Export(IReadOnlyList<Person> people, IReadOnlyList<ParentChild> parents, IReadOnlyList<Partnership> partnerships, string appName,
+        IReadOnlyList<PersonFact>? facts = null, IReadOnlyList<PersonLink>? links = null)
     {
+        var factsBy = (facts ?? []).GroupBy(f => f.PersonId).ToDictionary(g => g.Key, g => g.OrderBy(f => f.SortOrder).ToList());
+        var linksBy = (links ?? []).GroupBy(l => l.PersonId).ToDictionary(g => g.Key, g => g.OrderBy(l => l.SortOrder).ToList());
+        var sourceIds = new Dictionary<(string, string?), string>();
+        string SourceId(FactCitation c)
+        {
+            if (!sourceIds.TryGetValue((c.Title, c.Url), out var id)) sourceIds[(c.Title, c.Url)] = id = $"@S{sourceIds.Count + 1}@";
+            return id;
+        }
         var sb = new StringBuilder();
         void Line(int level, string tag, string? value = null, string? xref = null)
         {
@@ -183,8 +300,27 @@ public static class Gedcom
         var ids = people.Select((p, i) => (p.Id, Xref: $"@I{i + 1}@")).ToDictionary(x => x.Id, x => x.Xref);
         var families = BuildFamilies(people, parents, partnerships);
 
+        void Citations(int level, IEnumerable<FactCitation> citations)
+        {
+            foreach (var c in citations)
+            {
+                Line(level, "SOUR", SourceId(c));
+                if (c.Page is not null) Line(level + 1, "PAGE", c.Page);
+            }
+        }
+        void EventDetails(PersonFact f)
+        {
+            if (FormatDate(f.Date) is { } date) Line(2, "DATE", date);
+            if (f.Place is not null) Line(2, "PLAC", f.Place);
+            if (f.Note is not null) Line(2, "NOTE", f.Note);
+            Citations(2, f.Citations);
+        }
+
         foreach (var p in people)
         {
+            var mine = factsBy.GetValueOrDefault(p.Id) ?? [];
+            var birthFact = mine.FirstOrDefault(f => f.Kind == "BIRT");
+            var deathFact = mine.FirstOrDefault(f => f.Kind == "DEAT");
             Line(0, "INDI", xref: ids[p.Id]);
             Line(1, "NAME", $"{p.GivenNames} /{p.Surname}/".Trim());
             if (p.GivenNames.Length > 0) Line(2, "GIVN", p.GivenNames);
@@ -196,23 +332,45 @@ public static class Gedcom
                 Line(2, "TYPE", "birth");
             }
             Line(1, "SEX", p.Sex switch { Sex.Female => "F", Sex.Male => "M", Sex.Other => "X", _ => "U" });
-            if (p.BirthYear is not null || p.BirthPlace is not null)
+            if (p.BirthYear is not null || p.BirthPlace is not null || birthFact is not null)
             {
                 Line(1, "BIRT");
                 if (FormatDate(p.Birth) is { } bd) Line(2, "DATE", bd);
                 if (p.BirthPlace is not null) Line(2, "PLAC", p.BirthPlace);
+                if (birthFact?.Note is { } bn) Line(2, "NOTE", bn);
+                Citations(2, birthFact?.Citations ?? []);
             }
             if (!p.IsLiving)
             {
-                if (p.DeathYear is null && p.DeathPlace is null) Line(1, "DEAT", "Y");
+                if (p.DeathYear is null && p.DeathPlace is null && deathFact is null) Line(1, "DEAT", "Y");
                 else
                 {
                     Line(1, "DEAT");
                     if (FormatDate(p.Death) is { } dd) Line(2, "DATE", dd);
                     if (p.DeathPlace is not null) Line(2, "PLAC", p.DeathPlace);
+                    if (deathFact?.Note is { } dn) Line(2, "NOTE", dn);
+                    Citations(2, deathFact?.Citations ?? []);
                 }
             }
+            foreach (var f in mine.Where(f => f.Kind is not ("BIRT" or "DEAT" or "NOTE" or "SOUR") && !FamilyEventTags.Contains(f.Kind)))
+            {
+                var tag = EventLabels.ContainsKey(f.Kind) && f.Kind is not ("EVEN" or "FACT") ? f.Kind : "EVEN";
+                Line(1, tag, f.Value);
+                if (tag == "EVEN" || f.Kind is "FACT") Line(2, "TYPE", f.Label);
+                EventDetails(f);
+            }
             if (p.Bio is not null) Line(1, "NOTE", p.Bio);
+            foreach (var n in mine.Where(f => f.Kind == "NOTE" && f.Note is not null)) Line(1, "NOTE", n.Note);
+            foreach (var g in mine.Where(f => f.Kind == "SOUR")) Citations(1, g.Citations);
+            foreach (var l in linksBy.GetValueOrDefault(p.Id) ?? [])
+            {
+                var fs = System.Text.RegularExpressions.Regex.Match(l.Url, @"^https://www\.familysearch\.org/tree/person/details/([A-Z0-9-]+)$");
+                if (fs.Success) { Line(1, "_FSFTID", fs.Groups[1].Value); continue; }
+                Line(1, "OBJE");
+                Line(2, "FILE", l.Url);
+                Line(3, "FORM", "URL");
+                Line(2, "TITL", l.Label);
+            }
             foreach (var f in families.Where(f => f.Children.Contains(p.Id))) Line(1, "FAMC", f.Xref);
             foreach (var f in families.Where(f => f.Husband == p.Id || f.Wife == p.Id)) Line(1, "FAMS", f.Xref);
         }
@@ -222,7 +380,16 @@ public static class Gedcom
             Line(0, "FAM", xref: f.Xref);
             if (f.Husband is { } h) Line(1, "HUSB", ids[h]);
             if (f.Wife is { } w) Line(1, "WIFE", ids[w]);
-            if (f.Partnership is { } link)
+            // The couple's own events, kept on each partner as "with …"; written once, from the first partner's copy.
+            var coupleFacts = f.Husband is { } hh && f.Wife is { } ww
+                ? (factsBy.GetValueOrDefault(hh) ?? []).Where(x => FamilyEventTags.Contains(x.Kind) && x.Value == $"with {people.First(q => q.Id == ww).DisplayName}").ToList()
+                : [];
+            foreach (var cf in coupleFacts)
+            {
+                Line(1, cf.Kind);
+                EventDetails(cf);
+            }
+            if (f.Partnership is { } link && coupleFacts.Count == 0)
             {
                 if (link.Kind != PartnershipKind.Partnered)
                 {
@@ -236,6 +403,12 @@ public static class Gedcom
                 }
             }
             foreach (var c in f.Children) Line(1, "CHIL", ids[c]);
+        }
+        foreach (var ((title, url), id) in sourceIds)
+        {
+            Line(0, "SOUR", xref: id);
+            Line(1, "TITL", title);
+            if (url is not null) Line(1, "WWW", url);
         }
         Line(0, "TRLR");
         return sb.ToString();

@@ -192,8 +192,12 @@ public enum TranscriptState { None = 0, Pending = 1, Ready = 2, Approved = 3, Di
 public sealed class Attachment
 {
     public Guid Id { get; set; }
-    public Guid MemoryId { get; set; }
+    /// <summary>The story this belongs to; null for a file in the family archive (exactly one of the two is set).</summary>
+    public Guid? MemoryId { get; set; }
     public Memory? Memory { get; set; }
+    /// <summary>The archive item this belongs to (D-080).</summary>
+    public Guid? ArchiveItemId { get; set; }
+    public ArchiveItem? ArchiveItem { get; set; }
     public AttachmentKind Kind { get; set; }
     /// <summary>Recorded in the browser with "Record my voice".</summary>
     public bool IsVoiceRecording { get; set; }
@@ -218,6 +222,10 @@ public sealed class Attachment
     public TranscriptState TranscriptState { get; set; }
     /// <summary>Removed from the story; the original stays on disk until an admin purges it.</summary>
     public DateTime? RemovedAt { get; set; }
+    /// <summary>Keywords from the photo's own metadata (IPTC/XMP); hierarchical ones as "Family|Conlon|William".</summary>
+    public List<string> Keywords { get; set; } = [];
+    /// <summary>When the photo was taken, from its EXIF data, as the camera's wall-clock time (scans often carry the scan date instead).</summary>
+    public DateTime? TakenAt { get; set; }
 }
 
 /// <summary>A resumable, chunked upload in progress. Bytes go to /data/uploads/{Id}.part.</summary>
@@ -292,4 +300,81 @@ public sealed class ReplyCode
     public Guid UserId { get; set; }
     public Guid PromptId { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public enum SourceKind { EmailReply = 1, VoiceTranscript = 2, PaperScan = 3, Import = 4, Pasted = 5 }
+
+/// <summary>
+/// Raw material behind a story, kept as it arrived: an email reply, what speech-to-text heard before anyone fixed it, a
+/// transcription pasted in, an imported spreadsheet cell. The story itself is the edited, finished version (D-079).
+/// Only people who can edit the story see these.
+/// </summary>
+public sealed class MemorySource
+{
+    public Guid Id { get; set; }
+    public Guid MemoryId { get; set; }
+    public Memory? Memory { get; set; }
+    public SourceKind Kind { get; set; }
+    public string Text { get; set; } = "";
+    /// <summary>The recording or scan it came from, when there is one.</summary>
+    public Guid? AttachmentId { get; set; }
+    public Guid? CreatedById { get; set; }
+    public AppUser? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>A folder in the family archive; folders can hold folders (D-080).</summary>
+public sealed class Collection
+{
+    public Guid Id { get; set; }
+    public Guid? ParentId { get; set; }
+    public Collection? Parent { get; set; }
+    public string Title { get; set; } = "";
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Something kept in the family archive: a letter, a certificate, an album page, a recording. One or more files (scans of
+/// each page), what it says (a transcription), when and where it's from, and where the original is now (D-080).
+/// </summary>
+public sealed class ArchiveItem
+{
+    public Guid Id { get; set; }
+    /// <summary>The folder it's in; null for the top of the archive.</summary>
+    public Guid? CollectionId { get; set; }
+    public Collection? Collection { get; set; }
+    public string Title { get; set; } = "";
+    public string? Description { get; set; }
+    public int? WhenYear { get; set; }
+    public int? WhenMonth { get; set; }
+    public int? WhenDay { get; set; }
+    public bool WhenCirca { get; set; }
+    public int? WhenDecade { get; set; }
+    public string? WhenLabel { get; set; }
+    public string? Place { get; set; }
+    public string? Transcription { get; set; }
+    /// <summary>Where the original is now ("Aunt Ann's cedar chest").</summary>
+    public string? Provenance { get; set; }
+    public Guid? CreatedById { get; set; }
+    public AppUser? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public List<Attachment> Files { get; set; } = [];
+
+    public FuzzyDate When
+    {
+        get => new(WhenYear, WhenMonth, WhenDay, WhenCirca, WhenDecade, WhenLabel);
+        set => (WhenYear, WhenMonth, WhenDay, WhenCirca, WhenDecade, WhenLabel) = (value.Year, value.Month, value.Day, value.Circa, value.Decade, value.Label);
+    }
+}
+
+/// <summary>"Related documents": an archive item linked to a story.</summary>
+public sealed class StoryDocument
+{
+    public Guid MemoryId { get; set; }
+    public Memory? Memory { get; set; }
+    public Guid ArchiveItemId { get; set; }
+    public ArchiveItem? ArchiveItem { get; set; }
 }

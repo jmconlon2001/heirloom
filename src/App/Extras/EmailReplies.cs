@@ -186,6 +186,8 @@ public sealed class EmailReplyProcessor(
             var (a, _) = await attachments.AddFromStreamAsync(memory.Id, name, stream, user.Id);
             if (a is not null) photos++;
         }
+        // The whole reply, as it arrived, stays next to the story as raw material (D-079).
+        FamilyMemories.Stories.RawMaterial.Keep(db, memory.Id, SourceKind.EmailReply, email.Text, user.Id, clock.GetUtcNow().UtcDateTime);
         await db.Memories.Where(m => m.Id == memory.Id).ExecuteUpdateAsync(s => s
             .SetProperty(m => m.EmailReplyAt, clock.GetUtcNow().UtcDateTime)
             .SetProperty(m => m.Status, MemoryStatus.Draft));

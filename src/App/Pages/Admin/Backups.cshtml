@@ -4,6 +4,16 @@
 @{
     ViewData["Title"] = "Backups";
     string Local(DateTime t) => TimeZoneInfo.ConvertTimeFromUtc(t, AppOptions.TimeZone).ToString("MMM d, yyyy h:mm tt");
+    static string Count(int n, string plural) => n == 1
+        ? "1 " + plural switch { "stories" => "story", "photos and files" => "photo or file", "people in the tree" => "person in the tree", "people who sign in" => "person who signs in", _ => plural }
+        : $"{n} {plural}";
+    static string Size(long bytes) => bytes switch
+    {
+        >= 1L << 30 => $"{bytes / (double)(1L << 30):0.#} GB",
+        >= 1L << 20 => $"{bytes / (double)(1L << 20):0.#} MB",
+        >= 1L << 10 => $"{bytes / 1024.0:0} KB",
+        _ => $"{bytes} bytes",
+    };
 }
 <h1>Backups</h1>
 <partial name="_Flash" />
@@ -28,6 +38,56 @@
         <form method="post" asp-page-handler="BackupNow"><button type="submit" class="button button-primary">Back up now</button></form>
         <form method="post" asp-page-handler="VerifyNow"><button type="submit" class="button button-secondary">Check backups now</button></form>
     </div>
+
+    @if (Model.SameDisk == true)
+    {
+        <section class="card card-feature" aria-labelledby="disk-heading">
+            <h2 id="disk-heading">Your backups are on the same disk as your stories</h2>
+            <p>If that disk fails, the stories and their backups are lost together. Point <code>BACKUP_ROOT</code> at a different disk (a USB drive is fine)@(AppOptions.OffsiteRepository is null ? ", and add an offsite copy, such as OneDrive (see the admin guide)" : "; the offsite copy does protect you meanwhile").</p>
+        </section>
+    }
+
+    <h2>What's in each backup</h2>
+    @if (Model.Manifest is { } m)
+    {
+        <p>From the last backup, @Local(m.At):</p>
+        <ul class="checklist">
+            <li><span class="check" aria-hidden="true">✓</span>The database, @Size(m.DatabaseBytes) compressed: @string.Join(", ", m.Counts.Select(c => Count(c.Value, c.Key))), plus every question, note, ♥, version and setting.</li>
+            <li><span class="check" aria-hidden="true">✓</span>The media folder: @m.MediaFiles files, @Size(m.MediaBytes). Every photo, recording, video and document as it was uploaded, and the smaller copies made from them.</li>
+            <li><span class="check" aria-hidden="true">✓</span>The sign-in keys (@m.KeyFiles files), so people stay signed in after a restore, and the settings folder (@m.ConfigFiles files).</li>
+            @if (AppOptions.PlainCopy)
+            {
+                <li><span class="check" aria-hidden="true">@(m.PlainCopyError is null ? "✓" : "✗")</span>@(m.PlainCopyError is null ? $"A plain copy (heirloom.sql.gz and the media folder), made {m.PlainCopyAt}." : $"The plain copy failed: {m.PlainCopyError}")</li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p>After the first backup, this shows exactly what it held: the database (every story, person, note and setting), every photo, recording and document, and the sign-in keys and settings.</p>
+    }
+    <p class="muted">Not included, on purpose: the app's logs, finished exports (make them again any time) and half-finished uploads. Each backup is encrypted with <code>RESTIC_PASSWORD</code> and only stores what changed, so nightly backups stay small. Kept: @AppOptions.KeepDaily daily, @AppOptions.KeepWeekly weekly and @AppOptions.KeepMonthly monthly.</p>
+
+    <h2>Where the backups are kept</h2>
+    <div class="table-wrap">
+        <table class="data-table">
+            <caption class="visually-hidden">Backup locations</caption>
+            <thead><tr><th scope="col">Copy</th><th scope="col">Kind</th><th scope="col">Where</th></tr></thead>
+            <tbody>
+                @foreach (var l in Model.Locations)
+                {
+                    <tr>
+                        <th scope="row">@l.Role</th>
+                        <td>@l.Kind</td>
+                        <td><code>@l.Where</code>@if (l.OnHost is { } host) { <div class="muted">On the server: <code>@host</code></div> }</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (AppOptions.OffsiteRepository is null)
+    {
+        <p>There's no offsite copy yet. A second copy somewhere else (OneDrive, Google Drive, Backblaze B2, another computer) survives a fire, theft or a failed disk. See "Back up to OneDrive or another cloud drive" in the admin guide.</p>
+    }
 
     <h2>Recent activity</h2>
     <div class="table-wrap">

@@ -1,0 +1,111 @@
+@page "/admin/import/stories"
+@model FamilyMemories.Pages.Admin.Import.StoriesModel
+@{
+    ViewData["Title"] = "Add stories from a spreadsheet";
+}
+<h1>Add stories from a spreadsheet</h1>
+@if (Model.Result is { } r)
+{
+    <section class="card" role="status">
+        <h2>Done</h2>
+        <ul>
+            <li>@r.Imported @(r.Imported == 1 ? "story" : "stories") added</li>
+            @if (r.Skipped > 0) { <li>@r.Skipped skipped</li> }
+            @if (r.PeopleTagged > 0) { <li>@r.PeopleTagged people tagged in them</li> }
+        </ul>
+        @if (r.Warnings.Count > 0)
+        {
+            <h3>Please check</h3>
+            <ul>@foreach (var w in r.Warnings) { <li>@w</li> }</ul>
+        }
+        <div class="button-row">
+            <a class="button button-primary" href="/library">Open the Family Library</a>
+            <a class="button button-secondary" href="/admin/import/stories">Add more</a>
+        </div>
+    </section>
+}
+else if (Model.Preview is null)
+{
+    <p>Already have stories written down, say in a spreadsheet, or copied from letters or an old family document? Put them in a spreadsheet with one story per row and save or download it as <strong>CSV</strong>.</p>
+    <div class="button-row">
+        <a class="button button-secondary" href="/admin/import/stories?handler=Template" download>Download a ready-to-fill spreadsheet</a>
+    </div>
+    <details class="follow-up">
+        <summary>Which columns can I use?</summary>
+        <ul>
+            <li><strong>Storyteller</strong>: whose story it is, by their name or email address. They need to be on the People list first. <a href="/admin/import/people">Add people from a spreadsheet</a>.</li>
+            <li><strong>Story</strong>: the words. Line breaks inside the cell are kept.</li>
+            <li><strong>Title</strong>: optional. Without one, the question's title or the story's first sentence is used.</li>
+            <li><strong>Question</strong>: optional. If it matches a question on the list, the story becomes their answer to it.</li>
+            <li><strong>When</strong> (1950, about 1950, the 1950s, June 1950, or words like "the summer after the war") and <strong>Place</strong>.</li>
+            <li><strong>People</strong>: who's in it, by their names in the family tree, separated by semicolons.</li>
+            <li><strong>Written by</strong>: who typed it up for them, if someone did. <strong>Status</strong>: Finished (the default) or Draft. <strong>Who can see</strong>: Everyone or Only me.</li>
+        </ul>
+    </details>
+
+    <h2>Upload the spreadsheet</h2>
+    @if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="stack">
+        <div class="field">
+            <label for="File">Choose a .csv file</label>
+            <input type="file" id="File" name="File" accept=".csv,text/csv">
+        </div>
+        <button type="submit" class="button button-primary">Show me what's in it</button>
+    </form>
+    <p class="muted">Nothing is changed until you've checked the list and pressed Add these stories. No emails are sent.</p>
+}
+else
+{
+    var p = Model.Preview;
+    var ready = p.Rows.Count(r => r.Problem is null && r.Duplicate is null);
+    <h2>Check before adding</h2>
+    <p class="lead">@p.Rows.Count @(p.Rows.Count == 1 ? "story" : "stories") found; @ready ready to add. Rows that can't be added, or look like they're already here, are marked below.</p>
+    @if (p.UnknownColumns.Count > 0)
+    {
+        <p class="muted">These columns will be ignored: @string.Join(", ", p.UnknownColumns).</p>
+    }
+    <form method="post" asp-page-handler="Commit">
+        <input type="hidden" name="FileId" value="@p.FileId">
+        <div class="table-wrap">
+            <table class="data-table">
+                <caption class="visually-hidden">Stories in the spreadsheet</caption>
+                <thead><tr><th scope="col">Line</th><th scope="col">Story</th><th scope="col">Told by</th><th scope="col">What to do</th></tr></thead>
+                <tbody>
+                    @foreach (var row in p.Rows)
+                    {
+                        var s = row.Story;
+                        <tr>
+                            <td>@s.Line</td>
+                            <th scope="row">
+                                @(row.Title.Length > 0 ? row.Title : "(no story)")
+                                <div class="muted">@string.Join(" · ", new[] { s.When.Format(), s.Place ?? "", s.Finished ? "" : "draft", s.Visibility == FamilyMemories.Data.Visibility.Private ? "only the storyteller can see it" : "" }.Where(x => x.Length > 0))</div>
+                                @if (row.Prompt is not null) { <div class="muted">Answers "@row.Prompt.Question"</div> }
+                                @foreach (var n in row.Notes) { <div class="field-error">@n</div> }
+                            </th>
+                            <td>@(row.Storyteller?.DisplayName ?? s.StorytellerText)@(row.WrittenBy is { } w ? $", written by {w.DisplayName}" : "")</td>
+                            <td>
+                                @if (row.Problem is not null)
+                                {
+                                    <span class="field-error">@row.Problem</span>
+                                }
+                                else
+                                {
+                                    @if (row.Duplicate is not null) { <div class="field-error">@row.Duplicate</div> }
+                                    <label class="visually-hidden" for="d-@s.Line">What to do with line @s.Line</label>
+                                    <select id="d-@s.Line" name="Decisions[@s.Line]">
+                                        <option value="import" selected="@(row.Duplicate is null)">Add</option>
+                                        <option value="skip" selected="@(row.Duplicate is not null)">Skip</option>
+                                    </select>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="button-row">
+            <button type="submit" class="button button-primary button-large">Add these stories</button>
+            <a class="button button-quiet" href="/admin/import/stories">Cancel</a>
+        </div>
+    </form>
+}

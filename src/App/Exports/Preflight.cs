@@ -64,7 +64,7 @@ public static class Preflight
         foreach (var c in empty) sb.AppendLine(ic, $"  - {c.Title}");
         sb.AppendLine();
 
-        var noWords = content.Stories.Where(s => s.Paragraphs.Count == 0).ToList();
+        var noWords = content.Stories.Where(s => !s.HasWords).ToList();
         if (noWords.Count > 0)
         {
             sb.AppendLine(ic, $"STORIES WITH NO WRITTEN WORDS ({noWords.Count}); only photos or recordings will be printed");

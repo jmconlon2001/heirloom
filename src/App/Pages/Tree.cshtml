@@ -5,6 +5,10 @@
     ViewData["TreePage"] = true;
 }
 <h1>Family tree</h1>
+@if (AppOptions.MainTreeUrl is { } mainTree)
+{
+    <p class="main-tree-link">The family's main tree, with every source: <a href="@mainTree" rel="noopener">@FamilyMemories.Family.Gedcom.LinkLabel(mainTree)</a></p>
+}
 <partial name="_Flash" />
 @if (Model.Focus is null)
 {

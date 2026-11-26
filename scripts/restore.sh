@@ -57,6 +57,11 @@ DATA_ROOT="$(env_value DATA_ROOT)"
 [ -n "$DATA_ROOT" ] || { echo "DATA_ROOT is not set in $ENV_FILE" >&2; exit 2; }
 mkdir -p "$DATA_ROOT/data" "$DATA_ROOT/postgres"
 
+# OneDrive, Google Drive and other rclone remotes need rclone's settings in the config folder first.
+if [[ "$REPO" == rclone:* ]] && [ ! -f "$DATA_ROOT/data/config/rclone.conf" ]; then
+  echo "$REPO is an rclone remote: copy your rclone.conf to $DATA_ROOT/data/config/rclone.conf first." >&2; exit 2
+fi
+
 # A local repository path is mounted into the helper container; URLs (b2:, s3:, sftp:…) are used as-is.
 MOUNT_ARGS=()
 CONTAINER_REPO="$REPO"

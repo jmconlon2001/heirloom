@@ -4,6 +4,10 @@
     ViewData["Title"] = "People";
 }
 <h1>People in the family</h1>
+@if (AppOptions.MainTreeUrl is { } mainTree)
+{
+    <p class="main-tree-link">The family's main tree, with every source: <a href="@mainTree" rel="noopener">@FamilyMemories.Family.Gedcom.LinkLabel(mainTree)</a></p>
+}
 <partial name="_Flash" />
 <div class="button-row">
     <a class="button button-primary" href="/people/new">Add a person</a>

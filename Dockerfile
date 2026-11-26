@@ -27,7 +27,7 @@ RUN set -eux; \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
         > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
-    apt-get install -y --no-install-recommends postgresql-client-17 ffmpeg libgomp1 bzip2 pandoc poppler-utils; \
+    apt-get install -y --no-install-recommends postgresql-client-17 ffmpeg libgomp1 bzip2 unzip pandoc poppler-utils; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
@@ -47,7 +47,26 @@ RUN set -eux; \
     rm /tmp/restic.bz2; \
     restic version
 
+# rclone: lets restic reach OneDrive, Google Drive, Dropbox and other cloud drives (OFFSITE_RESTIC_REPOSITORY=rclone:remote:path).
+# Pinned, and checked against the SHA-256 published on both downloads.rclone.org and the GitHub release.
+# (Not RCLONE_VERSION: rclone reads every RCLONE_* variable as one of its own flags.)
+ARG RCLONE_RELEASE=1.76.0
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) sum=b00f00b3266c3764413afe599d3ec316f6f43b3e0ea8a0bc1d186d2133e46df7 ;; \
+      arm64) sum=ee169016675e23a69d77240565133ff7dbc9b33d16fa8f7053d4af39f1eaeb78 ;; \
+      *) echo "unsupported architecture $arch"; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/rclone.zip "https://downloads.rclone.org/v${RCLONE_RELEASE}/rclone-v${RCLONE_RELEASE}-linux-${arch}.zip"; \
+    echo "$sum  /tmp/rclone.zip" | sha256sum -c -; \
+    unzip -j -q /tmp/rclone.zip "rclone-v${RCLONE_RELEASE}-linux-${arch}/rclone" -d /usr/local/bin; \
+    chmod 0755 /usr/local/bin/rclone; \
+    rm /tmp/rclone.zip; \
+    rclone version
+
 ENV ASPNETCORE_HTTP_PORTS=8080 \
+    RCLONE_CONFIG=/data/config/rclone.conf \
     DATA_DIR=/data \
     DOTNET_NOLOGO=1 \
     TZ=America/New_York

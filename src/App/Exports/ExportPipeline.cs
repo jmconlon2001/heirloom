@@ -192,13 +192,33 @@ public sealed class ExportPipeline(
                 story.Append("## ").AppendLine(Md(s.Memory.Title)).AppendLine();
                 story.Append('*').Append(Md($"Told by {s.Teller}{(s.WrittenBy is null ? "" : $", written down by {s.WrittenBy}")}{(s.When.Length > 0 ? $" · {s.When}" : "")}{(s.Memory.Place is null ? "" : $" · {s.Memory.Place}")}")).AppendLine("*").AppendLine();
                 if (s.Question is not null) story.Append("> ").AppendLine(Md(s.Question)).AppendLine();
-                foreach (var p in s.Paragraphs) story.AppendLine(string.Join("  \n", p.Select(Md))).AppendLine();
-                foreach (var photo in s.Photos)
+                foreach (var b in FamilyMemories.Stories.StoryMarkup.RawBlocks(s.Memory.Body))
+                {
+                    string Inline(string line) => FamilyMemories.Stories.StoryMarkup.InlineMarkdown(line, Md);
+                    switch (b.Kind)
+                    {
+                        case FamilyMemories.Stories.StoryBlockKind.Heading: story.Append("### ").AppendLine(Inline(b.Lines[0])).AppendLine(); break;
+                        case FamilyMemories.Stories.StoryBlockKind.BulletList: foreach (var item in b.Lines) story.Append("- ").AppendLine(Inline(item)); story.AppendLine(); break;
+                        case FamilyMemories.Stories.StoryBlockKind.NumberedList: { var n = 1; foreach (var item in b.Lines) story.Append(n++).Append(". ").AppendLine(Inline(item)); story.AppendLine(); break; }
+                        case FamilyMemories.Stories.StoryBlockKind.Quote: story.Append("> ").AppendLine(string.Join("  \n> ", b.Lines.Select(Inline))).AppendLine(); break;
+                        case FamilyMemories.Stories.StoryBlockKind.Media:
+                            if (s.Photos.FirstOrDefault(p => p.Attachment.Id == b.MediaId) is { } placed)
+                            {
+                                var placedFile = images.Prepare(placed.Attachment, imagesDir, 4000, "photo").FileName;
+                                story.Append("![").Append(Md(b.Caption ?? placed.Caption ?? "")).Append("](images/").Append(placedFile).AppendLine(")").AppendLine();
+                            }
+                            else if (s.Clips.FirstOrDefault(c => c.Attachment.Id == b.MediaId) is { ClipUrl: not null } placedClip)
+                                story.Append("[Listen or watch: ").Append(Md(b.Caption ?? placedClip.Caption ?? "recording")).Append("](").Append(placedClip.ClipUrl).AppendLine(")").AppendLine();
+                            break;
+                        default: story.AppendLine(string.Join("  \n", b.Lines.Select(Inline))).AppendLine(); break;
+                    }
+                }
+                foreach (var photo in s.UnplacedPhotos)
                 {
                     var file = images.Prepare(photo.Attachment, imagesDir, 4000, "photo").FileName;
                     story.Append("![").Append(Md(photo.Caption ?? "")).Append("](images/").Append(file).AppendLine(")").AppendLine();
                 }
-                foreach (var clip in s.Clips.Where(c => c.ClipUrl is not null))
+                foreach (var clip in s.UnplacedClips.Where(c => c.ClipUrl is not null))
                     story.Append("[Listen or watch: ").Append(Md(clip.Caption ?? "recording")).Append("](").Append(clip.ClipUrl).AppendLine(")").AppendLine();
                 book.Append(story);
 
@@ -254,6 +274,19 @@ public sealed class ExportPipeline(
 
     // ------------------------------------------------------------------ website
 
+    /// <summary>The family archive for the website export: every item with its files, grouped by folder ("Letters › From Joe").</summary>
+    private async Task<List<(string Folder, IReadOnlyList<ArchiveItem> Items)>> ArchiveForSiteAsync(CancellationToken ct)
+    {
+        var folders = await db.Collections.AsNoTracking().ToListAsync(ct);
+        string Name(Guid? id) => id is { } x && folders.FirstOrDefault(c => c.Id == x) is { } c
+            ? (c.ParentId is null ? c.Title : Name(c.ParentId) + " › " + c.Title) : "";
+        var items = await db.ArchiveItems.AsNoTracking()
+            .Include(i => i.Files.Where(f => f.RemovedAt == null && f.State == ProcessingState.Ready).OrderBy(f => f.SortOrder))
+            .ToListAsync(ct);
+        return [.. items.GroupBy(i => Name(i.CollectionId)).OrderBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => (g.Key, (IReadOnlyList<ArchiveItem>)[.. g.OrderBy(i => i.WhenYear ?? i.WhenDecade ?? int.MaxValue).ThenBy(i => i.Title)]))];
+    }
+
     private async Task WebsiteAsync(ExportScope scope, string output, Func<int, string, Task> progress, CancellationToken ct)
     {
         await progress(10, "Gathering the stories");
@@ -269,12 +302,15 @@ public sealed class ExportPipeline(
             await w.WriteAsync(await razor.RenderAsync($"/Templates/Export/Site/{view}.cshtml", model));
         }
 
+        var archive = await ArchiveForSiteAsync(ct);
+        content = content with { HasArchive = archive.Count > 0 };
         await progress(30, "Writing the pages");
         await Page("index.html", "Index", new SitePage(content, "Stories", "stories"));
         await Page("timeline.html", "Timeline", new SitePage(content, "Timeline", "timeline"));
         await Page("photos.html", "Photos", new SitePage(content, "Photos", "photos"));
         await Page("people.html", "People", new SitePage(content, "People", "people"));
         await Page("search.html", "Search", new SitePage(content, "Search", "search"));
+        if (archive.Count > 0) await Page("archive.html", "Archive", new SitePage(content, "Family archive", "archive") { Archive = archive });
         if (content.AllPeople.Count > 0)
             await Page("tree.html", "Tree", new SitePage(content, "Family tree", "tree") { TreeSvg = TreeSvg.Render(content.AllPeople, content.Parents, content.Partnerships) });
         var playable = content.Stories.SelectMany(s => s.Clips).Select(c => c.Attachment)
@@ -288,7 +324,7 @@ public sealed class ExportPipeline(
         {
             title = s.Memory.Title, teller = s.Teller, url = SitePage.StoryHref(s),
             people = string.Join(" ", s.People.Select(p => p.DisplayName)),
-            text = (s.Memory.Body + " " + (s.Memory.Place ?? "") + " " + string.Join(" ", s.Photos.Select(p => p.Caption))).Replace('\n', ' '),
+            text = (FamilyMemories.Stories.StoryMarkup.PlainText(s.Memory.Body) + " " + (s.Memory.Place ?? "") + " " + string.Join(" ", s.Photos.Select(p => p.Caption))).Replace('\n', ' '),
         });
         var indexEntry = zip.CreateEntry("assets/search-index.js");
         await using (var w = new StreamWriter(indexEntry.Open(), new UTF8Encoding(false)))
@@ -299,6 +335,12 @@ public sealed class ExportPipeline(
         {
             var path = storage.PathFor(a, v);
             if (File.Exists(path)) zip.CreateEntryFromFile(path, SitePage.Media(a, name), CompressionLevel.NoCompression);
+        }
+        foreach (var f in archive.SelectMany(g => g.Items).SelectMany(i => i.Files))
+        {
+            if (f.Kind == AttachmentKind.Photo || f.Width is not null) Add(f, MediaVariant.Web, "web.jpg");
+            if (f.Kind == AttachmentKind.Audio) Add(f, MediaVariant.Audio, "audio.m4a");
+            else if (f.Kind != AttachmentKind.Photo) Add(f, MediaVariant.Original, "original" + f.Extension);
         }
         foreach (var s in content.Stories)
         {
@@ -334,16 +376,33 @@ public sealed class ExportPipeline(
                 Visibility = m.Visibility.ToString(), m.WhenYear, m.WhenMonth, m.WhenDay, m.WhenCirca, m.WhenDecade, m.WhenLabel, m.Place,
                 m.CreatedAt, m.UpdatedAt, m.CompletedAt,
                 versions = db.MemoryVersions.Where(v => v.MemoryId == m.Id).OrderBy(v => v.Number).Select(v => new { v.Number, v.Title, v.Body, v.SavedAt, v.SavedById }).ToList(),
+                raw_material = db.MemorySources.Where(x => x.MemoryId == m.Id).OrderBy(x => x.CreatedAt)
+                    .Select(x => new { Kind = x.Kind.ToString(), x.Text, x.AttachmentId, x.CreatedAt, x.CreatedById }).ToList(),
                 attachments = db.Attachments.Where(a => a.MemoryId == m.Id && a.RemovedAt == null).OrderBy(a => a.SortOrder).Select(a => new
                 {
                     a.Id, Kind = a.Kind.ToString(), a.OriginalFileName, a.ContentType, a.Caption, a.Sha256, a.Width, a.Height, a.DurationSeconds,
-                    file = "media/" + a.MemoryId.ToString().Replace("-", "") + "/" + a.Id.ToString().Replace("-", "") + "/original" + a.Extension,
+                    file = "media/" + a.MemoryId!.Value.ToString().Replace("-", "") + "/" + a.Id.ToString().Replace("-", "") + "/original" + a.Extension,
                     people = db.AttachmentPeople.Where(x => x.AttachmentId == a.Id).Select(x => x.PersonId).ToList(),
                 }).ToList(),
                 people = db.MemoryPeople.Where(x => x.MemoryId == m.Id).Select(x => x.PersonId).ToList(),
                 comments = db.Comments.Where(c => c.MemoryId == m.Id && c.DeletedAt == null).Select(c => new { c.UserId, c.Body, c.CreatedAt }).ToList(),
                 hearts = db.Reactions.Where(r => r.MemoryId == m.Id).Select(r => r.UserId).ToList(),
             }).ToListAsync(ct),
+            archive = new
+            {
+                folders = await db.Collections.AsNoTracking().Select(c => new { c.Id, c.ParentId, c.Title, c.Description, c.SortOrder }).ToListAsync(ct),
+                items = await db.ArchiveItems.AsNoTracking().Select(i => new
+                {
+                    i.Id, FolderId = i.CollectionId, i.Title, i.Description, i.WhenYear, i.WhenMonth, i.WhenDay, i.WhenCirca, i.WhenDecade, i.WhenLabel,
+                    i.Place, i.Transcription, i.Provenance, i.CreatedById, i.CreatedAt,
+                    stories = db.StoryDocuments.Where(d => d.ArchiveItemId == i.Id).Select(d => d.MemoryId).ToList(),
+                    files = db.Attachments.Where(a => a.ArchiveItemId == i.Id && a.RemovedAt == null).OrderBy(a => a.SortOrder).Select(a => new
+                    {
+                        a.Id, Kind = a.Kind.ToString(), a.OriginalFileName, a.ContentType, a.Caption, a.Keywords, a.TakenAt, a.Sha256,
+                        file = "media/archive-" + i.Id.ToString().Replace("-", "") + "/" + a.Id.ToString().Replace("-", "") + "/original" + a.Extension,
+                    }).ToList(),
+                }).ToListAsync(ct),
+            },
             family_tree = new
             {
                 people = await db.People.AsNoTracking().Select(p => new
@@ -353,6 +412,11 @@ public sealed class ExportPipeline(
                 }).ToListAsync(ct),
                 parents = await db.ParentChildren.AsNoTracking().Select(x => new { x.ParentId, x.ChildId, Kind = x.Kind.ToString() }).ToListAsync(ct),
                 partnerships = await db.Partnerships.AsNoTracking().Select(x => new { x.Person1Id, x.Person2Id, Kind = x.Kind.ToString(), x.StartYear, x.EndYear }).ToListAsync(ct),
+                life_events = await db.PersonFacts.AsNoTracking().OrderBy(f => f.PersonId).ThenBy(f => f.SortOrder).Select(f => new
+                {
+                    f.PersonId, f.Kind, f.Label, f.Year, f.Month, f.Day, f.Circa, f.Place, f.Value, f.Note, f.Citations, f.FromGedcom,
+                }).ToListAsync(ct),
+                links = await db.PersonLinks.AsNoTracking().Select(l => new { l.PersonId, l.Label, l.Url, l.FromGedcom }).ToListAsync(ct),
             },
         };
 
@@ -383,18 +447,21 @@ public sealed class ExportPipeline(
     }
 
     private const string ArchiveReadme = """
-        FAMILY MEMORIES: PORTABLE ARCHIVE
-        =================================
+        HEIRLOOM: PORTABLE ARCHIVE
+        ==========================
 
         This folder holds everything the family saved, in plain, open formats, so it can be read
         for decades without the app that made it.
 
-        data.json    Every story (with all earlier versions), question, comment and heart, the people
-                     who signed in, and the family tree. Plain JSON: any programmer, or any text
-                     editor, can read it. Dates are in UTC.
+        data.json    Every story (with all earlier versions and its raw material: email replies,
+                     what speech-to-text heard, transcriptions), question, comment and heart, the
+                     people who signed in, the family tree with its life events and sources, and the
+                     family archive (folders, items, transcriptions, where the originals are).
+                     Plain JSON: any programmer, or any text editor, can read it. Dates are in UTC.
         media/       Every photo, recording, video and document exactly as it was uploaded
                      ("original.*"), plus web copies (web.jpg, thumb.jpg, audio.m4a, poster.jpg).
-                     data.json says which file belongs to which story.
+                     data.json says which file belongs to which story or archive item; the
+                     archive's files are in media/archive-*.
         people.ged   The family tree as GEDCOM 5.5.1. Open it in any genealogy program
                      (Ancestry, FamilySearch, MyHeritage, Gramps...).
 

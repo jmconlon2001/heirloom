@@ -397,3 +397,81 @@ The `whisper` service now runs in the standard stack (no profile), and compose g
 - **Type:** unchanged. Literata is the brand face (wordmark, questions, the book); Atkinson Hyperlegible does everything people read and tap.
 - **Image:** published as `ghcr.io/<owner>/heirloom` and, with the same tags, under the old name `ghcr.io/<owner>/family-memories`, so older compose files keep pulling. Releases ship `heirloom.yml` for OpenMediaVault, plus `family-memories.yml` as the same file.
 - **Not renamed, on purpose:** the Compose project name (`family-memories`), the restic `--host` tag, the archive format id, `family-memories.env` support, the C# namespace and data folders. Renaming any of them would break existing installs or backups for no visible gain.
+
+### D-073 · Importing people and stories from a spreadsheet
+
+**Decision:** Two admin pages, `/admin/import/people` and `/admin/import/stories`, read a CSV saved from any spreadsheet. They follow the GEDCOM import: upload, a preview with a choice per row, then import. The upload is kept in `uploads/` until it's imported.
+
+- **One people sheet for both kinds of "people":** each row is a family-tree person; a row with an email also gets a sign-in account, linked to that person. Families keep one list, not two. Parents and partners are names, resolved first within the sheet, then against the tree. A name that's ambiguous or unknown is reported, not guessed.
+- **Duplicates:** people use the GEDCOM matcher (same first name and surname or maiden name, birth years within one), and a match only fills blanks. Stories are duplicates when the storyteller already answered that question or has a story with that title; they default to Skip, so running the same sheet twice adds nothing.
+- **Invitations are opt-in** at import time, so a bulk import can't email the whole family by accident. Story imports send nothing.
+- **Imported words are the storyteller's own** (no "written by") unless the sheet names who wrote them down. Finished is the default status, since these are usually stories already written.
+- **Forgiving reading:** headers match loosely ("First name", "first_name", "FirstName"); comma, semicolon (European Excel) and tab separators; quoted cells with line breaks; a UTF-8 BOM; dates in the usual US forms, ISO, decades, "about", and Excel's date numbers. A story's unreadable date is kept as words; a person's is dropped with a note.
+- **Limits:** 10 MB / 5,000 people, 20 MB / 5,000 stories per file. Photos and recordings aren't in a CSV; add them to each story afterwards.
+
+### D-074 · Site name, help contact and starting display are set in the app
+
+**Decision:** Family admin → **Site name, help phone number and display** (`/admin/site`) sets the site's name, the help name and phone number, and the text size and contrast a new device starts with. They're stored as one `site.settings` row and applied to the `AppOptions` singleton at startup and on save, so every page, email, login card and export follows without a restart. An empty field falls back to `APP_NAME`, `HELP_NAME` or `HELP_PHONE`.
+
+- The help number is checked to be a phone number, and is rendered as a `tel:` link; the email footer now uses the same wording as the site ("Call Jacob at …").
+- The starting display only applies to a device that hasn't chosen; a choice made with the buttons is kept in its cookie. The script reads the page's current classes when there's no cookie, so pressing one button doesn't reset the other to the built-in default.
+- The admin home shows "Add a phone number for help" until one is set.
+
+### D-075 · Backups you can see, OneDrive through rclone, and a plain copy
+
+**Decision:** The Backups page says what the last backup held and where every copy is, in plain words. It warns when the backups share a disk with the stories. Families can keep an offsite copy on the cloud drive they already have, and optionally an ordinary unencrypted copy.
+
+- **What's in it:** after each successful backup, a `backup.manifest` setting records the dump size, the media file count and size, the key and config file counts, and counts of stories, files, people and accounts. These are measured at backup time rather than recomputed on every page view.
+- **Where it is:** compose passes `DATA_ROOT_ON_HOST`/`BACKUP_ROOT_ON_HOST`, so the page can show the server's own folder names. Offsite repositories are named by kind ("Backblaze B2", "OneDrive (through rclone)", the latter read from `rclone.conf`), with any password in the URL masked.
+- **Same disk:** found from `/proc/self/mountinfo` (the device behind `/data` vs. the local repository). It's a warning on the page, and a status warning only when there's no offsite copy as well. Where it can't tell (not Linux), it says nothing.
+- **rclone** 1.76.0 is in the image, pinned and checked against the SHA-256 published on downloads.rclone.org and the GitHub release. `RCLONE_CONFIG=/data/config/rclone.conf`, which lives in the config folder and so is itself backed up. `restore.sh` stops early with a clear message if an `rclone:` repository has no config yet.
+- **Plain copy** (`PLAIN_COPY`, off by default): `pg_dump -Fp -Z 6` to `heirloom.sql.gz`, a changed-files-only mirror of the media folder, and a README. It isn't encrypted and keeps no history, so it sits next to restic rather than replacing it. If it fails, the backup itself doesn't.
+
+### D-076 · The family's genealogy program stays the master tree
+
+**Decision:** Heirloom isn't a genealogy editor. Programs like Reunion already have far better models for people, places, events and sources. Heirloom reads them, through GEDCOM, and shows them next to the stories.
+
+- **Read:** life events (birth, christening, residence, occupation, census, immigration, naturalization, military, burial, EVEN/FACT with TYPE, and more), the couple's events on both partners ("with Mary Walsh"), notes (including shared NOTE records), source citations (title, page, URL), and links (`WWW`/`_URL`, FamilySearch `_FSFTID`, web `OBJE` files). Stored as `PersonFact` (citations as jsonb) and `PersonLink`. Social Security numbers are deliberately not read.
+- **"This file is our main family tree":** for matched people, the file's names, dates and places win wherever it says something. Its facts and links replace the earlier imported ones (`FromGedcom`). Stories, photos, accounts and hand-added links are untouched. Without the box ticked, facts are added once and only blanks are filled.
+- **Notes from the file** become a "Notes" fact, no longer the person's About text, which stays the family's own words.
+- **Shown** on the person page as "Life events and sources", open in Detailed view and collapsed in Simple view, with a "Sources (n)" disclosure per event. A site-wide main-tree link lives in Site settings.
+- **Export** writes all of it back (SOUR records with TITL/WWW, citations with PAGE, OBJE links with titles, `_FSFTID`), and a round-trip test checks that nothing is lost.
+
+### D-077 · Running it safely, and knowing when to update
+
+**Decision:** `docs/SECURITY.md` explains what's exposed, how sign-in works, what's scanned, how to update, and what's left to the family. The admin home shows "Version X is available" from a once-a-day check of GitHub's latest release (`UPDATE_CHECK=false` turns it off). The request carries only a generic User-Agent. Development builds never prompt. The README now says how to customise without a fork, since everything a family changes lives in its own database.
+
+### D-078 · Formatting and inline media, in plain text
+
+**Decision:** Stories stay plain text, written with a few marks people know from email: `**bold**`, `*italic*`, `## heading`, `- list`, `1. list`, `> quote` and `[words](https://…)`. A line `![caption](media:ID)` places a photo, recording or video at that point. `StoryMarkup` turns this into HTML blocks for the site, the PDF/book and the website export, into Markdown for pandoc (EPUB/DOCX), and into plain text for excerpts and search.
+
+- **Why not TinyMCE or stored HTML:** plain text stays readable for decades, in the archive export, in emails and in version history. It needs no inline scripts, so the strict CSP stays as it is. Existing stories need no migration, and an iPad keyboard works exactly as before.
+- **Safe by construction:** everything is HTML-encoded first, and the only tags produced are bold, italic and http(s)/mailto links, always with `rel="noopener"`. Tests cover `<script>`, `javascript:` links, raw tags and attribute-breaking URLs.
+- **Who sees the toolbar:** Detailed view, and anyone writing for someone else. Simple view keeps the plain box, so storytellers see no change. The toolbar (`format.js`) only edits the textarea, so autosave and the keep-on-device copy work unchanged.
+- **Placement:** media not placed in the text still shows after it, as before. A placed item that's later removed simply doesn't render.
+
+### D-079 · Raw material next to the finished story
+
+**Decision:** `MemorySource` keeps the words as they first arrived, next to the story, while the story itself is the edited version. It holds:
+
+- an email reply, whole, as received;
+- what speech-to-text heard before anyone fixed it, with its recording;
+- spreadsheet imports;
+- anything pasted in: a letter's transcription, notes, a first draft.
+
+Only people who can edit the story see raw material, on the writing page in Detailed view or when writing for someone. "Copy into the story" appends it to the story, and it's in the complete archive export. Paper packet pages are scans, so their transcription is added the same way, as "a transcription of a letter or paper page".
+
+### D-080 · The family archive
+
+**Decision:** Family Library → Archive holds what isn't a story. `Collection` is a folder, and folders nest. `ArchiveItem` is a letter, certificate, album page or recording, with a title, description, fuzzy date, place, transcription and provenance ("where the original is now"). An item can sit at the top or in a folder, and can be linked to stories ("Related documents").
+
+- **Files reuse the story pipeline:** `Attachment.MemoryId` is now optional and `ArchiveItemId` is new, with a check constraint that exactly one is set. Upload checks, processing (web copies, PDF previews, playable video), storage (`media/archive-{item}/…`), serving and backups are all shared.
+- **Who can do what:** every signed-in family member can see and add. Whoever added an item, and admins, can change or remove it. Folders are admin-only, and only an empty folder can be removed. Removing an item deletes its files; earlier backups keep them.
+- **Photo metadata:** read with Magick.NET before the web copies are stripped. That covers EXIF DateTimeOriginal, IPTC caption and keywords, and XMP `dc:description`, `dc:subject` and Lightroom's `lr:hierarchicalSubject` ("Family|Conlon|William").
+  - A flat keyword that only repeats the end of a hierarchical one is dropped.
+  - Camera boilerplate ("OLYMPUS DIGITAL CAMERA") is not a caption.
+  - The metadata fills an empty caption, an item's empty description and date, and a title that's only the file name. Originals keep all of it.
+  - Story photos get keywords too, and the Photos page has the same keyword browser.
+- **Folders in the database, files on disk:** the hierarchy, search and permissions live in the database, where they can be managed. The files stay ordinary files that restic, the plain copy and rsync all handle well.
+- **Exports:** the website gets an Archive page grouped by folder. The complete archive adds folders, items, transcriptions and file paths to `data.json`; the files are already under `media/`.
+

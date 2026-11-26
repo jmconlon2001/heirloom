@@ -8,14 +8,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyMemories.Pages.Stories;
 
-public sealed class ReadModel(AppDbContext db, StoryAccess access, ConversationService conversation, TimeProvider clock) : PageModel
+public sealed class ReadModel(AppDbContext db, StoryAccess access, ConversationService conversation, TimeProvider clock, FamilyMemories.Archive.ArchiveService archive) : PageModel
 {
     public Memory Memory { get; private set; } = null!;
     public List<Attachment> Items { get; private set; } = [];
     public bool CanEdit { get; private set; }
     public Guid Me { get; private set; }
     /// <summary>Blank lines separate paragraphs; single line breaks are kept.</summary>
-    public List<string[]> Paragraphs { get; private set; } = [];
+    public StoryBodyView Body { get; private set; } = null!;
+    /// <summary>Archive items linked to this story (D-080).</summary>
+    public List<ArchiveItem> Documents { get; private set; } = [];
     public List<Person> People { get; private set; } = [];
     public Dictionary<Guid, List<Person>> PhotoPeople { get; private set; } = [];
     public List<string> HeartNames { get; private set; } = [];
@@ -42,11 +44,12 @@ public sealed class ReadModel(AppDbContext db, StoryAccess access, ConversationS
         CanEdit = await access.CanEditAsync(User, memory);
         Items = await db.Attachments.AsNoTracking().Where(a => a.MemoryId == id && a.RemovedAt == null)
             .OrderBy(a => a.SortOrder).ThenBy(a => a.CreatedAt).ToListAsync();
-        Paragraphs = [.. memory.Body.Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(p => p.Split('\n'))];
         People = await db.MemoryPeople.AsNoTracking().Where(x => x.MemoryId == id).Select(x => x.Person!).OrderBy(p => p.GivenNames).ToListAsync();
         var itemIds = Items.Select(a => a.Id).ToList();
         PhotoPeople = (await db.AttachmentPeople.AsNoTracking().Include(x => x.Person).Where(x => itemIds.Contains(x.AttachmentId)).ToListAsync())
             .GroupBy(x => x.AttachmentId).ToDictionary(g => g.Key, g => g.Select(x => x.Person!).ToList());
+        Body = new StoryBodyView(StoryMarkup.Parse(memory.Body), Items, PhotoPeople);
+        Documents = await archive.DocumentsForStoryAsync(id);
         var hearts = await db.Reactions.AsNoTracking().Include(r => r.User).Where(r => r.MemoryId == id).OrderBy(r => r.CreatedAt).ToListAsync();
         IHearted = hearts.Any(h => h.UserId == Me);
         HeartNames = [.. hearts.Select(h => h.UserId == Me ? "You" : h.User!.DisplayName)];

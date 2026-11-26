@@ -41,18 +41,12 @@
         }
     </header>
 
-    <div class="story-body">
-        @foreach (var paragraph in Model.Paragraphs)
-        {
-            @* Each line is HTML-encoded before joining with <br>, so this is safe. *@
-            <p>@Html.Raw(string.Join("<br>", paragraph.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
-        }
-    </div>
+    <partial name="_StoryBody" model="Model.Body" />
 
-    @if (Model.Items.Count > 0)
+    @if (Model.Body.Unplaced.Any())
     {
         <ul class="gallery">
-            @foreach (var a in Model.Items)
+            @foreach (var a in Model.Body.Unplaced)
             {
                 <li>
                     <figure>
@@ -69,6 +63,26 @@
                 </li>
             }
         </ul>
+    }
+    @if (Model.Documents.Count > 0)
+    {
+        <section aria-labelledby="docs-heading">
+            <h2 id="docs-heading">Related documents</h2>
+            <ul class="archive-grid">
+                @foreach (var d in Model.Documents)
+                {
+                    var cover = d.Files.FirstOrDefault(f => f.State == ProcessingState.Ready && f.Width is not null);
+                    <li>
+                        <a class="archive-card" href="/library/archive/item/@d.Id">
+                            @if (cover is not null) { <img src="/media/@cover.Id/thumb" alt="" loading="lazy" width="400" height="400"> }
+                            else { <span class="archive-card-icon" aria-hidden="true">📄</span> }
+                            <span class="archive-card-title">@d.Title</span>
+                            @if (d.When.Format() is { Length: > 0 } dw) { <span class="muted">@dw</span> }
+                        </a>
+                    </li>
+                }
+            </ul>
+        </section>
     }
 </article>
 

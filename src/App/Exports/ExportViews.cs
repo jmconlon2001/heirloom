@@ -55,6 +55,8 @@ public sealed record SitePage(ExportContent Content, string Title, string Active
     public ExportStory? Story { get; init; }
     public ExportPerson? Person { get; init; }
     public string? TreeSvg { get; init; }
+    /// <summary>The family archive, folder by folder (D-080).</summary>
+    public IReadOnlyList<(string Folder, IReadOnlyList<ArchiveItem> Items)> Archive { get; init; } = [];
     public static string StoryHref(ExportStory s) => $"story-{s.Slug}.html";
     public static string PersonHref(ExportPerson p) => $"person-{p.Slug}.html";
     public static string Media(Attachment a, string file) => $"media/{a.Id:N}/{file}";

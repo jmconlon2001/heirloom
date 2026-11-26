@@ -1,0 +1,10 @@
+@model IEnumerable<FamilyMemories.Data.FactCitation>
+<ul class="citations">
+    @foreach (var c in Model)
+    {
+        <li>
+            @if (c.Url is not null) { <a href="@c.Url" rel="noopener">@c.Title</a> } else { <cite>@c.Title</cite> }
+            @if (c.Page is not null) { <span class="muted">, @c.Page</span> }
+        </li>
+    }
+</ul>

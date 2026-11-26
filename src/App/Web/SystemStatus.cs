@@ -168,7 +168,11 @@ public sealed class SystemStatusService(IServiceScopeFactory scopes, AppOptions 
         if (h.LastGoodBackup?.FinishedAt is not { } last) return new(key, name, StatusLevel.Warning, "No backup has finished yet.", data);
         var age = now - last;
         var summary = $"Last good backup {Ago(age)}" + (h.LastGoodVerify?.FinishedAt is { } v ? $"; last check {Ago(now - v)}." : "; not checked yet.");
-        return new(key, name, h.Healthy(now) ? StatusLevel.Ok : StatusLevel.Problem, h.Healthy(now) ? summary : "No good backup in the last 36 hours. " + summary, data);
+        if (!h.Healthy(now)) return new(key, name, StatusLevel.Problem, "No good backup in the last 36 hours. " + summary, data);
+        var o = services.GetRequiredService<AppOptions>();
+        if (o.OffsiteRepository is null && BackupLocations.IsLocal(o.ResticRepository) && DiskCheck.SameDisk(o.DataDir, o.ResticRepository) == true)
+            return new(key, name, StatusLevel.Warning, summary + " The backups are on the same disk as the stories and there's no offsite copy, so one failed disk would lose both.", data);
+        return new(key, name, StatusLevel.Ok, summary, data);
     }
 
     private static async Task<ComponentStatus> Email(IServiceProvider services, AppDbContext db, DateTime now, CancellationToken ct)

@@ -50,16 +50,11 @@ else
                 <p class="when-place">@string.Join(" · ", new[] { when, m.Place }.Where(x => !string.IsNullOrEmpty(x)))</p>
             }
         </header>
-        <div class="story-body">
-            @foreach (var paragraph in Model.Paragraphs)
-            {
-                <p>@Html.Raw(string.Join("<br>", paragraph.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
-            }
-        </div>
-        @if (Model.Items.Count > 0)
+        <partial name="_StoryBody" model="Model.Body" />
+        @if (Model.Body.Unplaced.Any())
         {
             <ul class="gallery">
-                @foreach (var a in Model.Items)
+                @foreach (var a in Model.Body.Unplaced)
                 {
                     <li><figure><partial name="_AttachmentPreview" model="a" />
                         @if (!string.IsNullOrWhiteSpace(a.Caption) && !(a.IsVoiceRecording && a.Caption == "Voice recording"))

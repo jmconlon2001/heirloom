@@ -30,12 +30,14 @@ public sealed class GedcomModel(GedcomImporter importer, AuditLog audit) : PageM
         return Page();
     }
 
-    public async Task<IActionResult> OnPostCommitAsync(Guid fileId, Dictionary<string, string> decisions)
+    public async Task<IActionResult> OnPostCommitAsync(Guid fileId, Dictionary<string, string> decisions, bool mainTree)
     {
-        var result = await importer.CommitAsync(fileId, decisions);
+        var result = await importer.CommitAsync(fileId, decisions, mainTree);
         TempData["Flash"] = result is null
             ? "That import has expired. Please upload the file again."
-            : $"Imported: {result.Created} new people, {result.Matched} matched to people already in the tree, {result.Skipped} skipped, {result.Relationships} family connections.";
+            : mainTree
+                ? $"Updated from the main tree: {result.Updated} people updated, {result.Created} new, {result.Skipped} skipped, {result.Relationships} family connections, {result.Facts} life events and notes."
+                : $"Imported: {result.Created} new people, {result.Matched} matched to people already in the tree, {result.Skipped} skipped, {result.Relationships} family connections, {result.Facts} life events and notes.";
         return LocalRedirect(result is null ? "/admin/gedcom" : "/people");
     }
 }

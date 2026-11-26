@@ -128,11 +128,16 @@ builder.Services.AddScoped<FamilyMemories.Family.PeopleService>();
 builder.Services.AddScoped<FamilyMemories.Family.SharingService>();
 builder.Services.AddScoped<FamilyMemories.Family.ConversationService>();
 builder.Services.AddScoped<FamilyMemories.Family.GedcomImporter>();
+builder.Services.AddScoped<FamilyMemories.Imports.PeopleCsvImporter>();
+builder.Services.AddScoped<FamilyMemories.Archive.ArchiveService>();
+builder.Services.AddScoped<FamilyMemories.Imports.StoriesCsvImporter>();
 builder.Services.AddSingleton<MaintenanceMode>();
 builder.Services.AddSingleton<BackupService>();
 builder.Services.AddScoped<BackupJobs>();
 builder.Services.AddScoped<BackupStatusQuery>();
 builder.Services.AddHttpClient("ntfy", c => c.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddHttpClient(FamilyMemories.Admin.UpdateChecker.ClientName, c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<FamilyMemories.Admin.UpdateChecker>();
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Admin", p => p.RequireRole(Roles.Admin));
@@ -242,6 +247,7 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync();
+    (await FamilyMemories.Admin.SiteSettings.LoadAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>())).ApplyTo(options);
     if (options.DemoMode)
     {
         app.Logger.LogWarning("DEMO_MODE is ON: anyone can sign in as the sample family without email. Never use it with real family stories.");
@@ -347,6 +353,11 @@ if (options.JobsEnabled)
             "email-replies", p => p.PollAsync(CancellationToken.None), "*/5 * * * *");
     if (options.BackupsConfigured)
         BackupJobs.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), options);
+    if (options.UpdateCheck)
+        app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<FamilyMemories.Admin.UpdateChecker>(
+            "update-check", u => u.CheckAsync(CancellationToken.None), Cron.Daily(11, 23));
+    else
+        app.Services.GetRequiredService<IRecurringJobManager>().RemoveIfExists("update-check");
 }
 
 app.Run();

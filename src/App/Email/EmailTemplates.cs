@@ -280,10 +280,18 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
     private static string Button(string url, string label) =>
         $"""<p style="margin:0 0 24px"><a href="{url}" style="display:inline-block;background:#2f5d46;color:#ffffff;text-decoration:none;font-family:Arial,sans-serif;font-size:24px;font-weight:bold;padding:18px 32px;border-radius:10px">{label}</a></p>""";
 
-    private string HelpLine() =>
-        string.IsNullOrWhiteSpace(options.HelpName) && string.IsNullOrWhiteSpace(options.HelpPhone)
-            ? ""
-            : $"Need help? Call {options.HelpName} {options.HelpPhone}".Trim();
+    /// <summary>The same wording as the "Need help?" box on the site.</summary>
+    private string HelpLine()
+    {
+        bool name = !string.IsNullOrWhiteSpace(options.HelpName), phone = !string.IsNullOrWhiteSpace(options.HelpPhone);
+        return (name, phone) switch
+        {
+            (true, true) => $"Need help? Call {options.HelpName} at {options.HelpPhone}.",
+            (false, true) => $"Need help? Call {options.HelpPhone}.",
+            (true, false) => $"Need help? Ask {options.HelpName}.",
+            _ => "",
+        };
+    }
 
     private string TextFooter(string? preferencesUrl)
     {

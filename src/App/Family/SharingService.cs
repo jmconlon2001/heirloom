@@ -63,7 +63,7 @@ public sealed class SharingService(AppDbContext db, AuditLog audit, AppOptions o
         var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(18));
         db.LinkShares.Add(new LinkShare
         {
-            Id = Guid.CreateVersion7(), MemoryId = clip.MemoryId, AttachmentId = clip.Id,
+            Id = Guid.CreateVersion7(), MemoryId = clip.MemoryId!.Value, AttachmentId = clip.Id,
             TokenHash = MagicLinkService.Hash(token), Label = label, CreatedById = createdBy, CreatedAt = Now,
         });
         await db.SaveChangesAsync();

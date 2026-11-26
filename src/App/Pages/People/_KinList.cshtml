@@ -1,4 +1,9 @@
 @model FamilyMemories.Family.Kin
+@if (Model.Parents.Count + Model.Partners.Count + Model.Children.Count + Model.Siblings.Count == 0)
+{
+    <p class="muted">No family connections added yet.</p>
+    return;
+}
 <dl class="kin">
     @if (Model.Parents.Count > 0)
     {
@@ -23,9 +28,5 @@
     {
         <dt>Brothers and sisters</dt>
         <dd>@foreach (var x in Model.Siblings) { <a href="/people/@x.Id">@x.DisplayName</a><br> }</dd>
-    }
-    @if (Model.Parents.Count + Model.Partners.Count + Model.Children.Count + Model.Siblings.Count == 0)
-    {
-        <dd class="muted">No family connections added yet.</dd>
     }
 </dl>

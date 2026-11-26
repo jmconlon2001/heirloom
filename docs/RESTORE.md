@@ -10,6 +10,14 @@ Everything the family has shared is in two places, and backups cover both:
 | Settings files | `DATA_ROOT/data/config` | ✓ |
 | Logs, finished exports | `DATA_ROOT/data/logs`, `…/exports` | ✗ (can be recreated) |
 
+Family admin → **Backups** shows all of this for your own server: what the last backup held (the database size and counts of stories, people and files; the number and size of media files), every place a copy is kept, with the server's own folder names, and a warning if the backups are on the same disk as the stories.
+
+## Where the copies are
+
+1. **On the server**, encrypted: `BACKUP_ROOT/restic`. Put `BACKUP_ROOT` on a different disk from `DATA_ROOT` (a USB drive is fine). If they're on the same disk, the Backups page and `/status` say so.
+2. **Offsite**, encrypted (optional, strongly recommended): `OFFSITE_RESTIC_REPOSITORY`. OneDrive, Google Drive and Dropbox work through rclone, which is in the image; Backblaze B2, S3 and SFTP work directly.
+3. **A plain copy** (optional, `PLAIN_COPY=true`): `BACKUP_ROOT/plain/heirloom.sql.gz` and `BACKUP_ROOT/plain/media/`, refreshed after each nightly backup. No restic is needed to open it, and it's easy to mirror with `rsync -a --delete`. It isn't encrypted and keeps no history, so it's a convenience next to the restic backups, not a replacement for them.
+
 ## How backups work
 
 - **Every night** at `BACKUP_TIME` (default 02:30, `APP_TIMEZONE`), the app dumps the database and runs `restic backup` of the table above into `/backups/restic`. That folder is `BACKUP_ROOT`, which must be on a **different physical disk** from `DATA_ROOT`.
@@ -53,7 +61,8 @@ cd /appdata/heirloom
 # 2a. From a local repository (a USB disk, or the old BACKUP_ROOT disk):
 scripts/restore.sh --repo /mnt/usb/heirloom/restic --snapshot latest --password-file ~/restic-password.txt
 
-# 2b. Or from the offsite repository (export the backend's credentials first):
+# 2b. Or from the offsite repository (export the backend's credentials first;
+#     for OneDrive or another rclone remote, copy rclone.conf to DATA_ROOT/data/config/rclone.conf first):
 export B2_ACCOUNT_ID=…  B2_ACCOUNT_KEY=…
 scripts/restore.sh --repo b2:my-bucket:heirloom --snapshot latest --password-file ~/restic-password.txt
 ```

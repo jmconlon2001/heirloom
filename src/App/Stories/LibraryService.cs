@@ -8,11 +8,7 @@ public sealed record StoryCard(Memory Memory, string StorytellerName, Guid? Thum
 {
     public string Excerpt
     {
-        get
-        {
-            var text = Memory.Body.Replace('\n', ' ').Trim();
-            return text.Length <= 180 ? text : text[..text.LastIndexOf(' ', 179)].TrimEnd(',', '.', ';') + "…";
-        }
+        get => StoryMarkup.Excerpt(Memory.Body);
     }
 }
 
@@ -59,7 +55,7 @@ public sealed class LibraryService(AppDbContext db, StoryAccess access)
     {
         var memories = Visible(user).Select(m => m.Id);
         return db.Attachments.AsNoTracking().Include(a => a.Memory)
-            .Where(a => memories.Contains(a.MemoryId) && a.RemovedAt == null && a.Kind == AttachmentKind.Photo && a.State == ProcessingState.Ready)
+            .Where(a => a.MemoryId != null && memories.Contains(a.MemoryId.Value) && a.RemovedAt == null && a.Kind == AttachmentKind.Photo && a.State == ProcessingState.Ready)
             .OrderByDescending(a => a.Memory!.CompletedAt).ThenBy(a => a.SortOrder);
     }
 }

@@ -16,7 +16,7 @@ public sealed class ViewModel(AppDbContext db, SharingService sharing) : PageMod
     public bool WrongPasscode { get; private set; }
     public Memory? Memory { get; private set; }
     public List<Attachment> Items { get; private set; } = [];
-    public List<string[]> Paragraphs { get; private set; } = [];
+    public FamilyMemories.Stories.StoryBodyView Body { get; private set; } = null!;
     public Attachment? Clip { get; private set; }
     public string? ClipTeller { get; private set; }
     public string? ClipStory { get; private set; }
@@ -50,7 +50,7 @@ public sealed class ViewModel(AppDbContext db, SharingService sharing) : PageMod
             .SingleAsync(m => m.Id == share.MemoryId);
         Items = await db.Attachments.AsNoTracking().Where(a => a.MemoryId == share.MemoryId && a.RemovedAt == null)
             .OrderBy(a => a.SortOrder).ThenBy(a => a.CreatedAt).ToListAsync();
-        Paragraphs = [.. Memory.Body.Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(p => p.Split('\n'))];
+        Body = new FamilyMemories.Stories.StoryBodyView(FamilyMemories.Stories.StoryMarkup.Parse(Memory.Body), Items, new Dictionary<Guid, List<Person>>());
         return Page();
     }
 

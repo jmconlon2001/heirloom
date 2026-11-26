@@ -113,6 +113,43 @@
             </form>
         }
     </section>
+    <section aria-labelledby="links-heading">
+        <h2 id="links-heading">Links</h2>
+        <p>Pages about @Model.Person!.GivenNames elsewhere: the family's tree website, FamilySearch, Find a Grave, a memorial page.</p>
+        @if (Model.Links.Count > 0)
+        {
+            <ul class="plain-list">
+                @foreach (var l in Model.Links)
+                {
+                    <li>
+                        <a href="@l.Url" rel="noopener">@l.Label</a>
+                        @if (l.FromGedcom)
+                        {
+                            <span class="muted"> (from the main family tree; change it there)</span>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="RemoveLink" class="inline-form">
+                                <input type="hidden" name="LinkId" value="@l.Id">
+                                <button type="submit" class="button button-quiet">Remove<span class="visually-hidden"> the link @l.Label</span></button>
+                            </form>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        <form method="post" asp-page-handler="AddLink" class="stack">
+            <div class="field">
+                <label for="LinkUrl">Web address</label>
+                <input id="LinkUrl" name="LinkUrl" type="url" inputmode="url" placeholder="https://" maxlength="1000">
+            </div>
+            <div class="field">
+                <label for="LinkLabel">What to call it <span class="muted">(optional)</span></label>
+                <input id="LinkLabel" name="LinkLabel" maxlength="120" placeholder="e.g. Conlon family tree">
+            </div>
+            <button type="submit" class="button button-secondary">Add link</button>
+        </form>
+    </section>
     @if (User.IsAdmin())
     {
         <form method="post" asp-page-handler="Delete" class="danger-zone">

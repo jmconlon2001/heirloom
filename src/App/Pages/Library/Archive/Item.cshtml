@@ -1,0 +1,101 @@
+@page "/library/archive/item/{id:guid}"
+@model FamilyMemories.Pages.Library.Archive.ItemModel
+@using FamilyMemories.Data
+@{
+    var i = Model.Item;
+    ViewData["Title"] = i.Title;
+    var when = i.When.Format();
+    var keywords = i.Files.SelectMany(f => f.Keywords).Distinct().OrderBy(k => k).ToList();
+}
+<partial name="/Pages/Library/_LibraryNav.cshtml" />
+<partial name="_Flash" />
+<nav class="breadcrumbs" aria-label="Where you are in the archive">
+    <a href="/library/archive">Family archive</a>
+    @if (i.Collection is { } folder) { <span aria-hidden="true"> › </span><a href="/library/archive/@folder.Id">@folder.Title</a> }
+</nav>
+
+<article class="archive-item">
+    <header>
+        <h1>@i.Title</h1>
+        @if (when.Length > 0 || i.Place is not null) { <p class="when-place">@string.Join(" · ", new[] { when, i.Place ?? "" }.Where(x => x.Length > 0))</p> }
+        @if (i.Description is not null) { <p class="lead">@i.Description</p> }
+    </header>
+
+    <div class="archive-layout@(i.Transcription is null ? "" : " has-transcription")">
+        <div class="archive-files">
+            @foreach (var f in i.Files)
+            {
+                <figure class="archive-file">
+                    @if (f.Kind == AttachmentKind.Photo && f.State == ProcessingState.Ready)
+                    {
+                        <a href="/media/@f.Id/original"><img src="/media/@f.Id/web" alt="@(f.Caption ?? i.Title)" loading="lazy"></a>
+                    }
+                    else
+                    {
+                        <partial name="_AttachmentPreview" model="f" />
+                    }
+                    <figcaption>
+                        @if (f.Caption is not null && f.Caption != i.Description) { <span>@f.Caption</span> }
+                        <a href="/media/@f.Id/original" class="muted">Download the original@(f.Kind == AttachmentKind.Document ? " PDF" : "")</a>
+                    </figcaption>
+                </figure>
+            }
+            @if (i.Files.Count == 0) { <p class="muted">No files yet.</p> }
+        </div>
+        @if (i.Transcription is not null)
+        {
+            <section class="archive-transcription" aria-labelledby="transcription-heading">
+                <h2 id="transcription-heading">What it says</h2>
+                <div class="transcription-text">@i.Transcription</div>
+            </section>
+        }
+    </div>
+
+    <dl class="archive-details">
+        @if (i.Provenance is not null) { <dt>Where the original is</dt><dd>@i.Provenance</dd> }
+        @if (i.CreatedBy is { } by) { <dt>Added by</dt><dd>@by.DisplayName, @TimeZoneInfo.ConvertTimeFromUtc(i.CreatedAt, AppOptions.TimeZone).ToString("MMMM d, yyyy")</dd> }
+    </dl>
+    @if (keywords.Count > 0)
+    {
+        <ul class="keyword-chips" aria-label="Keywords">
+            @foreach (var k in keywords) { <li><a href="/library/archive?k=@Uri.EscapeDataString(k)">@k.Replace("|", " › ")</a></li> }
+        </ul>
+    }
+
+    <section aria-labelledby="stories-heading">
+        <h2 id="stories-heading">Stories it goes with</h2>
+        @if (Model.Stories.Count == 0) { <p class="muted">None yet.</p> }
+        <ul class="plain-list">
+            @foreach (var m in Model.Stories)
+            {
+                <li>
+                    <a href="/stories/@m.Id">@m.Title</a> <span class="muted">told by @m.Storyteller!.DisplayName</span>
+                    @if (Model.CanEdit)
+                    {
+                        <form method="post" asp-page-handler="Unlink" class="inline-form">
+                            <input type="hidden" name="memoryId" value="@m.Id">
+                            <button type="submit" class="button button-quiet">Unlink<span class="visually-hidden"> @m.Title</span></button>
+                        </form>
+                    }
+                </li>
+            }
+        </ul>
+        @if (Model.CanEdit && Model.StoryChoices.Count > 0)
+        {
+            <form method="post" asp-page-handler="Link" class="stack">
+                <div class="field">
+                    <label for="memoryId">Link it to a story</label>
+                    <select id="memoryId" name="memoryId">
+                        @foreach (var (id, label) in Model.StoryChoices) { <option value="@id">@label</option> }
+                    </select>
+                </div>
+                <button type="submit" class="button button-secondary">Link</button>
+            </form>
+        }
+    </section>
+
+    @if (Model.CanEdit)
+    {
+        <div class="button-row"><a class="button button-secondary" href="/library/archive/edit/@i.Id">Edit, add pages or remove</a></div>
+    }
+</article>

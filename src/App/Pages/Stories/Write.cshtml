@@ -1,7 +1,11 @@
 @page "/stories/{id:guid}/write"
 @model FamilyMemories.Pages.Stories.WriteModel
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject FamilyMemories.Web.ViewModeService Views
 @{
+    // Formatting tools are for helpers and the Detailed view; Simple view keeps the plain box (D-078).
+    var showFormatting = Model.IsProxy || await Views.GetAsync(HttpContext) == FamilyMemories.Web.ViewMode.Detailed;
+    ViewData["ShowFormatting"] = showFormatting;
     var prompt = Model.Prompt;
     ViewData["Title"] = prompt?.Title ?? "Your own story";
     var months = System.Globalization.CultureInfo.GetCultureInfo("en-US").DateTimeFormat.MonthNames.Take(12).ToArray();
@@ -69,11 +73,60 @@
 
     <div class="field story-field">
         <label for="Body" class="@(prompt is null ? "" : "visually-hidden")">Your story</label>
+        @if (showFormatting)
+        {
+            <div class="format-bar" role="toolbar" aria-label="Formatting" aria-controls="Body" data-format-bar hidden>
+                <button type="button" class="button button-quiet" data-format="bold" aria-label="Bold"><strong>B</strong></button>
+                <button type="button" class="button button-quiet" data-format="italic" aria-label="Italic"><em>I</em></button>
+                <button type="button" class="button button-quiet" data-format="heading">Heading</button>
+                <button type="button" class="button button-quiet" data-format="list">List</button>
+                <button type="button" class="button button-quiet" data-format="quote">Quote</button>
+                <button type="button" class="button button-quiet" data-format="link">Link</button>
+            </div>
+            <details class="format-help">
+                <summary>How formatting works</summary>
+                <p>The marks stay in the text, so it always reads well as plain words: <code>**bold**</code>, <code>*italic*</code>, a line starting <code>## </code> is a heading, <code>- </code> a list, <code>&gt; </code> a quote, and <code>[words](https://…)</code> a link. "Place in the story" on a photo or recording puts it where your cursor is.</p>
+            </details>
+        }
         <textarea asp-for="Body" class="story-text" rows="10" spellcheck="true" autocapitalize="sentences"
                   aria-describedby="keyboard-tip save-status" data-autogrow></textarea>
         <p class="tip" id="keyboard-tip">Tip: you can also tap the microphone on your keyboard to talk instead of type.</p>
         <p class="save-status" id="save-status" role="status" aria-live="polite" data-save-status></p>
     </div>
+
+    @if (showFormatting || Model.Sources.Count > 0)
+    {
+        <details class="raw-material" id="raw-material" open="@(Model.Sources.Count > 0 && showFormatting)">
+            <summary>Raw material@(Model.Sources.Count > 0 ? $" ({Model.Sources.Count})" : "")</summary>
+            <p class="muted">The words as they first arrived: an email reply, what speech-to-text heard, a transcription of a letter. They're kept exactly as they were, next to the story, and only people who can edit the story see them. Copy what you need into the story above and tidy it there.</p>
+            @foreach (var src in Model.Sources)
+            {
+                <section class="raw-item" aria-label="@FamilyMemories.Stories.RawMaterial.Label(src.Kind)">
+                    <p class="raw-meta"><strong>@FamilyMemories.Stories.RawMaterial.Label(src.Kind)</strong> · @TimeZoneInfo.ConvertTimeFromUtc(src.CreatedAt, AppOptions.TimeZone).ToString("MMM d, yyyy")@(src.CreatedBy is { } by ? $" · {by.DisplayName}" : "")</p>
+                    <div class="raw-text" tabindex="0">@src.Text</div>
+                    <div class="button-row">
+                        <button type="submit" class="button button-secondary" asp-page-handler="CopyRawMaterial" name="sourceId" value="@src.Id">Copy into the story</button>
+                        <button type="submit" class="button button-quiet" asp-page-handler="RemoveRawMaterial" name="sourceId" value="@src.Id">Remove<span class="visually-hidden"> this raw material</span></button>
+                    </div>
+                </section>
+            }
+            @if (showFormatting)
+            {
+                <div class="field">
+                    <label for="RawText">Keep something as raw material</label>
+                    <textarea id="RawText" name="RawText" rows="4" data-raw-material></textarea>
+                </div>
+                <div class="field">
+                    <label for="RawKind">What is it?</label>
+                    <select id="RawKind" name="RawKind">
+                        <option value="@FamilyMemories.Data.SourceKind.PaperScan">A transcription of a letter or paper page</option>
+                        <option value="@FamilyMemories.Data.SourceKind.Pasted" selected>Something else (notes, a first draft…)</option>
+                    </select>
+                </div>
+                <button type="submit" class="button button-secondary" asp-page-handler="AddRawMaterial">Keep it</button>
+            }
+        </details>
+    }
 
     @if (prompt?.SuggestedAttachments is { } suggested)
     {
@@ -191,3 +244,7 @@
 </form>
 
 <script type="module" src="~/js/answer.js" asp-append-version="true"></script>
+@if (showFormatting)
+{
+    <script type="module" src="~/js/format.js" asp-append-version="true"></script>
+}

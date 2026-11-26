@@ -11,7 +11,9 @@ public enum MediaVariant { Original, Web, Thumb, Audio, Poster, Video }
 /// </summary>
 public sealed class MediaStorage(AppOptions options)
 {
-    public string FolderFor(Attachment a) => Path.Combine(options.MediaDir, a.MemoryId.ToString("N"), a.Id.ToString("N"));
+    /// <summary>{memoryId}/{attachmentId} for a story's files; archive-{itemId}/{attachmentId} for the family archive (D-080).</summary>
+    public string FolderFor(Attachment a) => Path.Combine(options.MediaDir,
+        a.MemoryId is { } memory ? memory.ToString("N") : "archive-" + a.ArchiveItemId!.Value.ToString("N"), a.Id.ToString("N"));
 
     public string PathFor(Attachment a, MediaVariant variant) => Path.Combine(FolderFor(a), variant switch
     {

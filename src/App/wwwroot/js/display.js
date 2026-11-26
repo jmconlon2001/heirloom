@@ -6,7 +6,12 @@ const COOKIE = "fm_display";
 
 function readPrefs() {
   const match = document.cookie.match(/(?:^|;\s*)fm_display=([^;]*)/);
-  const prefs = { size: 0, contrast: false };
+  // No choice saved on this device yet: start from what the server drew (the family's starting display).
+  const html = document.documentElement;
+  const prefs = {
+    size: [0, 1, 2].find((n) => html.classList.contains(`text-${n}`)) ?? 0,
+    contrast: html.classList.contains("high-contrast"),
+  };
   if (!match) return prefs;
   for (const part of decodeURIComponent(match[1]).split(".")) {
     if (/^s[0-2]$/.test(part)) prefs.size = Number(part[1]);

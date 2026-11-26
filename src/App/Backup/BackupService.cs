@@ -10,7 +10,13 @@ namespace FamilyMemories.Backup;
 
 public sealed record Snapshot(string Id, string ShortId, DateTime Time, IReadOnlyList<string> Tags);
 
-public sealed record BackupResult(bool Succeeded, string? SnapshotId, string? OffsiteSnapshotId, string Message);
+public sealed record BackupResult(bool Succeeded, string? SnapshotId, string? OffsiteSnapshotId, string Message)
+{
+    /// <summary>What went into the backup, measured as it was taken (for the Backups page).</summary>
+    public BackupStats? Stats { get; init; }
+}
+
+public sealed record BackupStats(long DatabaseBytes, int MediaFiles, long MediaBytes, int KeyFiles, int ConfigFiles, string? PlainCopyAt, string? PlainCopyError);
 
 /// <summary>
 /// Backups (BUILD_PROMPT §10): pg_dump → restic (database dump, media, Data Protection keys, config) →
@@ -45,6 +51,7 @@ public sealed class BackupService(
             var run = await StartRunAsync(BackupKind.Backup, trigger, startedBy);
             var result = await BackupCoreAsync(trigger, ct);
             await FinishRunAsync(run, result.Succeeded, result.Message, result.SnapshotId, result.OffsiteSnapshotId);
+            if (result.Stats is { } stats) await SaveManifestAsync(stats);
             if (!result.Succeeded) await AlertAsync("Backup failed", result.Message);
             return result;
         }
@@ -70,6 +77,7 @@ public sealed class BackupService(
                 Directory.CreateDirectory(dir);
 
             await DumpDatabaseAsync(DumpPath, ct);
+            var dumpBytes = new FileInfo(DumpPath).Length;
             var tag = trigger.ToString().ToLowerInvariant();
 
             var primary = await BackupToAsync(options.ResticRepository, options.ResticPassword!, tag, ct);
@@ -88,7 +96,12 @@ public sealed class BackupService(
                     return new(false, primary, null, $"Local backup succeeded ({primary}) but the offsite copy failed: {ex.Message}");
                 }
             }
-            return new(true, primary, offsite, string.Join(" ", notes) + ".");
+            var (plainAt, plainError) = options.PlainCopy && trigger != BackupTrigger.PreMigration ? await PlainCopyAsync(ct) : (null, null);
+            if (plainError is not null) notes.Add($"(The plain copy failed: {plainError})");
+            var media = BackupManifest.Measure(options.MediaDir);
+            var stats = new BackupStats(dumpBytes, media.Files, media.Bytes,
+                BackupManifest.Measure(options.KeysDir).Files, BackupManifest.Measure(options.ConfigDir).Files, plainAt, plainError);
+            return new(true, primary, offsite, string.Join(" ", notes) + ".") { Stats = stats };
         }
         catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or IOException or System.ComponentModel.Win32Exception)
         {
@@ -99,6 +112,80 @@ public sealed class BackupService(
         {
             TryDelete(DumpPath);
         }
+    }
+
+    private async Task SaveManifestAsync(BackupStats stats)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await new BackupManifest(Now, stats.DatabaseBytes, stats.MediaFiles, stats.MediaBytes, stats.KeyFiles, stats.ConfigFiles,
+                await BackupManifest.CountAsync(db), stats.PlainCopyAt, stats.PlainCopyError).SaveAsync(db);
+        }
+        catch (Exception ex) when (ex is NpgsqlException or DbUpdateException or InvalidOperationException)
+        {
+            log.LogWarning(ex, "Could not record what the backup contained");
+        }
+    }
+
+    /// <summary>
+    /// PLAIN_COPY: an ordinary, unencrypted copy next to the restic one: heirloom.sql.gz (pg_dump, plain SQL) and a mirror of the
+    /// media folder. Anyone can open it, or rsync it elsewhere, without restic. Failures are reported but don't fail the backup.
+    /// </summary>
+    private async Task<(string? At, string? Error)> PlainCopyAsync(CancellationToken ct)
+    {
+        var dir = options.PlainCopyDir;
+        try
+        {
+            Directory.CreateDirectory(dir);
+            var part = Path.Combine(dir, "heirloom.sql.gz.part");
+            var cs = new NpgsqlConnectionStringBuilder(options.ConnectionString);
+            Require(await PgAsync("pg_dump",
+                ["-Fp", "-Z", "6", "--no-owner", "--no-privileges", "--exclude-schema=hangfire", .. ConnectionArgs(cs), "-d", cs.Database!, "-f", part], cs, ct), "pg_dump (plain copy)");
+            File.Move(part, Path.Combine(dir, "heirloom.sql.gz"), overwrite: true);
+            Mirror(options.MediaDir, Path.Combine(dir, "media"));
+            await File.WriteAllTextAsync(Path.Combine(dir, "README.txt"), $"""
+                A plain copy of the family's stories, made {Now:yyyy-MM-dd HH:mm} UTC after the nightly backup.
+
+                heirloom.sql.gz  The whole database as SQL (PostgreSQL). Open with any text tool after unzipping, or load it:
+                                 gunzip -c heirloom.sql.gz | psql -d an_empty_database
+                media/           Every photo, recording, video and document, as uploaded, with the smaller copies made for the web.
+
+                This copy is NOT encrypted. Keep it somewhere private. The encrypted backups (restic) are still the ones
+                the app restores from; see docs/RESTORE.md.
+                """, ct);
+            return (Now.ToString("u"), null);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or TimeoutException)
+        {
+            log.LogWarning(ex, "Plain copy failed");
+            return (null, ex.Message);
+        }
+    }
+
+    /// <summary>Makes <paramref name="target"/> an exact copy of <paramref name="source"/>, copying only what changed.</summary>
+    internal static void Mirror(string source, string target)
+    {
+        Directory.CreateDirectory(target);
+        var wanted = new HashSet<string>(StringComparer.Ordinal);
+        if (Directory.Exists(source))
+        {
+            foreach (var file in new DirectoryInfo(source).EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(source, file.FullName);
+                wanted.Add(relative);
+                var dest = new FileInfo(Path.Combine(target, relative));
+                if (dest.Exists && dest.Length == file.Length && dest.LastWriteTimeUtc == file.LastWriteTimeUtc) continue;
+                Directory.CreateDirectory(dest.DirectoryName!);
+                file.CopyTo(dest.FullName, overwrite: true);
+                File.SetLastWriteTimeUtc(dest.FullName, file.LastWriteTimeUtc);
+            }
+        }
+        foreach (var file in new DirectoryInfo(target).EnumerateFiles("*", SearchOption.AllDirectories))
+            if (!wanted.Contains(Path.GetRelativePath(target, file.FullName))) file.Delete();
+        foreach (var d in new DirectoryInfo(target).EnumerateDirectories("*", SearchOption.AllDirectories).OrderByDescending(d => d.FullName.Length))
+            if (!d.EnumerateFileSystemInfos().Any()) d.Delete();
     }
 
     private async Task<string> BackupToAsync(string repository, string password, string tag, CancellationToken ct)

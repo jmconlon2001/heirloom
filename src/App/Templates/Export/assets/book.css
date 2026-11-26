@@ -51,6 +51,9 @@ body.print .chapter-divider { break-before: right; break-after: page; }
 .story-title { font-size: 17pt; margin: 0 0 0.06in; }
 .story-byline { font-size: 0.85em; color: #4a4238; margin: 0 0 0.22in; letter-spacing: 0.02em; }
 .story-text { margin: 0 0 0.12in; text-align: justify; hyphens: auto; orphans: 2; widows: 2; }
+.story-heading { font-size: 13pt; margin: 0.2in 0 0.08in; break-after: avoid; }
+.story-list { margin: 0 0 0.12in; padding-left: 0.3in; }
+.story-quote { margin: 0.12in 0.3in; font-style: italic; }
 body.screen .story-text { text-align: left; }
 .photo { margin: 0.2in 0; break-inside: avoid; text-align: center; }
 .photo img { max-width: 100%; max-height: 5in; object-fit: contain; }

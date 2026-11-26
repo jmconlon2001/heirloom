@@ -113,7 +113,7 @@ public sealed class AttachmentService(
         if (session.ReceivedBytes != session.TotalBytes)
             return new(session.Id, session.ReceivedBytes, session.TotalBytes, UploadError.Incomplete);
 
-        var (attachment, error) = await StoreAsync(storage.UploadPartPath(session.Id), session.MemoryId, session.FileName,
+        var (attachment, error) = await StoreAsync(storage.UploadPartPath(session.Id), session.MemoryId, null, session.FileName,
             session.IsVoiceRecording, userId);
         if (attachment is null)
         {
@@ -129,7 +129,14 @@ public sealed class AttachmentService(
     }
 
     /// <summary>The no-JavaScript path: a normal multipart form upload.</summary>
-    public async Task<(Attachment? Attachment, UploadError Error)> AddFromStreamAsync(Guid memoryId, string fileName, Stream content, Guid userId)
+    public Task<(Attachment? Attachment, UploadError Error)> AddFromStreamAsync(Guid memoryId, string fileName, Stream content, Guid userId) =>
+        AddAsync(memoryId, null, fileName, content, userId);
+
+    /// <summary>A file for an item in the family archive (D-080): same checks, storage and processing as a story's files.</summary>
+    public Task<(Attachment? Attachment, UploadError Error)> AddToArchiveAsync(Guid archiveItemId, string fileName, Stream content, Guid userId) =>
+        AddAsync(null, archiveItemId, fileName, content, userId);
+
+    private async Task<(Attachment? Attachment, UploadError Error)> AddAsync(Guid? memoryId, Guid? archiveItemId, string fileName, Stream content, Guid userId)
     {
         Directory.CreateDirectory(options.UploadsDir);
         var temp = storage.UploadPartPath(Guid.CreateVersion7());
@@ -144,13 +151,13 @@ public sealed class AttachmentService(
             }
         }
 
-        var (attachment, error) = await StoreAsync(temp, memoryId, SafeName(fileName), isVoice: false, userId);
+        var (attachment, error) = await StoreAsync(temp, memoryId, archiveItemId, SafeName(fileName), isVoice: false, userId);
         if (attachment is null) File.Delete(temp);
         else jobs.EnqueueProcessing(attachment.Id);
         return (attachment, error);
     }
 
-    private async Task<(Attachment?, UploadError)> StoreAsync(string tempPath, Guid memoryId, string fileName, bool isVoice, Guid userId)
+    private async Task<(Attachment?, UploadError)> StoreAsync(string tempPath, Guid? memoryId, Guid? archiveItemId, string fileName, bool isVoice, Guid userId)
     {
         var detected = await FileSignatures.DetectAsync(tempPath);
         if (detected is null) return (null, UploadError.Unsupported);
@@ -163,11 +170,12 @@ public sealed class AttachmentService(
         await using (var stream = File.OpenRead(tempPath))
             sha = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream));
 
-        var nextOrder = (await db.Attachments.Where(a => a.MemoryId == memoryId).MaxAsync(a => (int?)a.SortOrder) ?? 0) + 1;
+        var nextOrder = (await db.Attachments.Where(a => memoryId != null ? a.MemoryId == memoryId : a.ArchiveItemId == archiveItemId).MaxAsync(a => (int?)a.SortOrder) ?? 0) + 1;
         var attachment = new Attachment
         {
             Id = Guid.CreateVersion7(),
             MemoryId = memoryId,
+            ArchiveItemId = archiveItemId,
             Kind = kind,
             IsVoiceRecording = isVoice,
             OriginalFileName = fileName,
@@ -186,11 +194,14 @@ public sealed class AttachmentService(
         File.Move(tempPath, storage.PathFor(attachment, MediaVariant.Original));
         db.Attachments.Add(attachment);
 
-        // Adding a photo or recording counts as starting the story.
-        var memory = await db.Memories.SingleAsync(m => m.Id == memoryId);
-        if (memory.Status is MemoryStatus.NotStarted or MemoryStatus.Skipped) memory.Status = MemoryStatus.Draft;
-        // Revision guards the words against stale tabs; adding a photo must not invalidate the page's autosave.
-        memory.UpdatedAt = Now;
+        if (memoryId is not null)
+        {
+            // Adding a photo or recording counts as starting the story.
+            var memory = await db.Memories.SingleAsync(m => m.Id == memoryId);
+            if (memory.Status is MemoryStatus.NotStarted or MemoryStatus.Skipped) memory.Status = MemoryStatus.Draft;
+            // Revision guards the words against stale tabs; adding a photo must not invalidate the page's autosave.
+            memory.UpdatedAt = Now;
+        }
 
         await db.SaveChangesAsync();
         return (attachment, UploadError.None);

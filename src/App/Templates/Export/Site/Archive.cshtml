@@ -1,0 +1,36 @@
+@model SitePage
+@{ Layout = "/Templates/Export/Site/_Layout.cshtml"; }
+<h1>Family archive</h1>
+<p class="muted">Letters, certificates, album pages and recordings, with what they say and where the originals are.</p>
+@foreach (var (folder, items) in Model.Archive)
+{
+    @if (folder.Length > 0) { <h2>@folder</h2> }
+    @foreach (var i in items)
+    {
+        var when = i.When.Format();
+        <article class="archive-item" id="item-@i.Id.ToString("N")">
+            <h3>@i.Title</h3>
+            @if (when.Length > 0 || i.Place is not null) { <p class="muted">@string.Join(" · ", new[] { when, i.Place ?? "" }.Where(x => x.Length > 0))</p> }
+            @if (i.Description is not null) { <p>@i.Description</p> }
+            @foreach (var f in i.Files)
+            {
+                if (f.Kind == AttachmentKind.Photo)
+                {
+                    <figure class="photo"><a href="@SitePage.Media(f, "web.jpg")"><img src="@SitePage.Media(f, "web.jpg")" alt="@(f.Caption ?? i.Title)" loading="lazy"></a>
+                        @if (f.Caption is not null && f.Caption != i.Description) { <figcaption>@f.Caption</figcaption> }</figure>
+                }
+                else if (f.Kind == AttachmentKind.Audio)
+                {
+                    <figure class="clip"><audio controls preload="none" src="@SitePage.Media(f, "audio.m4a")"></audio></figure>
+                }
+                else
+                {
+                    @if (f.Width is not null) { <figure class="photo"><img src="@SitePage.Media(f, "web.jpg")" alt="" loading="lazy"></figure> }
+                    <p><a href="@SitePage.Media(f, "original" + f.Extension)">Open @f.OriginalFileName</a></p>
+                }
+            }
+            @if (i.Transcription is not null) { <details open><summary>What it says</summary><div class="story-body transcription-text">@i.Transcription</div></details> }
+            @if (i.Provenance is not null) { <p class="muted">The original: @i.Provenance</p> }
+        </article>
+    }
+}

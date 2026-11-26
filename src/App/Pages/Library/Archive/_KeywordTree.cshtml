@@ -1,0 +1,11 @@
+@model IReadOnlyList<FamilyMemories.Archive.KeywordNode>
+@{ var baseUrl = ViewData["KeywordBase"] as string ?? "/library/archive"; }
+<ul>
+    @foreach (var n in Model)
+    {
+        <li>
+            <a href="@baseUrl?k=@Uri.EscapeDataString(n.Path)">@n.Name</a> <span class="muted">(@n.Count)</span>
+            @if (n.Children.Count > 0) { <partial name="_KeywordTree" model="n.Children" /> }
+        </li>
+    }
+</ul>

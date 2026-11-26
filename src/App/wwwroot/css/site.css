@@ -403,6 +403,16 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .byline { font-style: italic; margin-bottom: 0.25rem; }
 .when-place { color: var(--text-muted); }
 .story-body { font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.7; margin: 1.5rem 0; }
+.story-body .story-heading { font-size: 1.3rem; margin: 1.75rem 0 0.5rem; }
+.story-body ul, .story-body ol { padding-left: 1.5rem; }
+.story-body li { margin-bottom: 0.35rem; }
+.story-body blockquote { margin: 1rem 0; padding: 0.25rem 0 0.25rem 1rem; border-left: 0.3rem solid var(--border); font-style: italic; }
+.story-media { margin: 1.5rem 0; }
+.story-media img { display: block; max-width: 100%; height: auto; border-radius: var(--radius); }
+.story-media figcaption { font-family: var(--font-sans); font-size: 0.95rem; color: var(--text-muted); margin-top: 0.4rem; }
+.format-bar { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.4rem; }
+.format-bar .button { min-width: var(--tap); }
+.format-help summary { font-size: 0.95rem; }
 .gallery { list-style: none; padding: 0; display: grid; gap: 1.5rem; }
 .gallery figure { margin: 0; }
 .gallery figcaption { margin-top: 0.5rem; font-style: italic; }
@@ -707,3 +717,56 @@ html.view-detailed.high-contrast { --nav-bg: #000000; --nav-text: #ffffff; --nav
   .app-main { padding: 0.5rem 1rem 2rem; }
 }
 @media print { .side-nav, .view-controls { display: none; } .app-shell { display: block; } }
+
+/* ---- Person: links, life events and sources (D-076) ---- */
+.person-links { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0 0 1rem; }
+.person-links a { display: inline-flex; align-items: center; min-height: var(--tap); font-weight: 700; }
+.life-events { border: 0.1rem solid var(--border); border-radius: var(--radius); padding: 0.5rem 1rem 1rem; margin: 1rem 0 1.5rem; background: var(--surface); }
+.life-events > summary { font-size: 1.1rem; }
+.event-list { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+.event-list > li { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr); gap: 0.15rem 1rem; padding: 0.6rem 0; border-bottom: 0.0625rem solid var(--border); }
+.event-date { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.event-note, .event-list .sources { grid-column: 2; }
+.event-note { white-space: pre-line; color: var(--text-muted); }
+.event-list .sources summary { min-height: 2.25rem; font-size: 0.95rem; }
+.citations { margin: 0.25rem 0 0.5rem; padding-left: 1.25rem; }
+.citations li { margin-bottom: 0.3rem; }
+.person-note { white-space: pre-line; }
+.main-tree-link { margin-top: -0.25rem; }
+@media (max-width: 36rem) {
+  .event-list > li { grid-template-columns: minmax(0, 1fr); }
+  .event-note, .event-list .sources { grid-column: 1; }
+}
+
+/* ---- Raw material next to a story (D-079) ---- */
+.raw-material { border: 0.1rem solid var(--border); border-radius: var(--radius); padding: 0.5rem 1rem 1rem; margin: 1rem 0; background: var(--surface-alt); }
+.raw-item { border-top: 0.0625rem solid var(--border); padding-top: 0.75rem; margin-top: 0.75rem; }
+.raw-meta { margin: 0 0 0.4rem; font-size: 0.95rem; }
+.raw-text { white-space: pre-wrap; max-height: 16rem; overflow: auto; background: var(--surface); border: 0.0625rem solid var(--border); border-radius: var(--radius); padding: 0.6rem 0.8rem; font-size: 0.95rem; }
+
+/* ---- Family archive (D-080) ---- */
+.breadcrumbs { margin: 0.5rem 0 0; font-size: 0.95rem; }
+.breadcrumbs a { display: inline-flex; align-items: center; min-height: var(--tap); }
+.folder-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: 0.5rem; }
+.folder-list a { display: flex; align-items: center; gap: 0.5rem; min-height: var(--tap); padding: 0.6rem 0.8rem; border: 0.1rem solid var(--border); border-radius: var(--radius); background: var(--surface); font-weight: 700; text-decoration: none; }
+.archive-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); gap: 0.75rem; }
+.archive-card { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.5rem; border: 0.1rem solid var(--border); border-radius: var(--radius); background: var(--surface); text-decoration: none; color: var(--text); height: 100%; }
+.archive-card:hover { border-color: var(--accent); }
+.archive-card img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: calc(var(--radius) / 2); }
+.archive-card-icon { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; font-size: 3rem; background: var(--surface-alt); border-radius: calc(var(--radius) / 2); }
+.archive-card-title { font-family: var(--font-serif); font-weight: 700; color: var(--accent); }
+.archive-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; margin: 1rem 0; }
+@media (min-width: 60rem) { .archive-layout.has-transcription { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; } }
+.archive-file { margin: 0 0 1.25rem; }
+.archive-file img { display: block; max-width: 100%; height: auto; border-radius: var(--radius); border: 0.0625rem solid var(--border); }
+.archive-file figcaption { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-top: 0.4rem; font-size: 0.95rem; }
+.archive-transcription { position: sticky; top: 1rem; }
+.transcription-text { white-space: pre-wrap; font-family: var(--font-serif); line-height: 1.7; background: var(--surface); border: 0.0625rem solid var(--border); border-radius: var(--radius); padding: 1rem; }
+.archive-details dt { font-weight: 700; }
+.archive-details dd { margin: 0 0 0.75rem; }
+.keyword-chips { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.keyword-chips a { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 0.8rem; border: 0.1rem solid var(--border); border-radius: 999px; text-decoration: none; }
+.keyword-tree ul { list-style: none; padding-left: 1.25rem; }
+.keyword-tree > ul { padding-left: 0; }
+.keyword-tree a { display: inline-flex; align-items: center; min-height: var(--tap); }
+.related-docs { list-style: none; padding: 0; }

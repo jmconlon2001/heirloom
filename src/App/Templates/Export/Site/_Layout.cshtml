@@ -17,6 +17,7 @@
                 <a href="timeline.html" aria-current="@(Model.Active == "timeline" ? "page" : null)">Timeline</a>
                 <a href="photos.html" aria-current="@(Model.Active == "photos" ? "page" : null)">Photos</a>
                 <a href="people.html" aria-current="@(Model.Active == "people" ? "page" : null)">People</a>
+                @if (Model.Content.HasArchive) { <a href="archive.html" aria-current="@(Model.Active == "archive" ? "page" : null)">Archive</a> }
                 @if (Model.Content.AllPeople.Count > 0) { <a href="tree.html" aria-current="@(Model.Active == "tree" ? "page" : null)">Family tree</a> }
                 <a href="search.html" aria-current="@(Model.Active == "search" ? "page" : null)">Search</a>
             </nav>

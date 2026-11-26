@@ -23,6 +23,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Person> People => Set<Person>();
     public DbSet<ParentChild> ParentChildren => Set<ParentChild>();
     public DbSet<Partnership> Partnerships => Set<Partnership>();
+    public DbSet<PersonFact> PersonFacts => Set<PersonFact>();
+    public DbSet<MemorySource> MemorySources => Set<MemorySource>();
+    public DbSet<Collection> Collections => Set<Collection>();
+    public DbSet<ArchiveItem> ArchiveItems => Set<ArchiveItem>();
+    public DbSet<StoryDocument> StoryDocuments => Set<StoryDocument>();
+    public DbSet<PersonLink> PersonLinks => Set<PersonLink>();
     public DbSet<MemoryPerson> MemoryPeople => Set<MemoryPerson>();
     public DbSet<AttachmentPerson> AttachmentPeople => Set<AttachmentPerson>();
     public DbSet<MemoryShare> MemoryShares => Set<MemoryShare>();
@@ -137,6 +143,38 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(a => a.Caption).HasMaxLength(1000);
             e.Property(a => a.ProcessingError).HasMaxLength(2000);
             e.HasOne(a => a.Memory).WithMany(m => m.Attachments).HasForeignKey(a => a.MemoryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(a => a.ArchiveItem).WithMany(i => i.Files).HasForeignKey(a => a.ArchiveItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(a => new { a.ArchiveItemId, a.SortOrder });
+            e.Property(a => a.Keywords).HasColumnType("text[]").HasDefaultValueSql("'{}'::text[]");
+            // A file belongs to a story or to an archive item, never both and never neither (D-080).
+            e.ToTable(t => t.HasCheckConstraint("CK_Attachments_OneOwner", "(\"MemoryId\" IS NULL) <> (\"ArchiveItemId\" IS NULL)"));
+        });
+
+        b.Entity<Collection>(e =>
+        {
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.Property(x => x.Description).HasMaxLength(4000);
+            e.HasIndex(x => new { x.ParentId, x.SortOrder });
+            e.HasOne(x => x.Parent).WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<ArchiveItem>(e =>
+        {
+            e.Property(x => x.Title).HasMaxLength(300);
+            e.Property(x => x.Description).HasMaxLength(8000);
+            e.Property(x => x.Place).HasMaxLength(300);
+            e.Property(x => x.WhenLabel).HasMaxLength(200);
+            e.Property(x => x.Transcription).HasMaxLength(200_000);
+            e.Property(x => x.Provenance).HasMaxLength(1000);
+            e.Ignore(x => x.When);
+            e.HasIndex(x => x.CollectionId);
+            e.HasOne(x => x.Collection).WithMany().HasForeignKey(x => x.CollectionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.CreatedBy).WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.SetNull);
+        });
+        b.Entity<StoryDocument>(e =>
+        {
+            e.HasKey(x => new { x.MemoryId, x.ArchiveItemId });
+            e.HasOne(x => x.Memory).WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.ArchiveItem).WithMany().HasForeignKey(x => x.ArchiveItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<UploadSession>(e =>
@@ -145,6 +183,36 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(u => u.FileName).HasMaxLength(300);
         });
 
+        b.Entity<MemorySource>(e =>
+        {
+            e.Property(x => x.Text).HasMaxLength(200_000);
+            e.HasIndex(x => new { x.MemoryId, x.CreatedAt });
+            e.HasOne(x => x.Memory).WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.CreatedBy).WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.SetNull);
+        });
+        b.Entity<PersonFact>(e =>
+        {
+            e.Property(f => f.Kind).HasMaxLength(20);
+            e.Property(f => f.Label).HasMaxLength(120);
+            e.Property(f => f.Place).HasMaxLength(300);
+            e.Property(f => f.Value).HasMaxLength(1000);
+            e.Property(f => f.Note).HasMaxLength(8000);
+            e.Ignore(f => f.Date);
+            e.Property(f => f.Citations).HasColumnType("jsonb").HasConversion(
+                v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                v => System.Text.Json.JsonSerializer.Deserialize<List<FactCitation>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<FactCitation>(),
+                new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<FactCitation>>(
+                    (a, b) => a!.SequenceEqual(b!), v => v.Aggregate(0, (h, x) => HashCode.Combine(h, x.GetHashCode())), v => v.ToList()));
+            e.HasIndex(f => new { f.PersonId, f.SortOrder });
+            e.HasOne(f => f.Person).WithMany().HasForeignKey(f => f.PersonId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<PersonLink>(e =>
+        {
+            e.Property(l => l.Label).HasMaxLength(120);
+            e.Property(l => l.Url).HasMaxLength(1000);
+            e.HasIndex(l => l.PersonId);
+            e.HasOne(l => l.Person).WithMany().HasForeignKey(l => l.PersonId).OnDelete(DeleteBehavior.Cascade);
+        });
         b.Entity<Person>(e =>
         {
             e.Property(p => p.GivenNames).HasMaxLength(200);

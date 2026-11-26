@@ -17,6 +17,28 @@ else
 {
     <partial name="_BackupHealth" model="await BackupStatus.GetAsync()" />
 }
+@{
+    var update = AppOptions.UpdateCheck ? await FamilyMemories.Admin.AvailableUpdate.LoadAsync(Db, FamilyMemories.Configuration.AppOptions.Version) : null;
+}
+@if (update is not null)
+{
+    <section class="card" aria-labelledby="update-heading">
+        <h2 id="update-heading">Version @update.Version is available</h2>
+        <p>This server runs version @FamilyMemories.Configuration.AppOptions.Version. Updates bring fixes, including security fixes, so it's worth updating within a few weeks. A full backup is taken automatically before anything changes.</p>
+        <div class="button-row">
+            <a class="button button-secondary" href="@update.Url" rel="noopener">What's new in @update.Version</a>
+            <a class="button button-quiet" href="@(AppOptions.ProjectUrl ?? FamilyMemories.Configuration.AppOptions.DefaultProjectUrl)/blob/main/docs/SECURITY.md#keeping-it-up-to-date" rel="noopener">How to update</a>
+        </div>
+    </section>
+}
+@if (string.IsNullOrWhiteSpace(AppOptions.HelpPhone))
+{
+    <section class="card" aria-labelledby="help-heading">
+        <h2 id="help-heading">Add a phone number for help</h2>
+        <p>Every page has a "Need help?" box, and it doesn't have a number to call yet. Storytellers are much more confident when they know who to ring.</p>
+        <a class="button button-primary" href="/admin/site">Add a help phone number</a>
+    </section>
+}
 @inject FamilyMemories.Data.AppDbContext Db
 @{
     var waiting = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
@@ -33,11 +55,14 @@ else
 {
 <ul class="link-list link-list-large">
     <li><a href="/admin/users">People and invitations</a></li>
+    <li><a href="/admin/site">Site name, help phone number and display</a></li>
     <li><a href="/admin/prompts">Questions and chapters</a></li>
     <li><a href="/admin/prompt-sets">Question sets</a></li>
     <li><a href="/admin/exports">Exports: website, PDF, book, archive</a></li>
     <li><a href="/admin/email">Email and reminders</a></li>
     <li><a href="/admin/backups">Backups</a></li>
+    <li><a href="/admin/import/people">Add people from a spreadsheet</a></li>
+    <li><a href="/admin/import/stories">Add stories from a spreadsheet</a></li>
     <li><a href="/admin/gedcom">Import or export the family tree (GEDCOM)</a></li>
     <li><a href="/admin/features">Optional extras</a></li>
     <li><a href="/admin/audit">Activity log</a></li>

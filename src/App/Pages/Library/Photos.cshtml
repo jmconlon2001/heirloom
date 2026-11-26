@@ -5,6 +5,18 @@
 }
 <h1>Photos</h1>
 <partial name="_LibraryNav" />
+@if (Model.Keyword is { } kw)
+{
+    <p>Photos with the keyword <strong>@kw.Replace("|", " › ")</strong>. <a href="/library/photos">All photos</a></p>
+}
+@if (Model.Keywords.Count > 0)
+{
+    ViewData["KeywordBase"] = "/library/photos";
+    <details class="keyword-tree">
+        <summary>Browse by keyword</summary>
+        <partial name="/Pages/Library/Archive/_KeywordTree.cshtml" model="Model.Keywords" />
+    </details>
+}
 @if (Model.Photos.Count == 0)
 {
     <p class="lead">No photos have been shared yet.</p>

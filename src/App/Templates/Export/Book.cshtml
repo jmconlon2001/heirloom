@@ -61,42 +61,23 @@
                 @if (s.Question is not null) { <p class="story-question">@s.Question</p> }
                 <h2 class="story-title">@s.Memory.Title</h2>
                 <p class="story-byline">Told by @s.Teller@(s.WrittenBy is not null ? $" · written down by {s.WrittenBy}" : "")@(s.When.Length > 0 ? $" · {s.When}" : "")@(s.Memory.Place is not null ? $" · {s.Memory.Place}" : "")</p>
-                @foreach (var p in s.Paragraphs)
+                @foreach (var b in s.Blocks)
                 {
-                    <p class="story-text">@Html.Raw(string.Join("<br>", p.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
+                    switch (b.Kind)
+                    {
+                        case FamilyMemories.Stories.StoryBlockKind.Heading: <h3 class="story-heading">@Html.Raw(b.Html)</h3> break;
+                        case FamilyMemories.Stories.StoryBlockKind.BulletList: <ul class="story-list">@foreach (var item in b.Items) { <li>@Html.Raw(item)</li> }</ul> break;
+                        case FamilyMemories.Stories.StoryBlockKind.NumberedList: <ol class="story-list">@foreach (var item in b.Items) { <li>@Html.Raw(item)</li> }</ol> break;
+                        case FamilyMemories.Stories.StoryBlockKind.Quote: <blockquote class="story-quote">@Html.Raw(b.Html)</blockquote> break;
+                        case FamilyMemories.Stories.StoryBlockKind.Media:
+                            if (s.PhotoAt(b.MediaId) is { } placedPhoto) { Photo(placedPhoto, b.Caption); }
+                            else if (s.ClipAt(b.MediaId) is { } placedClip) { Clip(s, placedClip, b.Caption); }
+                            break;
+                        default: <p class="story-text">@Html.Raw(b.Html)</p> break;
+                    }
                 }
-                @foreach (var photo in s.Photos)
-                {
-                    <figure class="photo">
-                        <img src="@Model.PhotoSrc(photo.Attachment)" alt="@(photo.Caption ?? "")">
-                        @if (photo.Caption is not null || photo.People.Count > 0)
-                        {
-                            <figcaption>@photo.Caption@(photo.People.Count > 0 ? $"{(photo.Caption is null ? "" : " · ")}{string.Join(", ", photo.People)}" : "")</figcaption>
-                        }
-                    </figure>
-                }
-                @foreach (var clip in s.Clips)
-                {
-                    var qr = Model.QrSrc(clip);
-                    <aside class="clip">
-                        @if (clip.Attachment.Kind == AttachmentKind.Video)
-                        {
-                            <img class="clip-poster" src="@Model.PhotoSrc(clip.Attachment)" alt="">
-                        }
-                        @if (qr is not null)
-                        {
-                            <img class="clip-qr" src="@qr" alt="QR code">
-                        }
-                        <p class="clip-text">
-                            <strong>@(clip.Attachment.Kind == AttachmentKind.Video ? "Watch the video" : $"Hear {s.Teller.Split(' ')[0]} tell it")</strong>@(clip.Caption is null ? "" : $": {clip.Caption}")<br>
-                            @if (clip.ClipUrl is not null)
-                            {
-                                <span class="clip-hint">Point a phone camera at the square@(Model.Print ? "" : ", or open")</span>
-                                @if (!Model.Print) { <a href="@clip.ClipUrl">@clip.ClipUrl</a> }
-                            }
-                        </p>
-                    </aside>
-                }
+                @foreach (var photo in s.UnplacedPhotos) { Photo(photo, null); }
+                @foreach (var clip in s.UnplacedClips) { Clip(s, clip, null); }
             </article>
         }
     }
@@ -133,3 +114,42 @@
     }
 </body>
 </html>
+
+@functions {
+    // Story text blocks come from StoryMarkup, which HTML-encodes everything itself.
+    private void Photo(ExportPhoto photo, string? placedCaption)
+    {
+        var caption = placedCaption ?? photo.Caption;
+        <figure class="photo">
+            <img src="@Model.PhotoSrc(photo.Attachment)" alt="@(caption ?? "")">
+            @if (caption is not null || photo.People.Count > 0)
+            {
+                <figcaption>@caption@(photo.People.Count > 0 ? $"{(caption is null ? "" : " · ")}{string.Join(", ", photo.People)}" : "")</figcaption>
+            }
+        </figure>
+    }
+
+    private void Clip(ExportStory s, ExportClip clip, string? placedCaption)
+    {
+        var qr = Model.QrSrc(clip);
+        var caption = placedCaption ?? clip.Caption;
+        <aside class="clip">
+            @if (clip.Attachment.Kind == AttachmentKind.Video)
+            {
+                <img class="clip-poster" src="@Model.PhotoSrc(clip.Attachment)" alt="">
+            }
+            @if (qr is not null)
+            {
+                <img class="clip-qr" src="@qr" alt="QR code">
+            }
+            <p class="clip-text">
+                <strong>@(clip.Attachment.Kind == AttachmentKind.Video ? "Watch the video" : $"Hear {s.Teller.Split(' ')[0]} tell it")</strong>@(caption is null ? "" : $": {caption}")<br>
+                @if (clip.ClipUrl is not null)
+                {
+                    <span class="clip-hint">Point a phone camera at the square@(Model.Print ? "" : ", or open")</span>
+                    @if (!Model.Print) { <a href="@clip.ClipUrl">@clip.ClipUrl</a> }
+                }
+            </p>
+        </aside>
+    }
+}

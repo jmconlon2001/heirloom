@@ -139,6 +139,31 @@ public sealed class PeopleService(AppDbContext db, AuditLog audit, TimeProvider 
     private static List<Person> Sort(IEnumerable<Person> people) =>
         [.. people.OrderBy(p => p.BirthYear ?? int.MaxValue).ThenBy(p => p.GivenNames)];
 
+    // ------------------------------------------------------------------ links
+
+    /// <summary>Adds a link (a family website page, FamilySearch, Find a Grave…). Only web addresses are accepted.</summary>
+    public async Task<string?> AddLinkAsync(Guid personId, string? label, string? url)
+    {
+        url = url?.Trim();
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+            return "Please paste a whole web address, starting with https://";
+        if (url!.Length > 1000) return "That web address is too long.";
+        var name = string.IsNullOrWhiteSpace(label) ? Gedcom.LinkLabel(url) : label.Trim()[..Math.Min(label.Trim().Length, 120)];
+        var order = await db.PersonLinks.Where(l => l.PersonId == personId).Select(l => (int?)l.SortOrder).MaxAsync() ?? -1;
+        db.PersonLinks.Add(new PersonLink { Id = Guid.CreateVersion7(), PersonId = personId, Label = name, Url = url, SortOrder = order + 1 });
+        audit.Add("person.link", $"Added a link \"{name}\"", "person", personId);
+        await db.SaveChangesAsync();
+        return null;
+    }
+
+    /// <summary>Removes a link added by hand. Links from the main tree are changed there.</summary>
+    public async Task RemoveLinkAsync(Guid personId, Guid linkId)
+    {
+        await db.PersonLinks.Where(l => l.Id == linkId && l.PersonId == personId && !l.FromGedcom).ExecuteDeleteAsync();
+        audit.Add("person.unlink", "Removed a link", "person", personId);
+        await db.SaveChangesAsync();
+    }
+
     // ------------------------------------------------------------------ tagging
 
     /// <summary>Finds a person by the name someone typed ("Rose Smith", "Rose", "Grandma Rose" nickname).</summary>

@@ -57,6 +57,10 @@ public sealed class WriteModel(
     public Dictionary<Guid, List<Person>> PhotoTags { get; private set; } = [];
 
     public string? WriterName { get; private set; }
+    /// <summary>Raw material behind the story (D-079): only people who can edit it ever see this page.</summary>
+    public List<MemorySource> Sources { get; private set; } = [];
+    [BindProperty] public string? RawText { get; set; }
+    [BindProperty] public SourceKind RawKind { get; set; } = SourceKind.Pasted;
     public int CurrentYear => clock.GetUtcNow().Year;
 
     private async Task<bool> LoadAsync(Guid id)
@@ -72,6 +76,7 @@ public sealed class WriteModel(
         if (memory is null || !await access.CanEditAsync(User, memory)) return false;
 
         Memory = memory;
+        Sources = await db.MemorySources.AsNoTracking().Include(x => x.CreatedBy).Where(x => x.MemoryId == id).OrderBy(x => x.CreatedAt).ToListAsync();
         Items = await db.Attachments.AsNoTracking()
             .Where(a => a.MemoryId == id && a.RemovedAt == null)
             .OrderBy(a => a.SortOrder).ThenBy(a => a.CreatedAt).ToListAsync();
@@ -161,10 +166,43 @@ public sealed class WriteModel(
         if (!string.IsNullOrEmpty(text))
             Body = string.IsNullOrWhiteSpace(Body) ? text : Body.TrimEnd() + "\n\n" + text;
         await SaveFormAsync();
+        // What speech-to-text heard, before anyone fixed it, is kept as raw material (D-079).
+        var heard = await db.Attachments.Where(a => a.Id == attachmentId && a.MemoryId == id).Select(a => a.Transcript).SingleOrDefaultAsync();
+        RawMaterial.Keep(db, id, SourceKind.VoiceTranscript, heard, User.UserId(), clock.GetUtcNow().UtcDateTime, attachmentId);
+        await db.SaveChangesAsync();
         await db.Attachments.Where(a => a.Id == attachmentId && a.MemoryId == id)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.TranscriptState, TranscriptState.Approved).SetProperty(a => a.Transcript, text));
         TempData["Flash"] = "Your recorded words have been added to the story.";
         return LocalRedirect($"/stories/{id}/write");
+    }
+
+    public async Task<IActionResult> OnPostAddRawMaterialAsync(Guid id)
+    {
+        if (!await LoadAsync(id)) return NotFound();
+        await SaveFormAsync();
+        var kind = RawKind is SourceKind.PaperScan ? SourceKind.PaperScan : SourceKind.Pasted;
+        RawMaterial.Keep(db, id, kind, RawText, User.UserId(), clock.GetUtcNow().UtcDateTime);
+        await db.SaveChangesAsync();
+        TempData["Flash"] = string.IsNullOrWhiteSpace(RawText) ? "There was nothing to keep." : "Kept as raw material. The story itself hasn't changed.";
+        return LocalRedirect($"/stories/{id}/write#raw-material");
+    }
+
+    public async Task<IActionResult> OnPostCopyRawMaterialAsync(Guid id, Guid sourceId)
+    {
+        if (!await LoadAsync(id)) return NotFound();
+        if (Sources.FirstOrDefault(x => x.Id == sourceId) is { } source)
+            Body = string.IsNullOrWhiteSpace(Body) ? source.Text : Body.TrimEnd() + "\n\n" + source.Text;
+        await SaveFormAsync();
+        TempData["Flash"] = "Copied into the story. Edit it there as much as you like; the raw material stays as it was.";
+        return LocalRedirect($"/stories/{id}/write");
+    }
+
+    public async Task<IActionResult> OnPostRemoveRawMaterialAsync(Guid id, Guid sourceId)
+    {
+        if (!await LoadAsync(id)) return NotFound();
+        await SaveFormAsync();
+        await db.MemorySources.Where(x => x.Id == sourceId && x.MemoryId == id).ExecuteDeleteAsync();
+        return LocalRedirect($"/stories/{id}/write#raw-material");
     }
 
     public async Task<IActionResult> OnPostDismissTranscriptAsync(Guid id, Guid attachmentId)

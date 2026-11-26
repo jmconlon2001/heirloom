@@ -1,0 +1,53 @@
+@using FamilyMemories.Stories
+@model FamilyMemories.Stories.StoryBodyView
+@*
+    A story's words with its formatting, and the photos, recordings and videos placed in the text (D-078).
+    Text blocks are HTML built by StoryMarkup, which encodes everything itself, so Html.Raw is safe here.
+*@
+@{
+    var media = ViewData["MediaBase"] as string ?? "/media";
+}
+<div class="story-body">
+    @foreach (var b in Model.Blocks)
+    {
+        switch (b.Kind)
+        {
+            case StoryBlockKind.Heading:
+                <h2 class="story-heading">@Html.Raw(b.Html)</h2>
+                break;
+            case StoryBlockKind.BulletList:
+                <ul>@foreach (var item in b.Items) { <li>@Html.Raw(item)</li> }</ul>
+                break;
+            case StoryBlockKind.NumberedList:
+                <ol>@foreach (var item in b.Items) { <li>@Html.Raw(item)</li> }</ol>
+                break;
+            case StoryBlockKind.Quote:
+                <blockquote><p>@Html.Raw(b.Html)</p></blockquote>
+                break;
+            case StoryBlockKind.Media:
+                if (b.MediaId is { } id && Model.Items.FirstOrDefault(a => a.Id == id) is { } a)
+                {
+                    var caption = b.Caption ?? (a.IsVoiceRecording && a.Caption == "Voice recording" ? null : a.Caption);
+                    <figure class="story-media story-media-@a.Kind.ToString().ToLowerInvariant()">
+                        @if (a.Kind == AttachmentKind.Photo && a.State == ProcessingState.Ready)
+                        {
+                            <a href="@media/@a.Id/web"><img src="@media/@a.Id/web" alt="@(caption ?? "Photo")" loading="lazy"></a>
+                        }
+                        else
+                        {
+                            <partial name="_AttachmentPreview" model="a" />
+                        }
+                        @if (caption is not null) { <figcaption>@caption</figcaption> }
+                        @if (Model.PhotoPeople.TryGetValue(a.Id, out var inPhoto) && inPhoto.Count > 0)
+                        {
+                            <p class="in-photo">In this photo: @string.Join(", ", inPhoto.Select(p => p.DisplayName))</p>
+                        }
+                    </figure>
+                }
+                break;
+            default:
+                <p>@Html.Raw(b.Html)</p>
+                break;
+        }
+    }
+</div>

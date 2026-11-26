@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace FamilyMemories.Web;
 
 /// <summary>
@@ -29,10 +31,16 @@ public sealed record DisplayPreferences(int TextSize, bool HighContrast)
         return new DisplayPreferences(size, contrast);
     }
 
-    public static DisplayPreferences From(HttpContext http) =>
-        http.Items.TryGetValue(CookieName, out var cached) && cached is DisplayPreferences p
-            ? p
-            : Parse(http.Request.Cookies[CookieName]);
+    /// <summary>This device's choice, or the family's default (Site settings) if it hasn't made one.</summary>
+    public static DisplayPreferences From(HttpContext http)
+    {
+        if (http.Items.TryGetValue(CookieName, out var cached) && cached is DisplayPreferences p) return p;
+        var cookie = http.Request.Cookies[CookieName];
+        if (!string.IsNullOrEmpty(cookie)) return Parse(cookie);
+        return http.RequestServices.GetService<FamilyMemories.Configuration.AppOptions>() is { } o
+            ? new DisplayPreferences(Math.Clamp(o.DefaultTextSize, 0, 2), o.DefaultHighContrast)
+            : Default;
+    }
 
     public void Save(HttpContext http)
     {

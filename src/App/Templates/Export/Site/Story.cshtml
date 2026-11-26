@@ -19,23 +19,47 @@
         </p>
     }
     <div class="story-body">
-        @foreach (var p in s.Paragraphs)
+        @foreach (var b in s.Blocks)
         {
-            <p>@Html.Raw(string.Join("<br>", p.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
+            switch (b.Kind)
+            {
+                case FamilyMemories.Stories.StoryBlockKind.Heading: <h2 class="story-heading">@Html.Raw(b.Html)</h2> break;
+                case FamilyMemories.Stories.StoryBlockKind.BulletList: <ul>@foreach (var item in b.Items) { <li>@Html.Raw(item)</li> }</ul> break;
+                case FamilyMemories.Stories.StoryBlockKind.NumberedList: <ol>@foreach (var item in b.Items) { <li>@Html.Raw(item)</li> }</ol> break;
+                case FamilyMemories.Stories.StoryBlockKind.Quote: <blockquote><p>@Html.Raw(b.Html)</p></blockquote> break;
+                case FamilyMemories.Stories.StoryBlockKind.Media:
+                    if (s.PhotoAt(b.MediaId) is { } placedPhoto) { Photo(placedPhoto, b.Caption); }
+                    else if (s.ClipAt(b.MediaId) is { } placedClip) { Clip(placedClip, b.Caption); }
+                    break;
+                default: <p>@Html.Raw(b.Html)</p> break;
+            }
         }
     </div>
-    @foreach (var photo in s.Photos)
+    @foreach (var photo in s.UnplacedPhotos) { Photo(photo, null); }
+    @foreach (var clip in s.UnplacedClips) { Clip(clip, null); }
+    @foreach (var doc in s.Documents)
     {
+        <p><a href="@SitePage.Media(doc, "original" + doc.Extension)">Open @doc.OriginalFileName</a></p>
+    }
+</article>
+
+@functions {
+    // Story text blocks come from StoryMarkup, which HTML-encodes everything itself.
+    private void Photo(ExportPhoto photo, string? placedCaption)
+    {
+        var caption = placedCaption ?? photo.Caption;
         <figure class="photo">
-            <a href="@SitePage.Media(photo.Attachment, "web.jpg")"><img src="@SitePage.Media(photo.Attachment, "web.jpg")" alt="@(photo.Caption ?? "Photo")" loading="lazy"></a>
-            @if (photo.Caption is not null || photo.People.Count > 0)
+            <a href="@SitePage.Media(photo.Attachment, "web.jpg")"><img src="@SitePage.Media(photo.Attachment, "web.jpg")" alt="@(caption ?? "Photo")" loading="lazy"></a>
+            @if (caption is not null || photo.People.Count > 0)
             {
-                <figcaption>@photo.Caption@(photo.People.Count > 0 ? $"{(photo.Caption is null ? "" : " · ")}{string.Join(", ", photo.People)}" : "")</figcaption>
+                <figcaption>@caption@(photo.People.Count > 0 ? $"{(caption is null ? "" : " · ")}{string.Join(", ", photo.People)}" : "")</figcaption>
             }
         </figure>
     }
-    @foreach (var clip in s.Clips)
+
+    private void Clip(ExportClip clip, string? placedCaption)
     {
+        var caption = placedCaption ?? clip.Caption;
         <figure class="clip">
             @if (clip.Attachment.Kind == AttachmentKind.Video)
             {
@@ -45,11 +69,7 @@
             {
                 <audio controls preload="none" src="@SitePage.Media(clip.Attachment, "audio.m4a")"></audio>
             }
-            @if (clip.Caption is not null) { <figcaption>@clip.Caption</figcaption> }
+            @if (caption is not null) { <figcaption>@caption</figcaption> }
         </figure>
     }
-    @foreach (var doc in s.Documents)
-    {
-        <p><a href="@SitePage.Media(doc, "original" + doc.Extension)">Open @doc.OriginalFileName</a></p>
-    }
-</article>
+}
