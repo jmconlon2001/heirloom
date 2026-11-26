@@ -1,0 +1,35 @@
+@page "/admin/reminders"
+@model FamilyMemories.Pages.Admin.RemindersModel
+@{
+    ViewData["Title"] = "Reminder schedule";
+    var days = Enum.GetValues<DayOfWeek>();
+}
+<h1>Reminder schedule</h1>
+<partial name="_Flash" />
+<p>Each storyteller gets one email with their next question, on this schedule. You can change it for one person on their page under People.</p>
+<form method="post" class="stack">
+    <div class="field">
+        <label asp-for="Frequency">How often</label>
+        <select asp-for="Frequency">
+            <option value="Weekly">Every week</option>
+            <option value="EveryTwoWeeks">Every two weeks</option>
+            <option value="Monthly">Once a month (first chosen day)</option>
+            <option value="Off">Never (reminders off)</option>
+        </select>
+    </div>
+    <div class="field-row">
+        <div class="field"><label asp-for="Day">Day</label><select asp-for="Day">@foreach (var d in days) { <option value="@d">@d</option> }</select></div>
+        <div class="field"><label asp-for="Time">Time</label><input asp-for="Time" type="time" step="900"></div>
+    </div>
+    <div class="field">
+        <label asp-for="TimeZoneId">Time zone</label>
+        <select asp-for="TimeZoneId">@foreach (var tz in Model.TimeZones) { <option value="@tz">@tz</option> }</select>
+    </div>
+    <div class="checkbox"><input asp-for="QuietAfterAnswer" type="checkbox"><label asp-for="QuietAfterAnswer">Skip the next reminder when someone has just written something</label></div>
+    <div class="field">
+        <label asp-for="NudgeAfter">Tell admins when someone hasn't written after this many reminders</label>
+        <input asp-for="NudgeAfter" type="text" inputmode="numeric" class="input-short">
+    </div>
+    <div class="checkbox"><input asp-for="DigestEnabled" type="checkbox"><label asp-for="DigestEnabled">Send everyone a weekly "New family stories" email on Saturdays</label></div>
+    <button type="submit" class="button button-primary button-large">Save schedule</button>
+</form>

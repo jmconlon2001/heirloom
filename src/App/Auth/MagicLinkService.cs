@@ -58,6 +58,9 @@ public sealed class MagicLinkService(AppDbContext db, AppOptions options, TimePr
         return Check(row);
     }
 
+    public async Task<(Guid UserId, string? ReturnPath)?> PeekUserAsync(string? token, CancellationToken ct = default) =>
+        await FindAsync(token, ct) is { } row ? (row.UserId, row.ReturnPath) : null;
+
     /// <summary>Atomically marks the token used. Exactly one concurrent caller can succeed.</summary>
     public async Task<MagicLinkRedemption> RedeemAsync(string? token, string? ip, CancellationToken ct = default)
     {

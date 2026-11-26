@@ -153,14 +153,21 @@ if (options.JobsEnabled)
     builder.Services.AddHangfireServer(o => o.WorkerCount = Math.Max(2, Environment.ProcessorCount / 2));
     builder.Services.AddScoped<IMediaJobs, HangfireMediaJobs>();
     builder.Services.AddScoped<IBackupQueue, HangfireBackupQueue>();
+    builder.Services.AddScoped<IEmailDispatcher, HangfireEmailDispatcher>();
 }
 else
 {
     builder.Services.AddScoped<IMediaJobs, InlineMediaJobs>();
     builder.Services.AddScoped<IBackupQueue, InlineBackupQueue>();
+    builder.Services.AddScoped<IEmailDispatcher, InlineEmailDispatcher>();
 }
 builder.Services.AddSingleton<EmailTemplates>();
+builder.Services.AddSingleton<SmtpSettingsStore>();
+builder.Services.AddSingleton<EmailLinks>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<EmailDelivery>();
+builder.Services.AddScoped<FamilyMemories.Reminders.ReminderService>();
 
 // ---- Reverse proxy (Caddy on OPNsense): trust X-Forwarded-For/Proto only from TRUSTED_PROXIES ----
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
@@ -203,6 +210,7 @@ builder.Services.AddRazorPages(o =>
     o.Conventions.AllowAnonymousToPage("/Error");
     o.Conventions.AllowAnonymousToPage("/Display");
     o.Conventions.AllowAnonymousToFolder("/Share");
+    o.Conventions.AllowAnonymousToFolder("/EmailPrefs");
 });
 builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
 
@@ -237,6 +245,24 @@ app.MapRazorPages();
 app.MapStoryApi();
 app.MapMediaEndpoints();
 app.MapSharedMediaEndpoints();
+// RFC 8058 one-click unsubscribe: mail clients POST here without a form, so no antiforgery token.
+app.MapPost("/email/unsubscribe/{token}", async (string token, string? list, EmailLinks links, AppDbContext db) =>
+{
+    if (links.UserFromToken(token) is not { } id) return Results.NotFound();
+    var s = await db.ReminderSettings.SingleOrDefaultAsync(x => x.UserId == id);
+    if (s is null) db.ReminderSettings.Add(s = new ReminderSettings { UserId = id });
+    switch (list)
+    {
+        case "digest": s.DigestOptOut = true; break;
+        case "readsummary": s.ReadNotificationsOptOut = true; break;
+        default: s.Frequency = ReminderFrequency.Off; break;
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok("You've been unsubscribed.");
+}).DisableAntiforgery();
+app.MapGet("/email/unsubscribe/{token}", (string token) => Results.Redirect($"/email/preferences/{token}"));
+
+app.MapEmailPreview();
 if (options.JobsEnabled)
 {
     app.MapHangfireDashboard("/admin/jobs", new DashboardOptions
@@ -247,6 +273,7 @@ if (options.JobsEnabled)
     });
     app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<UploadCleanup>(
         "upload-cleanup", c => c.RunAsync(), Cron.Daily(3));
+    FamilyMemories.Reminders.ReminderService.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), options);
     if (options.BackupsConfigured)
         BackupJobs.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), options);
 }

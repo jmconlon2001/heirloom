@@ -10,8 +10,7 @@ namespace FamilyMemories.Pages.Account;
 public sealed class LoginModel(
     UserManager<AppUser> users,
     MagicLinkService links,
-    EmailTemplates templates,
-    IEmailSender email,
+    EmailService email,
     ILogger<LoginModel> log) : PageModel
 {
     [BindProperty] public string? Email { get; set; }
@@ -41,14 +40,8 @@ public sealed class LoginModel(
                 HttpContext.Connection.RemoteIpAddress?.ToString(), ct);
             if (token is not null)
             {
-                try
-                {
-                    await email.SendAsync(templates.LoginLink(user.Email!, user.DisplayName, links.BuildUrl(token)), ct);
-                }
-                catch (Exception ex)
-                {
-                    log.LogError(ex, "Could not send login link to user {UserId}", user.Id);
-                }
+                await email.SendAsync(EmailKind.LoginLink, new Recipient(user.Email!, user.DisplayName, user.Id),
+                    new Dictionary<string, object?> { ["link"] = links.BuildUrl(token).ToString() });
             }
             else
             {

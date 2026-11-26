@@ -1,0 +1,39 @@
+@page "/admin/email/templates/{kind?}"
+@model FamilyMemories.Pages.Admin.Email.TemplatesModel
+@{
+    ViewData["Title"] = "Email wording";
+}
+<h1>Email wording</h1>
+<partial name="_Flash" />
+@if (Model.Kind is null)
+{
+    <p>Every email the app sends, and its words. Change any of them; you can always go back to the original.</p>
+    <ul class="link-list">
+        @foreach (var (kind, text) in FamilyMemories.Email.EmailTemplates.Descriptions)
+        {
+            <li><a href="/admin/email/templates/@kind">@text</a>@(Model.Customised.Contains(kind) ? " (changed)" : "")</li>
+        }
+    </ul>
+}
+else
+{
+    <h2>@FamilyMemories.Email.EmailTemplates.Descriptions[Model.Kind.Value]</h2>
+    <p class="muted">Use <code>{{ name }}</code> for the person's name and <code>{{ app_name }}</code> for the site name. Available here: @string.Join(", ", Model.Fields.Select(f => "{{ " + f + " }}")). In the HTML version, <code>{{ button link "Label" }}</code> draws the big button.</p>
+    @if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+    <form method="post" class="stack" id="template-form">
+        <div class="field"><label asp-for="Subject">Subject</label><input asp-for="Subject" type="text" maxlength="500"></div>
+        <div class="field"><label asp-for="TextBody">Plain-text version</label><textarea asp-for="TextBody" rows="10" class="code-text"></textarea></div>
+        <div class="field"><label asp-for="HtmlBody">HTML version</label><textarea asp-for="HtmlBody" rows="12" class="code-text"></textarea></div>
+        <div class="button-row">
+            <button type="submit" class="button button-primary" asp-page-handler="Save">Save wording</button>
+            <button type="submit" class="button button-secondary" formaction="/admin/email/preview/@Model.Kind" formtarget="email-preview">Preview</button>
+            <button type="submit" class="button button-secondary" asp-page-handler="Test">Send me a test</button>
+            @if (Model.Customised.Contains(Model.Kind.Value))
+            {
+                <button type="submit" class="button button-quiet" asp-page-handler="Reset">Go back to the original</button>
+            }
+        </div>
+    </form>
+    <h3>Preview</h3>
+    <iframe name="email-preview" title="Email preview" class="email-preview" src="/admin/email/preview/@Model.Kind"></iframe>
+}

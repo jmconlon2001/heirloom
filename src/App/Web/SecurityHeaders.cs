@@ -35,6 +35,12 @@ public static class SecurityHeaders
                         : ContentSecurityPolicy;
                 h.XContentTypeOptions = "nosniff";
                 h.XFrameOptions = "DENY";
+                if (context.Request.Path.StartsWithSegments("/admin/email/preview"))
+                {
+                    // An email preview: its inline styles are fine, scripts never; framed only by our own admin page.
+                    h.ContentSecurityPolicy = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'self'";
+                    h.XFrameOptions = "SAMEORIGIN";
+                }
                 h["Referrer-Policy"] = "same-origin";
                 h["Permissions-Policy"] = "camera=(), geolocation=(), microphone=(self), payment=()";
                 h["Cross-Origin-Opener-Policy"] = "same-origin";

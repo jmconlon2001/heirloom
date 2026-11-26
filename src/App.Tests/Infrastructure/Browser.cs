@@ -26,6 +26,8 @@ public sealed partial class Browser(AppFactory app)
         var page = await Http.GetStringAsync("/account/login");
         var post = await Http.PostFormAsync("/account/login", page, ("Email", email));
         if (post.StatusCode != HttpStatusCode.Redirect) throw new InvalidOperationException("Login post failed");
+        // With Hangfire on, the email is sent by a background job a moment later.
+        for (var i = 0; i < 100 && app.Email.To(email).Count == 0; i++) await Task.Delay(100);
         var link = CapturingEmailSender.ExtractMagicLink(app.Email.To(email).Last());
         await RedeemAsync(link);
     }

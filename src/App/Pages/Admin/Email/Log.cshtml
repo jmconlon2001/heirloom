@@ -1,0 +1,32 @@
+@page "/admin/email/log"
+@model FamilyMemories.Pages.Admin.Email.LogModel
+@{
+    ViewData["Title"] = "Sent emails";
+}
+<h1>Sent emails</h1>
+<partial name="_Flash" />
+<p>The latest 200 emails. Ones that fail are tried again automatically over a few hours.</p>
+<div class="table-wrap">
+    <table class="data-table">
+        <caption class="visually-hidden">Recent emails</caption>
+        <thead><tr><th scope="col">When</th><th scope="col">To</th><th scope="col">Subject</th><th scope="col">Result</th></tr></thead>
+        <tbody>
+            @foreach (var e in Model.Entries)
+            {
+                <tr>
+                    <td>@TimeZoneInfo.ConvertTimeFromUtc(e.CreatedAt, AppOptions.TimeZone).ToString("MMM d, h:mm tt")</td>
+                    <td>@e.ToName<br><span class="muted small">@e.ToAddress</span></td>
+                    <td>@e.Subject</td>
+                    <td>
+                        @(e.Status switch { EmailStatus.Sent => "✓ Sent", EmailStatus.Failed => "Failed", _ => e.Attempts > 0 ? "Retrying" : "Sending" })
+                        @if (e.Error is not null) { <br><span class="muted small">@e.Error</span> }
+                        @if (e.Status != EmailStatus.Sent)
+                        {
+                            <form method="post" asp-page-handler="Retry"><input type="hidden" name="id" value="@e.Id"><button type="submit" class="button button-quiet">Try again</button></form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

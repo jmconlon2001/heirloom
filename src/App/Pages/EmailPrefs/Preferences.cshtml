@@ -1,0 +1,61 @@
+@page "/email/preferences/{token}"
+@model FamilyMemories.Pages.EmailPrefs.PreferencesModel
+@{
+    ViewData["Title"] = "Email settings";
+}
+@if (Model.Person is null)
+{
+    <h1>This link doesn't work</h1>
+    <p class="lead">Please use the "Email settings" link at the bottom of a more recent email, or ask the family admin for help.</p>
+}
+else
+{
+    <h1>Email settings for @Model.Person.DisplayName</h1>
+    <partial name="_Flash" />
+
+    @if (Model.IsStoryteller)
+    {
+        <section class="card" aria-labelledby="reminders-heading">
+            <h2 id="reminders-heading">Question reminders</h2>
+            @if (Model.Paused)
+            {
+                <p class="lead">Reminder emails are <strong>turned off</strong>.</p>
+                <form method="post" action="?handler=Resume" asp-antiforgery="true"><button type="submit" class="button button-primary button-large">Start reminder emails again</button></form>
+            }
+            else
+            {
+                @if (Model.SnoozedUntil is { } until)
+                {
+                    <p class="lead">Taking a break until <strong>@until</strong>.</p>
+                }
+                else if (Model.NextReminder is { } next)
+                {
+                    <p class="lead">Your next question arrives by email on <strong>@next</strong>.</p>
+                }
+                <div class="stack">
+                    <form method="post" action="?handler=Snooze" asp-antiforgery="true"><button type="submit" class="button button-primary button-large">Remind me in 2 weeks</button></form>
+                    <form method="post" action="?handler=Pause" asp-antiforgery="true"><button type="submit" class="button button-secondary">Stop reminder emails</button></form>
+                </div>
+            }
+        </section>
+    }
+
+    <section class="card" aria-labelledby="other-heading">
+        <h2 id="other-heading">Other emails</h2>
+        <form method="post" action="?handler=Other" asp-antiforgery="true" class="stack">
+            <div class="checkbox">
+                <input type="checkbox" id="Digest" name="Digest" value="true" @(Model.Digest ? "checked" : "")>
+                <label for="Digest">A weekly email with the family's new stories</label>
+            </div>
+            @if (Model.IsStoryteller)
+            {
+                <div class="checkbox">
+                    <input type="checkbox" id="Reads" name="Reads" value="true" @(Model.Reads ? "checked" : "")>
+                    <label for="Reads">Tell me when family members read my stories</label>
+                </div>
+            }
+            <button type="submit" class="button button-secondary">Save these choices</button>
+        </form>
+        <p class="muted">Sign-in links and invitations are always sent, because you asked for them.</p>
+    </section>
+}

@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyMemories.Pages.Admin.Users;
 
-public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserAdminService admin, AuditLog audit, TimeProvider clock) : PageModel
+public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserAdminService admin, AuditLog audit,
+    FamilyMemories.Configuration.AppOptions options, TimeProvider clock) : PageModel
 {
     public AppUser Person { get; private set; } = null!;
     [BindProperty] public UserForm Form { get; set; } = new();
@@ -18,6 +19,8 @@ public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserA
     public List<AppUser> Helpers { get; private set; } = [];
     public List<AppUser> HelperCandidates { get; private set; } = [];
     public List<Prompt> OneOffs { get; private set; } = [];
+    public ReminderSettings? Reminder { get; private set; }
+    public string ReminderSummary { get; private set; } = "";
 
     private async Task<bool> LoadAsync(Guid id, bool fillForm)
     {
@@ -35,6 +38,9 @@ public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserA
         HelperCandidates.RemoveAll(u => helperIds.Contains(u.Id));
         OneOffs = await db.Prompts.AsNoTracking().Include(p => p.AskedByUser)
             .Where(p => p.ForUserId == id).OrderBy(p => p.CreatedAt).ToListAsync();
+
+        Reminder = await db.ReminderSettings.AsNoTracking().SingleOrDefaultAsync(r => r.UserId == id);
+        ReminderSummary = await FamilyMemories.Reminders.ReminderText.DescribeAsync(db, options, Reminder, person, clock.GetUtcNow().UtcDateTime);
 
         Form.Sets = await db.PromptSets.AsNoTracking().OrderBy(s => s.Kind).ThenBy(s => s.Name).ToListAsync();
         if (fillForm)
@@ -99,6 +105,20 @@ public sealed class EditModel(AppDbContext db, UserManager<AppUser> users, UserA
     {
         var result = await admin.SetPausedAsync(id, paused, User.UserId());
         return Done(id, result.Succeeded ? (paused ? "Account paused." : "Account unpaused.") : result.Error!);
+    }
+
+    public async Task<IActionResult> OnPostRemindersAsync(Guid id, ReminderFrequency? rFrequency, DayOfWeek? rDay, string? rTime, string? rTimeZone)
+    {
+        if (!await db.Users.AnyAsync(u => u.Id == id)) return NotFound();
+        var r = await db.ReminderSettings.SingleOrDefaultAsync(x => x.UserId == id);
+        if (r is null) db.ReminderSettings.Add(r = new ReminderSettings { UserId = id });
+        r.Frequency = rFrequency;
+        r.Day = rDay;
+        r.Time = TimeOnly.TryParse(rTime, out var t) ? t : null;
+        r.TimeZoneId = !string.IsNullOrEmpty(rTimeZone) && TimeZoneInfo.TryFindSystemTimeZoneById(rTimeZone, out _) ? rTimeZone : null;
+        audit.Add("reminders.person", $"Changed reminder settings for user {id}", "user", id);
+        await db.SaveChangesAsync();
+        return Done(id, "Reminder settings saved.");
     }
 
     public async Task<IActionResult> OnPostViewAsAsync(Guid id)

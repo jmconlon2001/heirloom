@@ -7,4 +7,5 @@ public sealed class TestClock(DateTimeOffset start) : TimeProvider
     public TestClock() : this(DateTimeOffset.UtcNow) { }
     public override DateTimeOffset GetUtcNow() => now;
     public void Advance(TimeSpan by) => now = now.Add(by);
+    public void Set(DateTimeOffset value) => now = value;
 }

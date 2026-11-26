@@ -42,6 +42,8 @@ public enum MagicLinkPurpose
     DeviceEnrollment = 2,
     /// <summary>Sent in an invitation email.</summary>
     Invitation = 3,
+    /// <summary>The "Answer this question" button in a reminder email.</summary>
+    Reminder = 4,
 }
 
 /// <summary>A single-use sign-in link. Only the SHA-256 hash of the token is stored.</summary>

@@ -1,0 +1,45 @@
+@page "/admin/email"
+@model FamilyMemories.Pages.Admin.Email.IndexModel
+@{
+    ViewData["Title"] = "Email";
+}
+<h1>Email</h1>
+<partial name="_Flash" />
+<div class="button-row">
+    <a class="button button-secondary" href="/admin/reminders">Reminder schedule</a>
+    <a class="button button-secondary" href="/admin/email/templates">Email wording</a>
+    <a class="button button-secondary" href="/admin/email/log">Sent emails</a>
+</div>
+
+<h2>Mail server (SMTP)</h2>
+<p>@(Model.FromAdminUi ? "These settings were saved here and override the .env file." : "These come from the .env file. Saving here overrides them.") Gmail and Google Workspace: <code>smtp.gmail.com</code>, port 587, StartTLS, your address, and an <em>app password</em>.</p>
+@if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+<form method="post" asp-page-handler="Save" class="stack">
+    <div class="field-row">
+        <div class="field"><label asp-for="Host">Server</label><input asp-for="Host" type="text" autocomplete="off" placeholder="smtp.gmail.com"></div>
+        <div class="field"><label asp-for="Port">Port</label><input asp-for="Port" type="text" inputmode="numeric" class="input-short"></div>
+    </div>
+    <div class="field">
+        <label asp-for="Security">Security</label>
+        <select asp-for="Security">
+            <option value="StartTls">StartTLS (usually port 587)</option>
+            <option value="SslOnConnect">SSL/TLS (usually port 465)</option>
+            <option value="None">None (only for a local relay like Mailpit)</option>
+        </select>
+    </div>
+    <div class="field-row">
+        <div class="field"><label asp-for="Username">User name</label><input asp-for="Username" type="text" autocomplete="off"></div>
+        <div class="field"><label asp-for="Password">Password</label><input asp-for="Password" type="password" autocomplete="new-password" placeholder="@(Model.HasPassword ? "(saved; leave empty to keep it)" : "")"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label asp-for="FromAddress">Send from address</label><input asp-for="FromAddress" type="email" autocomplete="off"></div>
+        <div class="field"><label asp-for="FromName">Send from name</label><input asp-for="FromName" type="text" autocomplete="off"></div>
+    </div>
+    <button type="submit" class="button button-primary">Save mail settings</button>
+</form>
+
+<h2>Send a test email</h2>
+<form method="post" asp-page-handler="Test" class="field-row">
+    <div class="field"><label for="TestTo">Send to</label><input id="TestTo" name="TestTo" type="email" value="@Model.MyEmail" autocomplete="off"></div>
+    <button type="submit" class="button button-secondary">Send test email</button>
+</form>

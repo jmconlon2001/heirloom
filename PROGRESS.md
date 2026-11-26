@@ -1,5 +1,40 @@
 # Progress
 
+## Phase 4: Email reminders and notifications ✅ (2026-11-25)
+
+**Built:**
+- **SMTP settings** in the admin UI (D-047): encrypted password, pre-filled from `.env`, **Send test email**.
+- **Reminders** (D-048):
+  - family defaults plus per-person overrides (frequency, day, time, time zone);
+  - DST-safe schedule; quiet period; stops when everything is answered; waits for next week's question;
+  - snooze and pause by link (D-049); nudge to admins plus ntfy.
+- **The reminder email:** greeting, the full question and hints, one **Answer this question** button that signs in and opens it, a progress line, and the help contact. Follow-up questions arrive the same way.
+- **Other emails:** invitation, sign-in link, the "family read your story" summary, the weekly digest, admin alerts, and the test email. "Export ready" lands with Phase 5. (D-050)
+- **Templates** (Scriban, D-045): every email's wording is editable in admin, with a preview, a test send and a reset. Every message has a plain-text part and an email-settings/unsubscribe link, plus one-click unsubscribe headers on bulk mail.
+- **EmailLog** with retries and back-off through Hangfire, and a **Sent emails** page with **Try again** (D-046).
+- **Home** shows "Next question by email: Sunday, November 29 at 10:00 AM · Email settings".
+
+### Tests: 186 passing
+- **Unit:** weekly and monthly slots, both New York DST changes (the skipped 02:30 and the repeated 01:30), due rules, next occurrence.
+- **Integration:**
+  - The reminder arrives at the right time, once, with exactly one link besides settings; that link signs in and opens the question.
+  - The quiet period skips exactly one week.
+  - Snooze and stop from the link without signing in; RFC 8058 one-click unsubscribe; stops when everything is done.
+  - The nudge comes once, after 3 reminders.
+  - A follow-up arrives as "Lily asked you a question".
+  - Read summary once; the digest honours visibility and opt-out.
+  - Template edit, HTML-escaping, broken-template refusal, preview CSP and admin-only, reset.
+  - SMTP password stored encrypted and kept when the field is left empty; a failure is logged, then retried successfully.
+  - Per-person schedule shown on the home page.
+- **e2e:** the email settings page on iPad (axe, tap targets, snooze); the admin wording editor's live preview (axe).
+
+### Bugs found and fixed
+- The quiet period silenced every later reminder.
+- The nudge's "N weeks" was wrong.
+- `LowercaseUrls` broke the email settings token in form posts.
+- With Hangfire on, sign-in emails arrive a moment later; the test helper now waits.
+
+
 ## Phase 3: Sharing and family tree ✅ (2026-11-25)
 
 **Built:**

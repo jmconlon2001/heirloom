@@ -533,3 +533,5 @@ html.high-contrast .button-heart[aria-pressed="true"] { background: #000; color:
 html.high-contrast .tree-canvas.f3, html.high-contrast .tree-canvas .f3 { --female-color: #fff; --male-color: #fff; --genderless-color: #fff; --background-color: #fff; --text-color: #000; }
 /* family-chart uses .card too; don't apply the app's card box inside the tree. */
 .tree-canvas .card { border: 0; background: none; padding: 0; margin: 0; border-radius: 0; }
+.code-text { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; }
+.email-preview { width: 100%; height: 34rem; border: 0.125rem solid var(--border); border-radius: var(--radius); background: #fff; }

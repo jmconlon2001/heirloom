@@ -24,11 +24,9 @@ public sealed class UserAdminService(
     AppDbContext db,
     UserManager<AppUser> users,
     MagicLinkService links,
-    EmailTemplates templates,
-    IEmailSender email,
+    EmailService email,
     AuditLog audit,
-    TimeProvider clock,
-    ILogger<UserAdminService> log)
+    TimeProvider clock)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -68,14 +66,8 @@ public sealed class UserAdminService(
         user.InvitedAt = Now;
         audit.Add("user.invite-email", $"Sent an invitation email to {user.DisplayName}", "user", user.Id);
         await db.SaveChangesAsync();
-        try
-        {
-            await email.SendAsync(templates.Invitation(user.Email!, user.DisplayName, inviterName, links.BuildUrl(token)));
-        }
-        catch (Exception ex)
-        {
-            log.LogError(ex, "Could not send invitation to user {UserId}", user.Id);
-        }
+        await email.SendAsync(EmailKind.Invitation, new Recipient(user.Email!, user.DisplayName, user.Id),
+            new Dictionary<string, object?> { ["inviter_name"] = inviterName, ["link"] = links.BuildUrl(token).ToString() });
     }
 
     public async Task<AdminResult> UpdateAsync(Guid userId, UserInput input, Guid actingAdminId)

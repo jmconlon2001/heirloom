@@ -7,25 +7,19 @@ using Microsoft.EntityFrameworkCore;
 namespace FamilyMemories.Admin;
 
 /// <summary>Tells every admin when something needs attention (failed backup, failed verify): email, plus ntfy if configured.</summary>
-public sealed class AdminAlerts(AppDbContext db, IEmailSender email, IHttpClientFactory http, AppOptions options, ILogger<AdminAlerts> log)
+public sealed class AdminAlerts(AppDbContext db, EmailService email, IHttpClientFactory http, AppOptions options, ILogger<AdminAlerts> log)
 {
-    public async Task SendAsync(string subject, string message, CancellationToken ct = default)
+    public async Task SendAsync(string subject, string message, CancellationToken ct = default, string? linkPath = null)
     {
         log.LogWarning("Admin alert: {Subject}: {Message}", subject, message);
-        var admins = await (from u in db.Users
-                            join ur in db.UserRoles on u.Id equals ur.UserId
-                            join r in db.Roles on ur.RoleId equals r.Id
-                            where r.Name == Roles.Admin && u.Email != null
-                            select new { u.Email, u.DisplayName }).ToListAsync(ct);
-
-        foreach (var admin in admins)
+        foreach (var admin in await AdminsAsync(ct))
         {
             try
             {
-                var text = $"{message}\n\nOpen {options.BuildUrl("/admin/backups")} to see details.";
-                var html = $"<p style=\"font-family:Arial,sans-serif;font-size:18px\">{System.Net.WebUtility.HtmlEncode(message)}</p>" +
-                           $"<p><a href=\"{options.BuildUrl("/admin/backups")}\">See the details</a></p>";
-                await email.SendAsync(new EmailMessage(admin.Email!, admin.DisplayName, $"[{options.AppName}] {subject}", text, html), ct);
+                await email.SendAsync(EmailKind.AdminAlert, admin, new Dictionary<string, object?>
+                {
+                    ["subject"] = subject, ["message"] = message, ["link"] = options.BuildUrl(linkPath ?? "admin/backups").ToString(),
+                });
             }
             catch (Exception ex)
             {
@@ -33,6 +27,18 @@ public sealed class AdminAlerts(AppDbContext db, IEmailSender email, IHttpClient
             }
         }
 
+        await NtfyAsync(subject, message, ct);
+    }
+
+    public async Task<List<Recipient>> AdminsAsync(CancellationToken ct = default) =>
+        await (from u in db.Users
+               join ur in db.UserRoles on u.Id equals ur.UserId
+               join r in db.Roles on ur.RoleId equals r.Id
+               where r.Name == Roles.Admin && u.Email != null && (u.LockoutEnd == null || u.LockoutEnd < DateTimeOffset.UtcNow)
+               select new Recipient(u.Email!, u.DisplayName, u.Id)).ToListAsync(ct);
+
+    public async Task NtfyAsync(string subject, string message, CancellationToken ct = default)
+    {
         if (options.NtfyUrl is not null && options.NtfyTopic is not null)
         {
             try

@@ -217,3 +217,41 @@ Unauthorised requests get 404, not 403, so they don't reveal that a story exists
 - Playwright's `Devices["…"]` returns a shared object whose `BaseURL` we were mutating.
 
 **Decision:** e2e servers bind `127.0.0.1` only, and device options are copied before use.
+
+---
+## Phase 4
+
+### D-045 · Scriban for editable email templates (BSD-2-Clause)
+**Decision:** §8 allows Scriban or Razor; Scriban is built for templates edited at runtime, so admins can change wording without a rebuild.
+- Every kind has a built-in default (in code). An admin override is stored per kind and can be reset.
+- For the HTML part, every model value is HTML-encoded before rendering, so an admin's edit can't open an injection hole. The `{{ button url "Label" }}` helper draws the one big button.
+- Broken templates are refused with Scriban's error message.
+- **Preview** posts the draft into an iframe served with its own CSP: inline styles allowed, no scripts, framed only by our pages.
+
+### D-046 · All mail goes through EmailService → EmailLog → Hangfire
+**Decision:** Render, then write an `EmailLog` row, then enqueue `EmailDelivery`. It is retried 5 more times over about 4 hours (1, 5, 15 and 60 minutes, then 3 hours) and marked Failed after that. The admin **Sent emails** page lists every send with its error and a **Try again** button. With `JOBS_ENABLED=false`, delivery is immediate. Each message has a plain-text part, the help line, and an email-settings / unsubscribe link. Reminders, digests and read summaries also carry `List-Unsubscribe` and `List-Unsubscribe-Post` (RFC 8058) headers.
+
+### D-047 · SMTP settings: admin UI over .env, password encrypted
+**Decision:** The admin **Email** page is pre-filled from `.env`; once saved, the stored settings win. The password is encrypted with Data Protection (whose keys are in `/data/keys`, which is backed up), never shown again, and "leave empty to keep". **Send test email** reports success or the exact SMTP error.
+
+### D-048 · Reminder scheduling
+**Decision:**
+- **Family-wide defaults:** weekly, Sunday 10:00, `APP_TIMEZONE`, quiet after answering, nudge after 3, Saturday digest. Each person can override frequency, day, time and time zone.
+- **A tick every 15 minutes** finds each storyteller's latest scheduled slot (`ReminderSchedule`, pure and unit-tested). A local time skipped in spring moves to the first valid minute; a time repeated in autumn uses the first one. If that slot hasn't been handled, it is handled once: sent or deliberately skipped.
+- **Skip when** the person is snoozed or off, everything is answered (declined counts), next week's question isn't unlocked yet, or they wrote something since the previous slot (the quiet period skips exactly one reminder; a bug that skipped every later one was caught by tests).
+- **The reminder** carries the full question and hints, one button (a 14-day single-use `Reminder` sign-in link to `/answer/{prompt}`), a progress line, and the help contact. A follow-up question arrives this way ("Lily asked you a question").
+- **The nudge:** after N reminders with no activity, admins get "Grandma Rose hasn't added a story in 3 weeks. Maybe give them a call?" once, plus ntfy.
+- **If already signed in** on that device, the reminder link goes straight to the question without using up the link.
+
+### D-049 · Email settings by signed link; changes need a tap
+**Decision:** The link in every email (`/email/preferences/{token}`, a Data Protection–signed user id, no expiry) opens a page with big buttons:
+- **Remind me in 2 weeks**;
+- **Stop reminder emails** / **Start them again**;
+- digest and read-notification checkboxes.
+
+Changes are POSTs, so mail scanners that open links can't snooze or unsubscribe anyone. Mail clients' own unsubscribe button uses the RFC 8058 one-click POST endpoint. Its forms post to `?handler=…` on the page's own URL: ASP.NET's `LowercaseUrls` lowercases generated URLs, including the case-sensitive token. The e2e test caught that.
+
+### D-050 · Read summaries and the digest
+**Decision:**
+- **Read summaries, daily at 17:00:** one email per storyteller about first reads since the last one ("Lily, Ed and Ann read your story “The farm”"). Opt-out per person.
+- **The digest, Saturdays at 09:00:** stories finished since that person's last digest that *they* may read under the normal rules (admins are not shown private stories here), excluding their own; nothing is sent if there's nothing new. Opt-out per person.

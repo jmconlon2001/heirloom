@@ -30,6 +30,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<MemoryReaction> Reactions => Set<MemoryReaction>();
     public DbSet<MemoryComment> Comments => Set<MemoryComment>();
     public DbSet<MemoryRead> Reads => Set<MemoryRead>();
+    public DbSet<EmailLog> EmailLog => Set<EmailLog>();
+    public DbSet<ReminderSettings> ReminderSettings => Set<ReminderSettings>();
+    public DbSet<EmailTemplateOverride> EmailTemplates => Set<EmailTemplateOverride>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -211,6 +214,28 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             e.HasKey(x => new { x.MemoryId, x.UserId });
             e.HasOne<Memory>().WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<EmailLog>(e =>
+        {
+            e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => new { x.UserId, x.Kind });
+            e.Property(x => x.ToAddress).HasMaxLength(320);
+            e.Property(x => x.ToName).HasMaxLength(200);
+            e.Property(x => x.Subject).HasMaxLength(500);
+            e.Property(x => x.Error).HasMaxLength(2000);
+            e.Property(x => x.UnsubscribeUrl).HasMaxLength(2000);
+        });
+        b.Entity<ReminderSettings>(e =>
+        {
+            e.HasKey(x => x.UserId);
+            e.Property(x => x.TimeZoneId).HasMaxLength(100);
+            e.HasOne(x => x.User).WithOne().HasForeignKey<ReminderSettings>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<EmailTemplateOverride>(e =>
+        {
+            e.HasKey(x => x.Kind);
+            e.Property(x => x.Subject).HasMaxLength(500);
         });
 
         b.Entity<BackupRun>(e =>

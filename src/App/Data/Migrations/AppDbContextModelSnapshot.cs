@@ -368,6 +368,96 @@ namespace FamilyMemories.Data.Migrations
                     b.ToTable("Chapters");
                 });
 
+            modelBuilder.Entity("FamilyMemories.Data.EmailLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("HtmlBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("TextBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ToAddress")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("ToName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UnsubscribeUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("UserId", "Kind");
+
+                    b.ToTable("EmailLog");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.EmailTemplateOverride", b =>
+                {
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("HtmlBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("TextBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Kind");
+
+                    b.ToTable("EmailTemplates");
+                });
+
             modelBuilder.Entity("FamilyMemories.Data.LinkShare", b =>
                 {
                     b.Property<Guid>("Id")
@@ -968,6 +1058,53 @@ namespace FamilyMemories.Data.Migrations
                     b.ToTable("PromptSetItems");
                 });
 
+            modelBuilder.Entity("FamilyMemories.Data.ReminderSettings", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("Day")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("DigestOptOut")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("Frequency")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LastDigestAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastReminderSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastScheduledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NudgeSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ReadNotificationsOptOut")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("RemindersSinceActivity")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SnoozedUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<TimeOnly?>("Time")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("ReminderSettings");
+                });
+
             modelBuilder.Entity("FamilyMemories.Data.StorytellerHelper", b =>
                 {
                     b.Property<Guid>("StorytellerId")
@@ -1456,6 +1593,17 @@ namespace FamilyMemories.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Prompt");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.ReminderSettings", b =>
+                {
+                    b.HasOne("FamilyMemories.Data.AppUser", "User")
+                        .WithOne()
+                        .HasForeignKey("FamilyMemories.Data.ReminderSettings", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FamilyMemories.Data.StorytellerHelper", b =>

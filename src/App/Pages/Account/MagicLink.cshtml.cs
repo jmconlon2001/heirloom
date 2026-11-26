@@ -15,10 +15,15 @@ public sealed class MagicLinkModel(MagicLinkService links, DeviceService devices
     public string? Token { get; private set; }
     public MagicLinkFailure Failure { get; private set; }
 
-    public async Task OnGetAsync(string? token, CancellationToken ct)
+    public async Task<IActionResult> OnGetAsync(string? token, CancellationToken ct)
     {
         Token = token;
         Failure = await links.PeekAsync(token, ct);
+        // Already signed in on this device as the same person (e.g. tapping a reminder): skip the extra tap.
+        if (Failure == MagicLinkFailure.None && User.Identity?.IsAuthenticated == true
+            && await links.PeekUserAsync(token, ct) is { } target && target.UserId == User.UserId())
+            return LocalRedirect(Url.IsLocalUrl(target.ReturnPath) ? target.ReturnPath! : "/");
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync(string? token, CancellationToken ct)

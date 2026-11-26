@@ -36,6 +36,41 @@
     </form>
 </section>
 
+<section aria-labelledby="reminder-heading">
+    <h2 id="reminder-heading">Reminder emails for @u.DisplayName</h2>
+    <p>@Model.ReminderSummary</p>
+    <form method="post" asp-page-handler="Reminders" class="stack">
+        <div class="field">
+            <label for="RFrequency">How often</label>
+            <select id="RFrequency" name="RFrequency">
+                <option value="">Family default</option>
+                @foreach (var (v, t) in new[] { ("Weekly", "Every week"), ("EveryTwoWeeks", "Every two weeks"), ("Monthly", "Once a month"), ("Off", "Never") })
+                {
+                    <option value="@v" selected="@(Model.Reminder?.Frequency?.ToString() == v)">@t</option>
+                }
+            </select>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="RDay">Day</label>
+                <select id="RDay" name="RDay">
+                    <option value="">Family default</option>
+                    @foreach (var d in Enum.GetValues<DayOfWeek>()) { <option value="@d" selected="@(Model.Reminder?.Day == d)">@d</option> }
+                </select>
+            </div>
+            <div class="field"><label for="RTime">Time (empty = family default)</label><input id="RTime" name="RTime" type="time" step="900" value="@Model.Reminder?.Time?.ToString("HH:mm")"></div>
+        </div>
+        <div class="field">
+            <label for="RTimeZone">Time zone</label>
+            <select id="RTimeZone" name="RTimeZone">
+                <option value="">Family default</option>
+                @foreach (var tz in FamilyMemories.Pages.Admin.RemindersModel.CommonTimeZones) { <option value="@tz" selected="@(Model.Reminder?.TimeZoneId == tz)">@tz</option> }
+            </select>
+        </div>
+        <button type="submit" class="button button-secondary">Save reminder settings</button>
+    </form>
+</section>
+
 <section aria-labelledby="questions-heading">
     <h2 id="questions-heading">Questions just for @u.DisplayName</h2>
     <p>These go to the front of their list, with your name: "@User.DisplayName() asked:".</p>

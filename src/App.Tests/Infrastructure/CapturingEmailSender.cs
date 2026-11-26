@@ -8,8 +8,16 @@ public sealed partial class CapturingEmailSender : IEmailSender
 {
     public ConcurrentQueue<EmailMessage> Sent { get; } = new();
 
+    /// <summary>Makes the next send fail (like an SMTP server being down).</summary>
+    public bool FailNext { get; set; }
+
     public Task SendAsync(EmailMessage message, CancellationToken ct = default)
     {
+        if (FailNext)
+        {
+            FailNext = false;
+            throw new InvalidOperationException("The mail server didn't answer (test)");
+        }
         Sent.Enqueue(message);
         return Task.CompletedTask;
     }
