@@ -16,6 +16,12 @@
     <form method="post" action="/admin/users/@u.Id/login-card">
         <button type="submit" class="button button-secondary">Print a login card</button>
     </form>
+    @if (AppOptions.PaperPacketsEnabled && u.PromptSetId is not null)
+    {
+        <form method="post" action="/admin/users/@u.Id/packet" asp-antiforgery="true">
+            <button type="submit" class="button button-secondary">Print a paper packet of questions</button>
+        </form>
+    }
     <form method="post" asp-page-handler="ViewAs">
         <button type="submit" class="button button-secondary">See the site as @u.DisplayName</button>
     </form>

@@ -5,7 +5,7 @@ using MimeKit;
 namespace FamilyMemories.Email;
 
 /// <param name="UnsubscribeUrl">When set, adds List-Unsubscribe and one-click List-Unsubscribe-Post headers (RFC 8058).</param>
-public sealed record EmailMessage(string ToAddress, string ToName, string Subject, string TextBody, string HtmlBody, string? UnsubscribeUrl = null);
+public sealed record EmailMessage(string ToAddress, string ToName, string Subject, string TextBody, string HtmlBody, string? UnsubscribeUrl = null, string? ReplyTo = null);
 
 /// <summary>The transport: actually hands a message to an SMTP server. Everything else goes through <see cref="EmailService"/>.</summary>
 public interface IEmailSender
@@ -25,6 +25,7 @@ public sealed class SmtpEmailSender(SmtpSettingsStore settings, ILogger<SmtpEmai
         mime.From.Add(new MailboxAddress(smtp.FromName, smtp.FromAddress));
         mime.To.Add(new MailboxAddress(message.ToName, message.ToAddress));
         mime.Subject = message.Subject;
+        if (message.ReplyTo is not null) mime.ReplyTo.Add(MailboxAddress.Parse(message.ReplyTo));
         if (message.UnsubscribeUrl is not null)
         {
             mime.Headers.Add("List-Unsubscribe", $"<{message.UnsubscribeUrl}>");

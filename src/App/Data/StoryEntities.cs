@@ -133,6 +133,8 @@ public sealed class Memory
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    /// <summary>When words or photos from an email reply were added (Phase 6); cleared when the story is finished.</summary>
+    public DateTime? EmailReplyAt { get; set; }
     /// <summary>Bumped on every change, for optimistic concurrency between tabs and autosave.</summary>
     public int Revision { get; set; }
 
@@ -183,6 +185,8 @@ public enum AttachmentKind { Photo = 1, Document = 2, Audio = 3, Video = 4 }
 
 public enum ProcessingState { Pending = 0, Ready = 1, Failed = 2 }
 
+public enum TranscriptState { None = 0, Pending = 1, Ready = 2, Approved = 3, Dismissed = 4, Failed = 5 }
+
 public sealed class Attachment
 {
     public Guid Id { get; set; }
@@ -207,6 +211,9 @@ public sealed class Attachment
     public string? ProcessingError { get; set; }
     public Guid UploadedById { get; set; }
     public DateTime CreatedAt { get; set; }
+    /// <summary>What Whisper heard in a voice recording (Phase 6), for the storyteller to check before it joins the story.</summary>
+    public string? Transcript { get; set; }
+    public TranscriptState TranscriptState { get; set; }
     /// <summary>Removed from the story; the original stays on disk until an admin purges it.</summary>
     public DateTime? RemovedAt { get; set; }
 }
@@ -274,4 +281,13 @@ public sealed class AppSetting
     public string Key { get; set; } = "";
     public string Value { get; set; } = "";
     public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>A short code in a reminder's reply-to address (memories+CODE@…), linking a reply to its person and question.</summary>
+public sealed class ReplyCode
+{
+    public string Code { get; set; } = "";
+    public Guid UserId { get; set; }
+    public Guid PromptId { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

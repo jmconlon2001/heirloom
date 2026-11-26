@@ -18,6 +18,13 @@ public sealed class InlineMediaJobs(IServiceScopeFactory scopes) : IMediaJobs
         scope.ServiceProvider.GetRequiredService<MediaProcessor>()
             .ProcessAsync(attachmentId, CancellationToken.None).GetAwaiter().GetResult();
     }
+
+    public void EnqueueTranscription(Guid attachmentId)
+    {
+        using var scope = scopes.CreateScope();
+        scope.ServiceProvider.GetRequiredService<FamilyMemories.Extras.TranscriptionJob>()
+            .RunAsync(attachmentId, CancellationToken.None).GetAwaiter().GetResult();
+    }
 }
 
 /// <summary>Deletes uploads that were started but never finished (after 7 days).</summary>

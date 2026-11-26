@@ -82,6 +82,23 @@ public sealed class AppOptions
     public string? NtfyTopic { get; init; }
     public string? NtfyToken { get; init; }
 
+    // ---- Optional extras (Phase 6), each off unless switched on ----
+    /// <summary>FEATURE_TRANSCRIPTION: write down voice recordings with a local Whisper container.</summary>
+    public bool TranscriptionEnabled { get; init; }
+    public string? WhisperUrl { get; init; }
+    /// <summary>FEATURE_EMAIL_REPLIES: replies to reminder emails become drafts.</summary>
+    public bool EmailRepliesEnabled { get; init; }
+    /// <summary>Address replies go to, e.g. memories@example.com; replies use memories+CODE@example.com.</summary>
+    public string? ReplyAddress { get; init; }
+    public string ImapHost { get; init; } = "";
+    public int ImapPort { get; init; } = 993;
+    public bool ImapSsl { get; init; } = true;
+    public string? ImapUsername { get; init; }
+    public string? ImapPassword { get; init; }
+    public string ImapFolder { get; init; } = "INBOX";
+    /// <summary>FEATURE_PAPER_PACKETS: printable question packets with writing lines.</summary>
+    public bool PaperPacketsEnabled { get; init; }
+
     public TimeZoneInfo TimeZone => TimeZoneInfo.TryFindSystemTimeZoneById(TimeZoneId, out var tz) ? tz : TimeZoneInfo.Utc;
     public string PgTool(string name) => string.IsNullOrEmpty(PgBinDir) ? name : Path.Combine(PgBinDir, name);
 
@@ -130,6 +147,17 @@ public sealed class AppOptions
             PgBinDir = c["PG_BIN_DIR"] ?? "",
             ResticPath = NonEmpty(c["RESTIC_PATH"]) ?? "restic",
             TimeZoneId = NonEmpty(c["APP_TIMEZONE"]) ?? NonEmpty(c["TZ"]) ?? "America/New_York",
+            TranscriptionEnabled = Flag(c["FEATURE_TRANSCRIPTION"]),
+            WhisperUrl = NonEmpty(c["WHISPER_URL"]),
+            EmailRepliesEnabled = Flag(c["FEATURE_EMAIL_REPLIES"]),
+            ReplyAddress = NonEmpty(c["REPLY_ADDRESS"]),
+            ImapHost = c["IMAP_HOST"] ?? "",
+            ImapPort = int.TryParse(c["IMAP_PORT"], out var imapPort) ? imapPort : 993,
+            ImapSsl = !string.Equals(c["IMAP_SSL"], "false", StringComparison.OrdinalIgnoreCase),
+            ImapUsername = NonEmpty(c["IMAP_USERNAME"]),
+            ImapPassword = NonEmpty(c["IMAP_PASSWORD"]),
+            ImapFolder = NonEmpty(c["IMAP_FOLDER"]) ?? "INBOX",
+            PaperPacketsEnabled = Flag(c["FEATURE_PAPER_PACKETS"]),
             NtfyUrl = NonEmpty(c["NTFY_URL"]),
             NtfyTopic = NonEmpty(c["NTFY_TOPIC"]),
             NtfyToken = NonEmpty(c["NTFY_TOKEN"]),
@@ -173,6 +201,8 @@ public sealed class AppOptions
         }
         return result;
     }
+
+    private static bool Flag(string? value) => value is not null && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1");
 
     private static long Megabytes(string? value, long fallback) =>
         (long.TryParse(value, out var mb) && mb > 0 ? mb : fallback) * 1024 * 1024;

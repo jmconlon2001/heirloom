@@ -25,6 +25,7 @@ public sealed class ReminderService(
     StoryPlanService plans,
     StoryAccess access,
     AdminAlerts alerts,
+    FamilyMemories.Extras.EmailReplyProcessor replies,
     AppOptions options,
     TimeProvider clock,
     ILogger<ReminderService> log)
@@ -75,6 +76,7 @@ public sealed class ReminderService(
 
             var token = await links.IssueAsync(user, MagicLinkPurpose.Reminder, $"/answer/{next.Prompt.Id}", null);
             var hints = next.Prompt.Hints.Cast<object?>().ToList();
+            var replyTo = await replies.ReplyAddressAsync(user.Id, next.Prompt.Id);
             var remaining = plan.Slots.Count(s => !s.IsDone);
             await email.SendAsync(EmailKind.Reminder, new Recipient(user.Email!, user.DisplayName, user.Id), new Dictionary<string, object?>
             {
@@ -89,7 +91,8 @@ public sealed class ReminderService(
                     1 => "You've shared 1 story so far. Thank you.",
                     var n => $"You've shared {n} stories so far. Thank you.",
                 } + (remaining > 1 ? $" {remaining - 1} more questions after this one, whenever you're ready." : ""),
-            });
+                ["reply_by_email"] = replyTo is not null,
+            }, replyTo: replyTo);
             if (next.IsOneOff && next.Prompt.FollowUpOfMemoryId is not null)
                 await db.Prompts.Where(p => p.Id == next.Prompt.Id).ExecuteUpdateAsync(s => s.SetProperty(p => p.NotifiedAt, now));
 

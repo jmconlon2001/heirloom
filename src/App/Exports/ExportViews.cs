@@ -73,3 +73,11 @@ public static class InlineCss
         });
     }
 }
+
+/// <summary>A printable packet of questions with writing lines (Phase 6, FEATURE_PAPER_PACKETS).</summary>
+public sealed record PacketView(string Name, string Helper, IReadOnlyList<Prompt> Questions, string Css)
+{
+    public string FirstName => Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? Name;
+    /// <summary>Fewer lines when there are more hints, so each question fits on one page.</summary>
+    public int Lines(Prompt q) => 15 - Math.Min(4, q.Hints.Count);
+}

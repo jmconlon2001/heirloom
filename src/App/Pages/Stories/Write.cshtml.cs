@@ -48,6 +48,7 @@ public sealed class WriteModel(
     [BindProperty] public List<Guid> PhotoFormPresent { get; set; } = [];
     [BindProperty] public Dictionary<Guid, List<Guid>> PhotoPeople { get; set; } = [];
     [BindProperty] public Dictionary<Guid, string?> PhotoAddPerson { get; set; } = [];
+    [BindProperty] public Dictionary<Guid, string?> Transcripts { get; set; } = [];
 
     public List<AppUser> FamilyUsers { get; private set; } = [];
     public Dictionary<Guid, Guid> UserPhotos { get; private set; } = [];
@@ -150,6 +151,29 @@ public sealed class WriteModel(
         await SaveFormAsync();
         if (await attachments.RemoveAsync(id, attachmentId)) TempData["Removed"] = attachmentId.ToString();
         return LocalRedirect($"/stories/{id}/write#attachments");
+    }
+
+    /// <summary>Speech-to-text (Phase 6): the storyteller's checked words are added as a new paragraph.</summary>
+    public async Task<IActionResult> OnPostUseTranscriptAsync(Guid id, Guid attachmentId)
+    {
+        if (!await LoadAsync(id)) return NotFound();
+        var text = Transcripts.GetValueOrDefault(attachmentId)?.Trim();
+        if (!string.IsNullOrEmpty(text))
+            Body = string.IsNullOrWhiteSpace(Body) ? text : Body.TrimEnd() + "\n\n" + text;
+        await SaveFormAsync();
+        await db.Attachments.Where(a => a.Id == attachmentId && a.MemoryId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.TranscriptState, TranscriptState.Approved).SetProperty(a => a.Transcript, text));
+        TempData["Flash"] = "Your recorded words have been added to the story.";
+        return LocalRedirect($"/stories/{id}/write");
+    }
+
+    public async Task<IActionResult> OnPostDismissTranscriptAsync(Guid id, Guid attachmentId)
+    {
+        if (!await LoadAsync(id)) return NotFound();
+        await SaveFormAsync();
+        await db.Attachments.Where(a => a.Id == attachmentId && a.MemoryId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.TranscriptState, TranscriptState.Dismissed));
+        return LocalRedirect($"/stories/{id}/write#attachment-{attachmentId}");
     }
 
     public async Task<IActionResult> OnPostUndoRemoveAsync(Guid id, Guid attachmentId)

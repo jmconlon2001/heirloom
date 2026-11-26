@@ -158,6 +158,7 @@ public static class StoryApi
         id = a.Id,
         kind = a.Kind.ToString().ToLowerInvariant(),
         state = a.State.ToString().ToLowerInvariant(),
+        transcript = a.TranscriptState.ToString().ToLowerInvariant(),
         fileName = a.OriginalFileName,
         caption = a.Caption,
         voice = a.IsVoiceRecording,

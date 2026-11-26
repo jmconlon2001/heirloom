@@ -1,0 +1,16 @@
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("atkinson-hyperlegible-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@page { size: 8.5in 11in; margin: 0.7in 0.8in; }
+html { font-family: "Atkinson Hyperlegible", Arial, sans-serif; font-size: 15pt; line-height: 1.45; color: #000; }
+h1 { font-size: 26pt; margin: 0 0 0.3in; }
+.letter { break-after: page; font-size: 16pt; }
+.letter p { margin: 0 0 0.2in; }
+.sign { margin-top: 0.4in !important; font-style: italic; }
+.question { break-after: page; display: flex; flex-direction: column; height: 9.4in; }
+.q-number { font-size: 11pt; color: #444; margin: 0 0 0.05in; }
+.question h2 { font-size: 21pt; line-height: 1.3; margin: 0 0 0.15in; }
+.hints { margin: 0 0 0.2in; padding-left: 0.3in; font-size: 13pt; color: #222; }
+.hints li { margin-bottom: 0.04in; }
+.lines { flex: 1; }
+.line { height: 0.42in; border-bottom: 1.2pt solid #9a9a9a; }
+.footer { font-size: 10pt; color: #555; margin: 0.12in 0 0; }

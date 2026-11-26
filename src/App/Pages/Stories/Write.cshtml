@@ -28,6 +28,10 @@
         </p>
     }
     <partial name="_Flash" />
+    @if (Model.Memory.EmailReplyAt is { } replied && Model.Memory.Status == MemoryStatus.Draft)
+    {
+        <p class="notice">We added what you sent by email on @TimeZoneInfo.ConvertTimeFromUtc(replied, AppOptions.TimeZone).ToString("MMMM d"). Read it over, fix anything, then press <strong>I'm finished with this story</strong>.</p>
+    }
 
     @if (prompt is not null)
     {

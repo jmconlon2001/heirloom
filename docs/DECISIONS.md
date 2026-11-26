@@ -304,3 +304,24 @@ It always includes everything, private stories too, because it's the family's co
 
 ### D-059 · Web fonts: Atkinson Hyperlegible and Literata, vendored (OFL)
 **Decision:** The app now uses Atkinson Hyperlegible (designed by the Braille Institute for low-vision readers) for interface text and Literata for headings and story text. Only the Latin subsets are vendored (`wwwroot/fonts`, `Templates/Export/assets/fonts`), and nothing loads from a font CDN. Non-Latin names fall back to system fonts.
+
+---
+## Phase 6 (optional extras, all behind flags, off by default)
+
+### D-060 · Speech-to-text runs locally and needs the storyteller's OK
+**Decision:** With `FEATURE_TRANSCRIPTION=true`, a finished voice recording is sent to `onerahmet/openai-whisper-asr-webservice:v2.0.0` (MIT; faster-whisper, CPU, `small` model), compose profile `transcription`, 2 GB memory limit, model cached in `DATA_ROOT/whisper-models`. Nothing leaves the server. The text is *not* added automatically. The writing page shows "Here's what we heard. Fix anything that's wrong", with **Add these words to my story** or **No thanks**. Elders' speech, names and places are often misheard, so a person always checks first. Tests use a stand-in transcriber; the HTTP contract with Whisper is tested with a stub.
+
+### D-061 · Answer by email reply: plus-addressing, sender check, draft for review
+**Decision:**
+- With `FEATURE_EMAIL_REPLIES=true` and `REPLY_ADDRESS`, each reminder's `Reply-To` is `local+CODE@domain`. The code is 8 characters from an unambiguous alphabet, stored per person and question. The email says "Or simply reply to this email…".
+- An IMAP mailbox is polled every 5 minutes (MailKit, already in the stack). A reply is used only if it comes **from the person's own address**; anything else is ignored and audited.
+- The quoted reminder, "On … wrote:", signatures and "Sent from my iPad" are stripped.
+- The words are appended to that question's story, and photos and documents go through the normal magic-byte checks. The story becomes a **draft** with a banner. It counts as approved when the storyteller or an admin presses **I'm finished**; the admin home lists replies waiting for a look.
+- Limits: sender addresses can be forged, so this trusts the mailbox provider's spam/DMARC filtering. The worst case is a draft an admin can see and delete.
+
+### D-062 · Paper packets
+**Decision:** With `FEATURE_PAPER_PACKETS=true`, a storyteller's admin page can print a Letter-size PDF (Gotenberg; Atkinson Hyperlegible, 15–21 pt): a warm cover letter, then up to 12 waiting questions, one per page, with hints and ruled lines. Completed pages come back through the existing proxy entry: "Write a story for Rose", pick the question, **Add photos** with a phone photo or scan, and optionally type it up.
+
+### D-063 · Text typed before the page script runs is still saved
+**Context:** A full-suite e2e flake showed that text typed before `answer.js` (a deferred module) attached its listeners was never marked unsaved, so autosave never ran. That's possible on a slow iPad, or when the browser restores a form after Back.
+**Decision:** On start, the script compares every text field with its server-rendered value and saves at once if they differ.

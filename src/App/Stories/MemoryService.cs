@@ -116,6 +116,7 @@ public sealed class MemoryService(AppDbContext db, AppOptions options, AuditLog 
 
         memory.Status = status;
         memory.CompletedAt = status == MemoryStatus.Complete ? Now : memory.CompletedAt;
+        if (status == MemoryStatus.Complete) memory.EmailReplyAt = null; // the email reply has been checked
         TrackProxyWriter(memory, actorId);
         if (status == MemoryStatus.Complete) await AddVersionAsync(memory, actorId, VersionKind.Save);
         await CommitAsync(memory);

@@ -151,6 +151,13 @@ function init(form) {
     }
   }
 
+  // Anything typed before this script ran (slow device, or the browser restoring the form after
+  // Back) has no input event; compare with what the server sent so it still gets saved.
+  for (const el of form.querySelectorAll("textarea, input[type=text], input:not([type])")) {
+    if (el.value !== el.defaultValue) dirty = true;
+  }
+  if (dirty) save();
+
   form.addEventListener("input", (e) => {
     if (e.target.matches("[data-file-input]")) return;
     dirty = true;
@@ -321,13 +328,15 @@ function init(form) {
     polling = true;
     try {
       for (let i = 0; i < 150; i++) {
-        const pending = [...form.querySelectorAll('[data-attachment-id][data-state="pending"]')];
+        const pending = [...form.querySelectorAll('[data-attachment-id][data-state="pending"], [data-attachment-id][data-transcript="pending"]')];
         if (pending.length === 0) return;
         await sleep(2000);
         const states = await Promise.all(
           pending.map(async (li) => {
             const r = await api("GET", `/api/attachments/${li.dataset.attachmentId}`);
-            return r.ok ? (await r.json()).state : "pending";
+            if (!r.ok) return "pending";
+            const json = await r.json();
+            return json.state === "pending" || json.transcript === "pending" ? "pending" : "done";
           }),
         );
         if (states.some((s) => s !== "pending")) {

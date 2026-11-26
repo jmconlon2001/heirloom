@@ -2,8 +2,23 @@
 @{
     var a = Model.Item;
 }
-<li class="attachment" id="attachment-@a.Id" data-attachment-id="@a.Id" data-state="@a.State.ToString().ToLowerInvariant()">
+<li class="attachment" id="attachment-@a.Id" data-attachment-id="@a.Id" data-state="@a.State.ToString().ToLowerInvariant()" data-transcript="@a.TranscriptState.ToString().ToLowerInvariant()">
     <partial name="_AttachmentPreview" model="a" />
+    @if (a.TranscriptState == FamilyMemories.Data.TranscriptState.Pending)
+    {
+        <p class="transcript-wait">Writing down what you said… this can take a minute.</p>
+    }
+    else if (a.TranscriptState == FamilyMemories.Data.TranscriptState.Ready)
+    {
+        <div class="transcript">
+            <label for="transcript-@a.Id">Here's what we heard. Fix anything that's wrong:</label>
+            <textarea id="transcript-@a.Id" name="Transcripts[@a.Id]" rows="5" spellcheck="true">@a.Transcript</textarea>
+            <div class="button-row">
+                <button type="submit" class="button button-primary" asp-page-handler="UseTranscript" name="attachmentId" value="@a.Id">Add these words to my story</button>
+                <button type="submit" class="button button-quiet" asp-page-handler="DismissTranscript" name="attachmentId" value="@a.Id">No thanks</button>
+            </div>
+        </div>
+    }
     <div class="attachment-details">
         <div class="field">
             <label for="caption-@a.Id">Caption</label>

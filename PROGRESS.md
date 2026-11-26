@@ -1,5 +1,15 @@
 # Progress
 
+## Phase 6: Optional extras ✅ (2026-11-25), all built, each off by default
+
+- **Speech-to-text** (`FEATURE_TRANSCRIPTION`, D-060): a local Whisper container (compose profile `transcription`). The storyteller checks and edits the words before they join the story.
+- **Answer by email reply** (`FEATURE_EMAIL_REPLIES`, D-061): plus-addressed Reply-To, IMAP polling, sender check, quoted text stripped, photos attached, a draft with a review banner, and a list on the admin home.
+- **Paper packets** (`FEATURE_PAPER_PACKETS`, D-062): a printable letter plus one question per page with writing lines; scans come back through "Write a story for …".
+- **Family admin → Optional extras** explains each one and how to switch it on.
+- **Tests (207):** reply parsing, Whisper HTTP contract, transcript approval through the page, the full reply flow (Reply-To in the reminder, poll, wrong sender rejected, draft with photo, banner, admin list, finish clears it), and a packet PDF from real Gotenberg (1 + 12 pages).
+- **Fixed:** text typed before the page script loaded wasn't autosaved (D-063).
+
+
 ## Phase 5: Exports ✅ (2026-11-25)
 
 **Built** (admin **Exports** page: one form, Hangfire job, progress bar, versioned files in `/data/exports`, an "export is ready" email, audited admin-only downloads):

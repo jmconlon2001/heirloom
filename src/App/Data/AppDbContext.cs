@@ -34,6 +34,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ReminderSettings> ReminderSettings => Set<ReminderSettings>();
     public DbSet<EmailTemplateOverride> EmailTemplates => Set<EmailTemplateOverride>();
     public DbSet<ExportJob> Exports => Set<ExportJob>();
+    public DbSet<ReplyCode> ReplyCodes => Set<ReplyCode>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -217,6 +218,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.HasOne<Memory>().WithMany().HasForeignKey(x => x.MemoryId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        b.Entity<ReplyCode>(e =>
+        {
+            e.HasKey(x => x.Code);
+            e.Property(x => x.Code).HasMaxLength(16);
+            e.HasIndex(x => new { x.UserId, x.PromptId });
+        });
+        b.Entity<Attachment>().Property(a => a.Transcript).HasMaxLength(100_000);
+
         b.Entity<ExportJob>(e =>
         {
             e.HasIndex(x => x.CreatedAt);
@@ -233,6 +242,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(x => x.Subject).HasMaxLength(500);
             e.Property(x => x.Error).HasMaxLength(2000);
             e.Property(x => x.UnsubscribeUrl).HasMaxLength(2000);
+            e.Property(x => x.ReplyTo).HasMaxLength(320);
         });
         b.Entity<ReminderSettings>(e =>
         {

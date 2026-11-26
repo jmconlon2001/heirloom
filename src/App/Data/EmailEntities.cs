@@ -29,6 +29,8 @@ public sealed class EmailLog
     public string HtmlBody { get; set; } = "";
     /// <summary>For one-click unsubscribe (RFC 8058) on digest-style mail.</summary>
     public string? UnsubscribeUrl { get; set; }
+    /// <summary>Answer-by-email (Phase 6): replies go here.</summary>
+    public string? ReplyTo { get; set; }
     public EmailStatus Status { get; set; }
     public int Attempts { get; set; }
     public string? Error { get; set; }

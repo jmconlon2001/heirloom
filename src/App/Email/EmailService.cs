@@ -17,7 +17,7 @@ public sealed class EmailService(AppDbContext db, EmailTemplates templates, IEma
     /// <summary>Kinds where a one-click unsubscribe header makes sense (anything not asked for directly).</summary>
     private static readonly HashSet<EmailKind> BulkKinds = [EmailKind.Reminder, EmailKind.Digest, EmailKind.ReadSummary];
 
-    public async Task<EmailLog> SendAsync(EmailKind kind, Recipient to, IDictionary<string, object?> model, EmailTemplate? overrideTemplate = null)
+    public async Task<EmailLog> SendAsync(EmailKind kind, Recipient to, IDictionary<string, object?> model, EmailTemplate? overrideTemplate = null, string? replyTo = null)
     {
         var prefs = to.UserId is { } uid ? links.PreferencesUrl(uid) : null;
         var rendered = await templates.RenderAsync(kind, to.Name, model, prefs, overrideTemplate);
@@ -32,6 +32,7 @@ public sealed class EmailService(AppDbContext db, EmailTemplates templates, IEma
             TextBody = rendered.TextBody,
             HtmlBody = rendered.HtmlBody,
             UnsubscribeUrl = to.UserId is { } id && BulkKinds.Contains(kind) ? links.OneClickUnsubscribeUrl(id, kind) : null,
+            ReplyTo = replyTo,
             Status = EmailStatus.Queued,
             CreatedAt = clock.GetUtcNow().UtcDateTime,
         };
@@ -66,7 +67,7 @@ public sealed class EmailDelivery(AppDbContext db, IEmailSender sender, TimeProv
         entry.Attempts++;
         try
         {
-            await sender.SendAsync(new EmailMessage(entry.ToAddress, entry.ToName, entry.Subject, entry.TextBody, entry.HtmlBody, entry.UnsubscribeUrl));
+            await sender.SendAsync(new EmailMessage(entry.ToAddress, entry.ToName, entry.Subject, entry.TextBody, entry.HtmlBody, entry.UnsubscribeUrl, entry.ReplyTo));
             entry.Status = EmailStatus.Sent;
             entry.SentAt = clock.GetUtcNow().UtcDateTime;
             entry.Error = null;

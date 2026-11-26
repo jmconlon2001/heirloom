@@ -66,6 +66,21 @@ services:
       timeout: 5s
       retries: 3
 
+  # Optional (Phase 6): local speech-to-text for voice recordings. Start with --profile transcription
+  # and set FEATURE_TRANSCRIPTION=true, WHISPER_URL=http://whisper:9000 in .env.
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:v2.0.0
+    profiles: [transcription]
+    restart: unless-stopped
+    environment:
+      ASR_ENGINE: faster_whisper
+      ASR_MODEL: small
+      ASR_MODEL_PATH: /models
+    volumes:
+      - ${DATA_ROOT}/whisper-models:/models
+    networks: [backend]
+    mem_limit: 2g
+
   mailpit:
     image: axllent/mailpit:v1.34.0
     profiles: [dev]

@@ -222,6 +222,13 @@ namespace FamilyMemories.Data.Migrations
                     b.Property<int>("State")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Transcript")
+                        .HasMaxLength(100000)
+                        .HasColumnType("character varying(100000)");
+
+                    b.Property<int>("TranscriptState")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("UploadedById")
                         .HasColumnType("uuid");
 
@@ -390,6 +397,10 @@ namespace FamilyMemories.Data.Migrations
 
                     b.Property<int>("Kind")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ReplyTo")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
 
                     b.Property<DateTime?>("SentAt")
                         .HasColumnType("timestamp with time zone");
@@ -631,6 +642,9 @@ namespace FamilyMemories.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EmailReplyAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Place")
@@ -1160,6 +1174,28 @@ namespace FamilyMemories.Data.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("ReminderSettings");
+                });
+
+            modelBuilder.Entity("FamilyMemories.Data.ReplyCode", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PromptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("UserId", "PromptId");
+
+                    b.ToTable("ReplyCodes");
                 });
 
             modelBuilder.Entity("FamilyMemories.Data.StorytellerHelper", b =>

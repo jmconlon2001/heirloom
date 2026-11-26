@@ -178,6 +178,12 @@ builder.Services.AddScoped<FamilyMemories.Exports.ExportPipeline>();
 builder.Services.AddScoped<FamilyMemories.Exports.ExportService>();
 builder.Services.AddScoped<FamilyMemories.Exports.ExportRunner>();
 builder.Services.AddHttpClient("gotenberg-render", c => c.Timeout = TimeSpan.FromMinutes(15));
+builder.Services.AddHttpClient("whisper", c => c.Timeout = TimeSpan.FromMinutes(30));
+builder.Services.AddScoped<FamilyMemories.Extras.ITranscriber, FamilyMemories.Extras.WhisperTranscriber>();
+builder.Services.AddScoped<FamilyMemories.Extras.TranscriptionJob>();
+builder.Services.AddScoped<FamilyMemories.Extras.IReplyInbox, FamilyMemories.Extras.ImapReplyInbox>();
+builder.Services.AddScoped<FamilyMemories.Extras.EmailReplyProcessor>();
+builder.Services.AddScoped<FamilyMemories.Extras.PaperPackets>();
 
 // ---- Reverse proxy (Caddy on OPNsense): trust X-Forwarded-For/Proto only from TRUSTED_PROXIES ----
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
@@ -273,6 +279,14 @@ app.MapPost("/email/unsubscribe/{token}", async (string token, string? list, Ema
 app.MapGet("/email/unsubscribe/{token}", (string token) => Results.Redirect($"/email/preferences/{token}"));
 
 app.MapEmailPreview();
+app.MapPost("/admin/users/{id:guid}/packet", async (Guid id, HttpContext http, FamilyMemories.Extras.PaperPackets packets,
+    Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery, CancellationToken ct) =>
+{
+    if (!options.PaperPacketsEnabled) return Results.NotFound();
+    await antiforgery.ValidateRequestAsync(http);
+    var (pdf, _) = await packets.MakeAsync(id, FamilyMemories.Auth.ClaimsPrincipalExtensions.DisplayName(http.User), ct);
+    return Results.File(pdf, "application/pdf", $"questions-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
+}).RequireAuthorization("Admin");
 app.MapGet("/admin/exports/{id:guid}/download", async (Guid id, AppDbContext db, FamilyMemories.Exports.ExportPipeline pipeline, AuditLog audit) =>
 {
     var job = await db.Exports.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.Status == ExportStatus.Done);
@@ -294,6 +308,9 @@ if (options.JobsEnabled)
     app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<UploadCleanup>(
         "upload-cleanup", c => c.RunAsync(), Cron.Daily(3));
     FamilyMemories.Reminders.ReminderService.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), options);
+    if (options.EmailRepliesEnabled && options.ImapHost.Length > 0)
+        app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<FamilyMemories.Extras.EmailReplyProcessor>(
+            "email-replies", p => p.PollAsync(CancellationToken.None), "*/5 * * * *");
     if (options.BackupsConfigured)
         BackupJobs.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), options);
 }

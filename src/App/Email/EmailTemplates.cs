@@ -78,7 +78,9 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
 
             Answer it here (the link signs you in):
             {{ link }}
-
+            {{ if reply_by_email }}
+            Or simply reply to this email with your story. You can attach photos too.
+            {{ end }}
             {{ progress }}
             """,
             """
@@ -88,6 +90,7 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
             {{ if hints.size > 0 }}<p style="margin:0 0 4px">Some things you might write about:</p>
             <ul style="margin:0 0 24px;padding-left:24px">{{ for hint in hints }}<li style="margin:0 0 6px">{{ hint }}</li>{{ end }}</ul>{{ end }}
             {{ button link "Answer this question" }}
+            {{ if reply_by_email }}<p style="margin:0 0 16px">Or simply <strong>reply to this email</strong> with your story. You can attach photos too.</p>{{ end }}
             <p style="margin:0 0 16px;color:#4a4238">{{ progress }}</p>
             """),
 
@@ -200,6 +203,7 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
             ["asked_by"] = null,
             ["link"] = options.BuildUrl("account/magic-link?token=example").ToString(),
             ["progress"] = "You've shared 12 stories so far.",
+            ["reply_by_email"] = options.EmailRepliesEnabled,
         },
         EmailKind.ReadSummary => new()
         {

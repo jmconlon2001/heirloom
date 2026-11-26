@@ -1,0 +1,33 @@
+@model PacketView
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Questions for @Model.Name</title>
+    <style>@Html.Raw(Model.Css)</style>
+</head>
+<body>
+    <section class="letter">
+        <h1>Questions for @Model.Name</h1>
+        <p>Dear @Model.FirstName,</p>
+        <p>Here are some questions about your life. The family would love to read your answers.</p>
+        <p>Write as much or as little as you like, in your own words. Spelling doesn't matter. If a question isn't for you, just skip it. Use the back of a page if you need more room.</p>
+        <p>When you're done, give the pages to @Model.Helper. They'll add them to our family's collection, together with any photos you'd like to share.</p>
+        <p class="sign">With love from the family</p>
+    </section>
+    @for (var i = 0; i < Model.Questions.Count; i++)
+    {
+        var q = Model.Questions[i];
+        <section class="question">
+            <p class="q-number">Question @(i + 1) of @Model.Questions.Count</p>
+            <h2>@q.Question</h2>
+            @if (q.Hints.Count > 0)
+            {
+                <ul class="hints">@foreach (var h in q.Hints) { <li>@h</li> }</ul>
+            }
+            <div class="lines">@for (var l = 0; l < Model.Lines(q); l++) { <div class="line"></div> }</div>
+            <p class="footer">For @Model.Name · Question @(i + 1) · @q.Title</p>
+        </section>
+    }
+</body>
+</html>

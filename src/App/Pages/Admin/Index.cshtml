@@ -5,6 +5,18 @@
 <h1>Family admin</h1>
 @inject FamilyMemories.Backup.BackupStatusQuery BackupStatus
 <partial name="_BackupHealth" model="await BackupStatus.GetAsync()" />
+@inject FamilyMemories.Data.AppDbContext Db
+@{
+    var waiting = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+        Db.Memories.Where(m => m.EmailReplyAt != null && m.Status == MemoryStatus.Draft).Select(m => new { m.Id, m.Title, Teller = m.Storyteller!.DisplayName }));
+}
+@if (waiting.Count > 0)
+{
+    <section class="card" aria-labelledby="replies-heading">
+        <h2 id="replies-heading">Answers sent by email, waiting for a look</h2>
+        <ul class="link-list">@foreach (var w in waiting) { <li><a href="/stories/@w.Id/write">@w.Teller: @w.Title</a></li> }</ul>
+    </section>
+}
 <ul class="link-list link-list-large">
     <li><a href="/admin/users">People and invitations</a></li>
     <li><a href="/admin/prompts">Questions and chapters</a></li>
@@ -13,6 +25,7 @@
     <li><a href="/admin/email">Email and reminders</a></li>
     <li><a href="/admin/backups">Backups</a></li>
     <li><a href="/admin/gedcom">Import or export the family tree (GEDCOM)</a></li>
+    <li><a href="/admin/features">Optional extras</a></li>
     <li><a href="/admin/audit">Activity log</a></li>
     @if (AppOptions.JobsEnabled)
     {

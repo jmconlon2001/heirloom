@@ -12,12 +12,16 @@ namespace FamilyMemories.Media;
 public interface IMediaJobs
 {
     void EnqueueProcessing(Guid attachmentId);
+    void EnqueueTranscription(Guid attachmentId);
 }
 
 public sealed class HangfireMediaJobs(IBackgroundJobClient jobs) : IMediaJobs
 {
     public void EnqueueProcessing(Guid attachmentId) =>
         jobs.Enqueue<MediaProcessor>(p => p.ProcessAsync(attachmentId, CancellationToken.None));
+
+    public void EnqueueTranscription(Guid attachmentId) =>
+        jobs.Enqueue<FamilyMemories.Extras.TranscriptionJob>(j => j.RunAsync(attachmentId, CancellationToken.None));
 }
 
 /// <summary>
@@ -25,7 +29,7 @@ public sealed class HangfireMediaJobs(IBackgroundJobClient jobs) : IMediaJobs
 /// Photos (incl. iPhone HEIC): EXIF-rotated JPEGs at 2048px and 400px, all metadata (and so GPS) stripped.
 /// Audio (Safari mp4/aac, Chrome webm/opus, anything else): AAC .m4a. Video: a poster frame.
 /// </summary>
-public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOptions options, ILogger<MediaProcessor> log)
+public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOptions options, IServiceProvider services, ILogger<MediaProcessor> log)
 {
     public const int WebSize = 2048;
     public const int ThumbSize = 400;
@@ -56,6 +60,9 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
             }
             a.State = ProcessingState.Ready;
             a.ProcessingError = null;
+            // Optional: write down what was said (Phase 6). The storyteller decides whether to use it.
+            if (options.TranscriptionEnabled && a.IsVoiceRecording && a.Kind == AttachmentKind.Audio && a.TranscriptState == TranscriptState.None)
+                a.TranscriptState = TranscriptState.Pending;
         }
         catch (Exception ex) when (ex is MagickException or InvalidOperationException or TimeoutException or IOException
                                        or System.ComponentModel.Win32Exception or JsonException)
@@ -65,6 +72,8 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
             a.ProcessingError = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
         }
         await db.SaveChangesAsync(ct);
+        if (a.TranscriptState == TranscriptState.Pending)
+            services.GetRequiredService<IMediaJobs>().EnqueueTranscription(a.Id);
     }
 
     internal static void ProcessPhoto(Attachment a, string source, string webPath, string thumbPath)
