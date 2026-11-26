@@ -240,11 +240,13 @@ public sealed class SystemStatusService(IServiceScopeFactory scopes, AppOptions 
             using var response = await http.CreateClient("gotenberg").GetAsync(options.WhisperUrl, ct);
             return (int)response.StatusCode < 500
                 ? new(key, name, StatusLevel.Ok, "The Whisper service is answering.", Empty)
-                : new(key, name, StatusLevel.Problem, $"Whisper answered {(int)response.StatusCode}.", Empty);
+                : new(key, name, StatusLevel.Warning, $"Whisper answered {(int)response.StatusCode}, so new recordings won't be written down. Everything else works.", Empty);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return new(key, name, StatusLevel.Problem, "The Whisper service isn't answering, so recordings won't be written down.", Empty);
+            // An extra, not the site: recordings are still saved and play fine, they just aren't written down.
+            return new(key, name, StatusLevel.Warning,
+                $"The speech-to-text service at {options.WhisperUrl} isn't answering, so new recordings won't be written down. Everything else works. (Not using it? Set FEATURE_TRANSCRIPTION=false.)", Empty);
         }
     }
 

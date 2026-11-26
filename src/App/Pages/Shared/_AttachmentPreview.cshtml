@@ -26,9 +26,14 @@
                 <audio controls preload="metadata" src="@media/@a.Id/audio">Your browser can't play this recording.</audio>
                 break;
             case AttachmentKind.Video:
-                <video controls preload="none" poster="@media/@a.Id/poster" src="@media/@a.Id/original" width="320">Your browser can't play this video.</video>
+                <video controls preload="none" poster="@media/@a.Id/poster" src="@media/@a.Id/video" width="320" playsinline>Your browser can't play this video.</video>
                 break;
             default:
+                @if (a.Width is not null)
+                {
+                    @* A PDF with a picture of its first page (made when it was added). *@
+                    <a class="document-page" href="@media/@a.Id/original"><img src="@media/@a.Id/thumb" alt="First page of @a.OriginalFileName" loading="lazy" width="200"></a>
+                }
                 <a class="document-link" href="@media/@a.Id/original">Open @a.OriginalFileName</a>
                 break;
         }

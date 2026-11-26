@@ -204,6 +204,7 @@ public static class MediaEndpoints
             var a = await db.Attachments.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.MemoryId == resolution.Share!.MemoryId && x.RemovedAt == null);
             if (resolution.Share!.AttachmentId is { } clipId && clipId != id) return Results.NotFound(); // a clip link opens only its clip
             if (a is null) return Results.NotFound();
+            if (v == MediaVariant.Video && !File.Exists(storage.PathFor(a, v))) v = MediaVariant.Original;   // not converted yet
             var path = storage.PathFor(a, v);
             if (!File.Exists(path)) return Results.NotFound();
             http.Response.Headers.CacheControl = "private, no-store";
@@ -219,7 +220,10 @@ public static class MediaEndpoints
             if (!Enum.TryParse<MediaVariant>(variant, ignoreCase: true, out var v)) return Results.NotFound();
             var a = await db.Attachments.AsNoTracking().Include(x => x.Memory).SingleOrDefaultAsync(x => x.Id == id);
             if (a is null || !await access.CanViewAsync(http.User, a.Memory!)) return Results.NotFound();
+            // Something the storyteller removed is only reachable by those who can put it back.
+            if (a.RemovedAt is not null && !await access.CanEditAsync(http.User, a.Memory!)) return Results.NotFound();
 
+            if (v == MediaVariant.Video && !File.Exists(storage.PathFor(a, v))) v = MediaVariant.Original;   // not converted yet
             var path = storage.PathFor(a, v);
             if (!File.Exists(path)) return Results.NotFound();
 

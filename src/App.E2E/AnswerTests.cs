@@ -95,6 +95,80 @@ public sealed class AnswerTests(PostgresFixture postgres, BrowsersFixture browse
     }
 
     [Fact]
+    public async Task A_recording_that_could_not_be_sent_is_kept_on_the_device_and_added_next_time()
+    {
+        var rose = await app.CreateUserAsync("Rose Smith", "rose-keep@example.test", [Roles.Storyteller], PromptSetKind.Core, Pacing.Weekly);
+        var page = await SignedInIPadAsync("rose-keep@example.test");
+        await page.GetByRole(AriaRole.Link, new() { Name = "Answer this question" }).ClickAsync();
+        var writeUrl = page.Url;
+
+        // The Wi-Fi drops just as she stops recording: the upload can't start.
+        await page.RouteAsync("**/api/memories/*/uploads", route => route.AbortAsync());
+        await page.GetByRole(AriaRole.Button, new() { Name = "Record my voice" }).ClickAsync();
+        await Expect(page.Locator(".recording-time")).ToBeVisibleAsync();
+        await page.WaitForTimeoutAsync(2500);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Stop recording" }).ClickAsync();
+        await Expect(page.Locator("[data-save-status]")).ToContainTextAsync("kept on this device", new() { Timeout = 15_000 });
+        Assert.False(await app.WithDbAsync(db => db.Attachments.AnyAsync(a => a.Memory!.StorytellerId == rose.Id)));
+
+        // She comes back later (connection fine again): the recording is added without her doing anything.
+        await page.UnrouteAllAsync();
+        await page.GotoAsync("/");
+        await page.GotoAsync(writeUrl);
+        await Expect(page.Locator("[data-save-status]")).ToContainTextAsync("hadn't finished saving");
+        await Expect(page.Locator(".attachment audio")).ToHaveCountAsync(1, new() { Timeout = 30_000 });
+        var voice = await app.WithDbAsync(db => db.Attachments.SingleAsync(a => a.Memory!.StorytellerId == rose.Id));
+        Assert.True(voice.IsVoiceRecording);
+        Assert.True(voice.DurationSeconds > 1);
+
+        // Only once: the device copy is gone after it reached the server.
+        await page.ReloadAsync();
+        await Expect(page.Locator(".attachment audio")).ToHaveCountAsync(1);
+        await page.WaitForTimeoutAsync(1500);
+        Assert.Equal(1, await app.WithDbAsync(db => db.Attachments.CountAsync(a => a.Memory!.StorytellerId == rose.Id)));
+    }
+
+    [Fact]
+    public async Task Photos_can_be_put_in_order_by_dragging_or_with_the_arrow_keys()
+    {
+        var rose = await app.CreateUserAsync("Rose Smith", "rose-drag@example.test", [Roles.Storyteller], PromptSetKind.Core, Pacing.Weekly);
+        var page = await SignedInIPadAsync("rose-drag@example.test");
+        await page.GetByRole(AriaRole.Link, new() { Name = "Answer this question" }).ClickAsync();
+        await page.Locator("#Files").SetInputFilesAsync(AppFactory.Fixture("photo.jpg"));
+        await Expect(page.Locator(".attachment img")).ToHaveCountAsync(1, new() { Timeout = 30_000 });
+        await page.Locator("#Files").SetInputFilesAsync(AppFactory.Fixture("photo.heic"));
+        await Expect(page.Locator(".attachment img")).ToHaveCountAsync(2, new() { Timeout = 30_000 });
+
+        async Task<List<string>> Order() => await app.WithDbAsync(db => db.Attachments
+            .Where(a => a.Memory!.StorytellerId == rose.Id && a.RemovedAt == null).OrderBy(a => a.SortOrder).Select(a => a.OriginalFileName).ToListAsync());
+        Assert.Equal(["photo.jpg", "photo.heic"], await Order());
+
+        // Keyboard: focus the second item's handle and press the up arrow.
+        var handles = page.GetByRole(AriaRole.Button, new() { Name = "Drag to move, or use the arrow keys" });
+        await Expect(handles).ToHaveCountAsync(2);
+        await handles.Nth(1).FocusAsync();
+        await page.Keyboard.PressAsync("ArrowUp");
+        await Expect(page.Locator("[data-save-status]")).ToContainTextAsync("New order saved");
+        await Expect(page.Locator(".attachment").Nth(0).Locator("[data-drag-handle]")).ToBeFocusedAsync();   // list redrawn, focus kept
+        Assert.Equal(["photo.heic", "photo.jpg"], await Order());
+
+        // Dragging: the first item's handle down past the second.
+        var first = page.Locator(".attachment").Nth(0).Locator("[data-drag-handle]");
+        var second = page.Locator(".attachment").Nth(1);
+        await first.ScrollIntoViewIfNeededAsync();
+        var from = (await first.BoundingBoxAsync())!;
+        var to = (await second.BoundingBoxAsync())!;
+        await page.Mouse.MoveAsync(from.X + from.Width / 2, from.Y + from.Height / 2);
+        await page.Mouse.DownAsync();
+        await page.Mouse.MoveAsync(from.X + from.Width / 2, to.Y + to.Height - 10, new() { Steps = 10 });
+        await page.Mouse.UpAsync();
+        await Expect(page.Locator(".attachment").Nth(0).Locator("img")).ToHaveAttributeAsync("alt", "photo.jpg");
+        for (var i = 0; i < 50 && (await Order())[0] != "photo.jpg"; i++) await Task.Delay(100);
+        Assert.Equal(["photo.jpg", "photo.heic"], await Order());
+        await Accessibility.AssertAccessibleAsync(page, "writing page with drag handles");
+    }
+
+    [Fact]
     public async Task IPad_writing_page_at_A_plus_plus_is_usable_and_skip_is_gentle()
     {
         await app.CreateUserAsync("Rose Smith", "rose-a3@example.test", [Roles.Storyteller], PromptSetKind.Core, Pacing.AllAtOnce);

@@ -393,6 +393,45 @@ public sealed class AdminPageTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Admins_rename_move_add_and_remove_chapters_and_the_seed_keeps_their_changes()
+    {
+        var admin = await Browser.SignedInAsync(app, AppFactory.AdminEmail);
+        var roots = await app.WithDbAsync(db => db.Chapters.SingleAsync(c => c.Key == "roots"));
+        var list = await admin.Http.GetStringAsync("/admin/prompts");
+        Assert.Contains("Change this chapter", list);
+        Assert.DoesNotContain("Remove this empty chapter", list);                   // built-in chapters can't be removed
+
+        await admin.Http.PostFormAsync("/admin/prompts?handler=RenameChapter", list, ("chapterId", roots.Id.ToString()), ("title", "Where we come from"));
+        await admin.Http.PostFormAsync("/admin/prompts?handler=MoveChapter&direction=1", list, ("chapterId", roots.Id.ToString()));
+        await admin.Http.PostFormAsync("/admin/prompts?handler=AddChapter", list, ("title", "Recipes"));
+
+        var chapters = await app.WithDbAsync(db => db.Chapters.OrderBy(c => c.SortOrder).ToListAsync());
+        Assert.Equal("Where we come from", chapters[1].Title);                     // renamed, and moved down one
+        Assert.Equal("Recipes", chapters[^1].Title);
+
+        // Restarting re-runs the seed: the family's names and order stay.
+        await app.WithServiceAsync<FamilyMemories.Stories.PromptSeeder, bool>(async s => { await s.SeedAsync(); return true; });
+        var after = await app.WithDbAsync(db => db.Chapters.OrderBy(c => c.SortOrder).Select(c => c.Title).ToListAsync());
+        Assert.Equal(chapters.Select(c => c.Title), after);
+
+        // The new chapter shows up when adding a question, and can be removed while it's empty.
+        Assert.Contains(">Recipes</option>", await admin.Http.GetStringAsync("/admin/prompts/new"));
+        list = WebUtility.HtmlDecode(await admin.Http.GetStringAsync("/admin/prompts"));
+        Assert.Contains("Remove this empty chapter", list);
+        var recipes = chapters[^1].Id;
+        await admin.Http.PostFormAsync("/admin/prompts?handler=DeleteChapter", list, ("chapterId", recipes.ToString()));
+        Assert.False(await app.WithDbAsync(db => db.Chapters.AnyAsync(c => c.Id == recipes)));
+
+        // A built-in chapter is never removed, even if asked directly.
+        await admin.Http.PostFormAsync("/admin/prompts?handler=DeleteChapter", list, ("chapterId", roots.Id.ToString()));
+        Assert.True(await app.WithDbAsync(db => db.Chapters.AnyAsync(c => c.Id == roots.Id)));
+        Assert.True(await app.WithDbAsync(db => db.AuditLog.AnyAsync(a => a.Action == "chapter.rename")));
+
+        // Put the order back for the other tests sharing this database.
+        await admin.Http.PostFormAsync("/admin/prompts?handler=MoveChapter&direction=-1", list, ("chapterId", roots.Id.ToString()));
+    }
+
+    [Fact]
     public async Task Version_history_can_be_restored_by_an_admin()
     {
         var rose = await app.CreateUserAsync("Rose", "history@example.test", [Roles.Storyteller], PromptSetKind.Core);

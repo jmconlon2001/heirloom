@@ -56,6 +56,8 @@ public sealed class AppOptions
 
     public string FfmpegPath { get; init; } = "ffmpeg";
     public string FfprobePath { get; init; } = "ffprobe";
+    /// <summary>PDFTOPPM_PATH: poppler's pdftoppm, for a picture of a PDF's first page. Without it, PDFs just get a link.</summary>
+    public string PdfToPpmPath { get; init; } = "pdftoppm";
 
     // ---- Backups (Phase 2) ----
     /// <summary>Primary restic repository (RESTIC_REPOSITORY). Put /backups on a different disk from /data.</summary>
@@ -193,6 +195,7 @@ public sealed class AppOptions
             JobsEnabled = !string.Equals(c["JOBS_ENABLED"], "false", StringComparison.OrdinalIgnoreCase),
             FfmpegPath = NonEmpty(c["FFMPEG_PATH"]) ?? "ffmpeg",
             FfprobePath = NonEmpty(c["FFPROBE_PATH"]) ?? "ffprobe",
+            PdfToPpmPath = NonEmpty(c["PDFTOPPM_PATH"]) ?? "pdftoppm",
             AuthRateLimit = int.TryParse(c["AUTH_RATE_LIMIT"], out var limit) && limit > 0 ? limit : 10,
             Smtp = new SmtpOptions
             {

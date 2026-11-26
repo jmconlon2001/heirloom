@@ -11,6 +11,8 @@ public sealed class Chapter
     public string? Key { get; set; }
     public string Title { get; set; } = "";
     public int SortOrder { get; set; }
+    /// <summary>Renamed or moved by an admin: the seed no longer overwrites its title or position.</summary>
+    public bool EditedByAdmin { get; set; }
     public List<Prompt> Prompts { get; set; } = [];
 }
 

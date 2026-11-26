@@ -339,6 +339,8 @@ if (options.JobsEnabled)
     });
     app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<UploadCleanup>(
         "upload-cleanup", c => c.RunAsync(), Cron.Daily(3));
+    app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<MediaProcessor>(
+        "video-backfill", p => p.BackfillPlayableVideosAsync(CancellationToken.None), Cron.Hourly(17));
     FamilyMemories.Reminders.ReminderService.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), options);
     if (options.EmailRepliesEnabled && options.ImapHost.Length > 0)
         app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<FamilyMemories.Extras.EmailReplyProcessor>(

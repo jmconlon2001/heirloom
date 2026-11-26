@@ -8,10 +8,39 @@
 <p>★ marks the 26 core questions. Questions you turn off disappear from everyone's list, but stories already written are kept.</p>
 <p><a class="button button-primary" href="/admin/prompts/new">Add a question</a></p>
 
-@foreach (var chapter in Model.Chapters)
+@for (var ci = 0; ci < Model.Chapters.Count; ci++)
 {
+    var chapter = Model.Chapters[ci];
     <section aria-labelledby="chapter-@chapter.Id">
         <h2 id="chapter-@chapter.Id">@chapter.Title</h2>
+        <details class="chapter-tools">
+            <summary>Change this chapter</summary>
+            <form method="post" asp-page-handler="RenameChapter" class="inline-field">
+                <input type="hidden" name="chapterId" value="@chapter.Id">
+                <label for="title-@chapter.Id">Chapter name</label>
+                <input id="title-@chapter.Id" name="title" type="text" value="@chapter.Title" maxlength="120" required>
+                <button type="submit" class="button">Save name</button>
+            </form>
+            <form method="post" class="button-row">
+                <input type="hidden" name="chapterId" value="@chapter.Id">
+                @if (ci > 0)
+                {
+                    <button type="submit" class="button button-quiet" asp-page-handler="MoveChapter" asp-route-direction="-1">Move chapter up</button>
+                }
+                @if (ci < Model.Chapters.Count - 1)
+                {
+                    <button type="submit" class="button button-quiet" asp-page-handler="MoveChapter" asp-route-direction="1">Move chapter down</button>
+                }
+                @if (Model.EmptyChapters.Contains(chapter.Id))
+                {
+                    <button type="submit" class="button button-quiet" asp-page-handler="DeleteChapter">Remove this empty chapter</button>
+                }
+            </form>
+            @if (chapter.Key is null && !Model.EmptyChapters.Contains(chapter.Id))
+            {
+                <p class="muted">A chapter you added can be removed once it has no questions. Move its questions to another chapter first (open a question to change its chapter).</p>
+            }
+        </details>
         <ol class="admin-prompts">
             @for (var i = 0; i < chapter.Prompts.Count; i++)
             {
@@ -35,3 +64,13 @@
         </ol>
     </section>
 }
+
+<section class="card" aria-labelledby="add-chapter">
+    <h2 id="add-chapter">Add a chapter</h2>
+    <form method="post" asp-page-handler="AddChapter" class="inline-field">
+        <label for="new-chapter">Chapter name</label>
+        <input id="new-chapter" name="title" type="text" maxlength="120" required>
+        <button type="submit" class="button button-primary">Add chapter</button>
+    </form>
+    <p class="muted">New chapters go at the end. Then use "Add a question" and choose the chapter.</p>
+</section>

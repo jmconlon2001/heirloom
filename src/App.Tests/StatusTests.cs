@@ -190,3 +190,33 @@ public sealed class StatusProblemTests(PostgresFixture postgres) : IAsyncLifetim
         Assert.DoesNotContain("github.com", await client.GetStringAsync("/"));
     }
 }
+
+public sealed class StatusSpeechToTextTests(PostgresFixture postgres) : IAsyncLifetime
+{
+    private sealed class NoWhisperFactory(PostgresFixture postgres) : AppFactory(postgres)
+    {
+        protected override IDictionary<string, string?> Settings => new Dictionary<string, string?>
+        {
+            ["SMTP_HOST"] = "smtp.example.test",
+            ["WHISPER_URL"] = "http://127.0.0.1:9",       // speech-to-text on (the default) but nothing listening
+            ["STATUS_TOKEN"] = "monitor-secret-123",
+        };
+    }
+
+    private readonly NoWhisperFactory app = new(postgres);
+    public ValueTask InitializeAsync() => app.InitializeAsync();
+    public ValueTask DisposeAsync() => app.DisposeAsync();
+
+    [Fact]
+    public async Task Speech_to_text_being_down_is_a_warning_not_an_outage()
+    {
+        var client = app.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "monitor-secret-123");
+        var response = await client.GetAsync("/api/status");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);                    // monitors don't page anyone
+        var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        var speech = json.GetProperty("components").EnumerateArray().Single(c => c.GetProperty("key").GetString() == "transcription");
+        Assert.Equal("warning", speech.GetProperty("status").GetString());
+        Assert.Contains("FEATURE_TRANSCRIPTION=false", speech.GetProperty("summary").GetString());
+    }
+}

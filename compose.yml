@@ -14,7 +14,13 @@ services:
     build:
       context: .
     restart: unless-stopped
-    env_file: .env
+    # .env for a plain `docker compose` setup; OpenMediaVault's Compose plugin saves the environment
+    # as <stack name>.env instead, so name the stack "family-memories" there (see docs/DEPLOY_OMV.md).
+    env_file:
+      - path: .env
+        required: false
+      - path: family-memories.env
+        required: false
     environment:
       DATA_DIR: /data
       POSTGRES_HOST: db
@@ -80,7 +86,8 @@ services:
       ASR_MODEL_PATH: /models
     volumes:
       - ${DATA_ROOT}/whisper-models:/models
-    networks: [backend]
+    # frontend: it downloads its speech model (about 500 MB, once) on first start. No ports are published.
+    networks: [frontend, backend]
     mem_limit: 2g
 
   mailpit:

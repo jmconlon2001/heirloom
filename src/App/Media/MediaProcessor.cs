@@ -27,7 +27,8 @@ public sealed class HangfireMediaJobs(IBackgroundJobClient jobs) : IMediaJobs
 /// <summary>
 /// Makes web-friendly copies of an upload; the original is never touched.
 /// Photos (incl. iPhone HEIC): EXIF-rotated JPEGs at 2048px and 400px, all metadata (and so GPS) stripped.
-/// Audio (Safari mp4/aac, Chrome webm/opus, anything else): AAC .m4a. Video: a poster frame.
+/// Audio (Safari mp4/aac, Chrome webm/opus, anything else): AAC .m4a.
+/// Video: a poster frame, plus an H.264/AAC .mp4 (at most 1920px) that plays on every iPad; already-H.264 videos are just repackaged.
 /// </summary>
 public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOptions options, IServiceProvider services, ILogger<MediaProcessor> log)
 {
@@ -56,7 +57,8 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
                     await ProcessVideoAsync(a, original, ct);
                     break;
                 case AttachmentKind.Document:
-                    break; // PDFs are shown as a download card; no preview in v1.
+                    await PreviewPdfAsync(a, original, ct);
+                    break;
             }
             a.State = ProcessingState.Ready;
             a.ProcessingError = null;
@@ -99,6 +101,33 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
         copy.Write(path);
     }
 
+    /// <summary>A picture of a PDF's first page (web.jpg and thumb.jpg). A nicety: if it can't be made, the PDF is still there to open.</summary>
+    private async Task PreviewPdfAsync(Attachment a, string original, CancellationToken ct)
+    {
+        if (a.ContentType != "application/pdf") return;
+        var prefix = Path.Combine(storage.FolderFor(a), "page");
+        try
+        {
+            var result = await ExternalTool.RunAsync(options.PdfToPpmPath,
+                ["-jpeg", "-r", "110", "-f", "1", "-l", "1", "-singlefile", original, prefix], TimeSpan.FromMinutes(2), ct);
+            if (!result.Succeeded || !File.Exists(prefix + ".jpg"))
+            {
+                log.LogWarning("No preview for PDF {AttachmentId}: {Error}", a.Id, result.StdErr);
+                return;
+            }
+            ProcessPhoto(a, prefix + ".jpg", storage.PathFor(a, MediaVariant.Web), storage.PathFor(a, MediaVariant.Thumb));
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or TimeoutException or IOException or MagickException)
+        {
+            log.LogWarning(ex, "No preview for PDF {AttachmentId}", a.Id);
+            a.Width = a.Height = null;
+        }
+        finally
+        {
+            try { File.Delete(prefix + ".jpg"); } catch (IOException) { }
+        }
+    }
+
     private async Task ProcessAudioAsync(Attachment a, string original, CancellationToken ct)
     {
         var target = storage.PathFor(a, MediaVariant.Audio);
@@ -131,9 +160,61 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
         if (!result.Succeeded) throw new InvalidOperationException("ffmpeg could not make a poster frame: " + result.StdErr);
 
         ProcessPhoto(a, poster, poster, storage.PathFor(a, MediaVariant.Thumb));
+        await MakePlayableVideoAsync(a, original, probe, ct);
     }
 
-    internal sealed record Probe(double? Duration, bool HasVideo, bool HasAudio);
+    /// <summary>Writes video.mp4: H.264 (yuv420p, ≤1920px) with AAC sound and the index at the front, so Safari can stream it.</summary>
+    internal async Task MakePlayableVideoAsync(Attachment a, string original, Probe probe, CancellationToken ct)
+    {
+        var target = storage.PathFor(a, MediaVariant.Video);
+        var temp = target + ".tmp.mp4";
+        List<string> args = ["-hide_banner", "-loglevel", "error", "-y", "-i", original, "-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1"];
+        if (probe.IsSafariReady)
+            args.AddRange(["-c", "copy"]);
+        else
+            args.AddRange(["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+                           "-vf", "scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(iw,ih),-2,min(1920,ih))'",
+                           "-c:a", "aac", "-b:a", "128k"]);
+        args.AddRange(["-movflags", "+faststart", temp]);
+        var result = await ExternalTool.RunAsync(options.FfmpegPath, args, TimeSpan.FromHours(3), ct);
+        if (!result.Succeeded)
+        {
+            try { File.Delete(temp); } catch (IOException) { }
+            throw new InvalidOperationException("ffmpeg could not make a playable copy of the video: " + result.StdErr);
+        }
+        File.Move(temp, target, overwrite: true);
+    }
+
+    /// <summary>
+    /// Videos uploaded before playable copies existed (v0.8 and earlier) get one, a few at a time.
+    /// If it fails, the original keeps being served.
+    /// </summary>
+    [AutomaticRetry(Attempts = 0)]
+    public async Task BackfillPlayableVideosAsync(CancellationToken ct)
+    {
+        var videos = await db.Attachments.Where(a => a.Kind == AttachmentKind.Video && a.State == ProcessingState.Ready).ToListAsync(ct);
+        var done = 0;
+        foreach (var a in videos.Where(a => !File.Exists(storage.PathFor(a, MediaVariant.Video))).Take(5))
+        {
+            var original = storage.PathFor(a, MediaVariant.Original);
+            if (!File.Exists(original)) continue;
+            try { await MakePlayableVideoAsync(a, original, await ProbeAsync(original, ct), ct); done++; }
+            catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or IOException or JsonException)
+            {
+                log.LogWarning(ex, "Could not make a playable copy of video {AttachmentId}", a.Id);
+            }
+        }
+        if (done > 0) log.LogInformation("Made playable copies of {Count} older videos", done);
+    }
+
+    internal sealed record Probe(double? Duration, bool HasVideo, bool HasAudio,
+        string? VideoCodec = null, string? PixelFormat = null, int Width = 0, int Height = 0, string? AudioCodec = null, string? Container = null)
+    {
+        /// <summary>H.264 4:2:0 at most 1920px, with AAC (or no) sound, in an MP4/MOV: copy it as it is.</summary>
+        public bool IsSafariReady =>
+            VideoCodec == "h264" && PixelFormat is "yuv420p" or "yuvj420p" && Math.Max(Width, Height) <= 1920
+            && (AudioCodec is null or "aac") && Container is not null && Container.Contains("mp4");
+    }
 
     internal async Task<Probe> ProbeAsync(string path, CancellationToken ct)
     {
@@ -148,6 +229,9 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
             duration = seconds;
 
         bool video = false, audio = false;
+        string? videoCodec = null, pixFmt = null, audioCodec = null;
+        int width = 0, height = 0;
+        var container = format.ValueKind == JsonValueKind.Object && format.TryGetProperty("format_name", out var fn) ? fn.GetString() : null;
         if (json.RootElement.TryGetProperty("streams", out var streams))
         {
             foreach (var s in streams.EnumerateArray())
@@ -155,10 +239,21 @@ public sealed class MediaProcessor(AppDbContext db, MediaStorage storage, AppOpt
                 var type = s.TryGetProperty("codec_type", out var t) ? t.GetString() : null;
                 // Cover art in audio files shows up as a one-frame "video" stream; ignore it.
                 var isCoverArt = s.TryGetProperty("disposition", out var disp) && disp.TryGetProperty("attached_pic", out var pic) && pic.GetInt32() == 1;
-                if (type == "video" && !isCoverArt) video = true;
-                if (type == "audio") audio = true;
+                if (type == "video" && !isCoverArt && !video)
+                {
+                    video = true;
+                    videoCodec = s.TryGetProperty("codec_name", out var vc) ? vc.GetString() : null;
+                    pixFmt = s.TryGetProperty("pix_fmt", out var pf) ? pf.GetString() : null;
+                    width = s.TryGetProperty("width", out var w) ? w.GetInt32() : 0;
+                    height = s.TryGetProperty("height", out var h) ? h.GetInt32() : 0;
+                }
+                if (type == "audio" && !audio)
+                {
+                    audio = true;
+                    audioCodec = s.TryGetProperty("codec_name", out var ac) ? ac.GetString() : null;
+                }
             }
         }
-        return new Probe(duration, video, audio);
+        return new Probe(duration, video, audio, videoCodec, pixFmt, width, height, audioCodec, container);
     }
 }

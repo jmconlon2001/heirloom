@@ -2,7 +2,8 @@
 //  - autosave every 5 seconds and when leaving a field ("Saved ✓ 2:41 PM")
 //  - a copy of the words in localStorage, so an expired session or dropped Wi-Fi never loses them
 //  - chunked, resumable uploads with a big progress bar
-//  - "Record my voice" with a timer and level meter
+//  - "Record my voice" with a timer and level meter; every second of a recording is kept on the
+//    device (IndexedDB) until the server has it, so closing the page or losing Wi-Fi never loses it
 
 const form = document.querySelector("[data-answer]");
 if (form) init(form);
@@ -240,6 +241,7 @@ function init(form) {
     415: "This kind of file can't be added. Photos, PDFs, sound and video files work.",
   };
 
+  // Resolves true once the server has the whole file.
   async function upload(blob, name, voice) {
     activeUploads++;
     const row = progressRow(name);
@@ -286,6 +288,7 @@ function init(form) {
       if (!response.ok) throw new UploadProblem(response.status);
       row.done();
       await refreshAttachments();
+      return true;
     } catch (err) {
       const status = err instanceof UploadProblem ? err.status : 0;
       row.message(
@@ -294,10 +297,19 @@ function init(form) {
           : problem[status] ?? "This file couldn't be added. Please try again.",
         "error",
       );
+      return false;
     } finally {
       activeUploads--;
     }
   }
+
+  // Don't let a page close quietly while something is still on its way to the server.
+  window.addEventListener("beforeunload", (e) => {
+    if (activeUploads > 0 || recordingNow) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
 
   class UploadProblem extends Error {
     constructor(status) {
@@ -319,8 +331,14 @@ function init(form) {
     for (const input of current.querySelectorAll("[data-caption]")) {
       if (typed.has(input.id)) input.value = typed.get(input.id);
     }
+    showDragHandles();
     pollPending();
   }
+
+  function showDragHandles() {
+    for (const handle of form.querySelectorAll("[data-drag-handle]")) handle.hidden = false;
+  }
+  showDragHandles();
 
   let polling = false;
   async function pollPending() {
@@ -350,6 +368,166 @@ function init(form) {
     }
   }
   pollPending();
+
+  // ---------------------------------------------------------------- drag to reorder photos and recordings
+  // A handle on each item: drag it with a finger or mouse, or focus it and press the arrow keys.
+  // The order is saved through the same API as everything else; Move up / Move down still work without this.
+  form.addEventListener("pointerdown", (e) => {
+    const handle = e.target.closest("[data-drag-handle]");
+    if (!handle || e.button > 0) return;
+    e.preventDefault();
+    const item = handle.closest("[data-attachment-id]");
+    const list = item.parentElement;
+    const before = order(list);
+    // Listen on the window: moving the item in the page releases any pointer capture on the handle.
+    item.classList.add("is-dragging");
+    let lastY = e.clientY;
+    let scroller = 0;
+
+    const autoScroll = () => {
+      const edge = 80;
+      const step = lastY < edge ? -12 : lastY > window.innerHeight - edge ? 12 : 0;
+      if (step) {
+        window.scrollBy(0, step);
+        moveTo(lastY);
+      }
+      scroller = requestAnimationFrame(autoScroll);
+    };
+    scroller = requestAnimationFrame(autoScroll);
+
+    function moveTo(y) {
+      for (const other of list.querySelectorAll(":scope > [data-attachment-id]")) {
+        if (other === item) continue;
+        const box = other.getBoundingClientRect();
+        const middle = box.top + box.height / 2;
+        const isAbove = other.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING;
+        if (isAbove && y < middle) return list.insertBefore(item, other);
+        if (!isAbove && y > middle) return other.after(item);
+      }
+    }
+
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      ev.preventDefault();
+      lastY = ev.clientY;
+      moveTo(ev.clientY);
+    };
+    const end = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      cancelAnimationFrame(scroller);
+      item.classList.remove("is-dragging");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      if (order(list).join() !== before.join()) saveOrder(list, handle);
+    };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  });
+
+  form.addEventListener("keydown", (e) => {
+    const handle = e.target.closest?.("[data-drag-handle]");
+    if (!handle || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+    e.preventDefault();
+    const item = handle.closest("[data-attachment-id]");
+    const sibling = e.key === "ArrowUp" ? item.previousElementSibling : item.nextElementSibling;
+    if (!sibling?.matches("[data-attachment-id]")) return;
+    if (e.key === "ArrowUp") sibling.before(item);
+    else sibling.after(item);
+    saveOrder(item.parentElement, handle);
+  });
+
+  const order = (list) => [...list.querySelectorAll(":scope > [data-attachment-id]")].map((li) => li.dataset.attachmentId);
+
+  async function saveOrder(list, handle) {
+    const id = handle.closest("[data-attachment-id]").dataset.attachmentId;
+    try {
+      const response = await api("POST", `/api/memories/${memoryId}/attachments/order`, { ids: order(list) });
+      if (!response.ok) throw new Error(String(response.status));
+      say(`New order saved ✓ ${timeNow()}`, "ok");
+    } catch {
+      say("The new order couldn't be saved. Please try again.", "warn");
+    }
+    await refreshAttachments();
+    form.querySelector(`[data-attachment-id="${id}"] [data-drag-handle]`)?.focus();
+  }
+
+  // ---------------------------------------------------------------- recordings kept on this device
+  // One IndexedDB record per recording: { id, memoryId, name, type, chunks: [Blob] }.
+  // Deleted only once the server has the whole recording.
+  let recordingNow = false;
+  const safekeeping = openSafekeeping();
+
+  function openSafekeeping() {
+    return new Promise((resolve) => {
+      try {
+        const request = indexedDB.open("fm-recordings", 1);
+        request.onupgradeneeded = () => request.result.createObjectStore("recordings", { keyPath: "id" });
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+      } catch {
+        resolve(null); // no IndexedDB (very old browser, some private modes): record as before
+      }
+    });
+  }
+
+  async function keep(change) {
+    const db = await safekeeping;
+    if (!db) return;
+    await new Promise((resolve) => {
+      try {
+        const tx = db.transaction("recordings", "readwrite");
+        change(tx.objectStore("recordings"));
+        tx.oncomplete = tx.onerror = tx.onabort = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  }
+
+  const keepChunk = (id, chunk) =>
+    keep((store) => {
+      const get = store.get(id);
+      get.onsuccess = () => {
+        if (!get.result) return;
+        get.result.chunks.push(chunk);
+        store.put(get.result);
+      };
+    });
+
+  async function keptRecordings() {
+    const db = await safekeeping;
+    if (!db) return [];
+    return new Promise((resolve) => {
+      try {
+        const all = db.transaction("recordings").objectStore("recordings").getAll();
+        all.onsuccess = () => resolve(all.result.filter((r) => r.memoryId === memoryId));
+        all.onerror = () => resolve([]);
+      } catch {
+        resolve([]);
+      }
+    });
+  }
+
+  async function uploadKept(record) {
+    const blob = new Blob(record.chunks, { type: record.type });
+    if (blob.size === 0) return keep((store) => store.delete(record.id));
+    if (await upload(blob, record.name, true)) await keep((store) => store.delete(record.id));
+  }
+
+  // A recording from an earlier visit that never reached the server: send it now.
+  (async () => {
+    const waiting = await keptRecordings();
+    if (waiting.length === 0) return;
+    say(
+      waiting.length === 1
+        ? "We found a recording from earlier that hadn't finished saving. Adding it to this story now."
+        : `We found ${waiting.length} recordings from earlier that hadn't finished saving. Adding them to this story now.`,
+      "info",
+    );
+    for (const record of waiting) await uploadKept(record);
+  })();
 
   // ---------------------------------------------------------------- voice recording
   const recorder = form.querySelector("[data-recorder]");
@@ -391,9 +569,18 @@ function init(form) {
       const type = pickType();
       mediaRecorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
       chunks = [];
-      mediaRecorder.addEventListener("dataavailable", (e) => e.data.size > 0 && chunks.push(e.data));
-      mediaRecorder.addEventListener("stop", finish);
+      const actualType = mediaRecorder.mimeType || type || "audio/webm";
+      const ext = actualType.includes("mp4") ? "m4a" : actualType.includes("ogg") ? "ogg" : "webm";
+      const record = { id: `${memoryId}-${Date.now()}`, memoryId, name: `Voice recording ${new Date().toLocaleString()}.${ext}`, type: actualType, chunks: [] };
+      await keep((store) => store.put(record));
+      mediaRecorder.addEventListener("dataavailable", (e) => {
+        if (e.data.size === 0) return;
+        chunks.push(e.data);
+        keepChunk(record.id, e.data);
+      });
+      mediaRecorder.addEventListener("stop", () => finish(record));
       mediaRecorder.start(1000);
+      recordingNow = true;
 
       started = Date.now();
       startButton.hidden = true;
@@ -429,7 +616,8 @@ function init(form) {
       }
     }
 
-    function finish() {
+    async function finish(record) {
+      recordingNow = false;
       clearInterval(timer);
       stream.getTracks().forEach((t) => t.stop());
       audioContext?.close();
@@ -438,12 +626,15 @@ function init(form) {
       level.style.width = "0";
       timeText.textContent = "0:00";
 
-      const type = mediaRecorder.mimeType || "audio/webm";
-      const blob = new Blob(chunks, { type });
-      if (blob.size === 0) return;
-      const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
-      upload(blob, `Voice recording ${new Date().toLocaleString()}.${ext}`, true);
       startButton.focus();
+      const blob = new Blob(chunks, { type: record.type });
+      if (blob.size === 0) {
+        await keep((store) => store.delete(record.id));
+        return;
+      }
+      // The device copy is deleted only once the server has the whole recording.
+      if (await upload(blob, record.name, true)) await keep((store) => store.delete(record.id));
+      else say("Your recording is kept on this device. It will be added when you come back to this page.", "warn");
     }
   }
 }

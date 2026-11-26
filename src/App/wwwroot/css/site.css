@@ -376,8 +376,13 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .attachment-preview video { max-width: 100%; height: auto; }
 .audio-label { margin: 0 0 0.25rem; font-weight: 700; }
 .attachment-buttons { margin: 0.5rem 0 0; }
+.drag-handle { touch-action: none; cursor: grab; }
+.attachment.is-dragging { background: var(--surface-alt); outline: 0.2rem dashed var(--accent); outline-offset: 0.25rem; }
+.attachment.is-dragging .drag-handle { cursor: grabbing; }
 .preparing { font-style: italic; color: var(--text-muted); }
 .document-link { font-weight: 700; display: inline-flex; min-height: var(--tap); align-items: center; overflow-wrap: anywhere; }
+.document-page { display: block; width: fit-content; }
+.document-page img { display: block; max-width: 100%; height: auto; border: 0.0625rem solid var(--border); border-radius: 0.2rem; background: #fff; }
 
 .when-where { margin: 1.5rem 0; }
 .when-where summary {
@@ -407,6 +412,11 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .admin-prompts li p { margin: 0; }
 .admin-prompts .button-row { margin: 0.5rem 0 0; }
 .admin-prompts .is-off p { color: var(--text-muted); }
+.chapter-tools { margin: 0 0 0.75rem; }
+.chapter-tools form { margin: 0.5rem 0; }
+.inline-field { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 0.75rem; }
+.inline-field label { flex-basis: 100%; font-weight: 700; }
+.inline-field input[type="text"] { flex: 1 1 14rem; min-width: 0; max-width: 28rem; }
 .versions li { margin-bottom: 0.75rem; }
 .versions summary { cursor: pointer; min-height: var(--tap); }
 .version-body { white-space: pre-wrap; background: var(--surface-alt); padding: 0.75rem 1rem; border-radius: var(--radius); margin: 0.5rem 0; }

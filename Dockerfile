@@ -27,7 +27,7 @@ RUN set -eux; \
     echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
         > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
-    apt-get install -y --no-install-recommends postgresql-client-17 ffmpeg libgomp1 bzip2 pandoc; \
+    apt-get install -y --no-install-recommends postgresql-client-17 ffmpeg libgomp1 bzip2 pandoc poppler-utils; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 

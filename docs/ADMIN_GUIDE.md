@@ -44,7 +44,7 @@ On a person's page you can also:
 
 ## Questions
 
-Family admin → **Questions and chapters**: edit wording, reorder, turn questions off, or add your own. **Question sets** lets you hand-pick a set for one person. Your edits are never overwritten by app upgrades.
+Family admin → **Questions and chapters**: edit wording, reorder, turn questions off, or add your own. Under each chapter, **Change this chapter** renames it or moves it up or down. **Add a chapter** at the bottom starts a new one; then use **Add a question** and choose it. A chapter you added can be removed once it's empty. The built-in chapters can be renamed and moved, but not removed. **Question sets** lets you hand-pick a set for one person. Your edits are never overwritten by app upgrades.
 
 ## Reminders
 

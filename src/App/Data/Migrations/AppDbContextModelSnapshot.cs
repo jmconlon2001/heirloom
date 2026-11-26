@@ -355,6 +355,9 @@ namespace FamilyMemories.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("EditedByAdmin")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Key")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");

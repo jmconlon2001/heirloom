@@ -23,7 +23,7 @@ async function draw(el) {
   const openLink = document.querySelector("[data-open-person]");
   card.setOnCardClick((e, d) => {
     chart.updateMainId(d.data.id);
-    chart.updateTree({});
+    chart.updateTree({ tree_position: el.clientWidth < 600 ? "main_to_middle" : "fit" });
     if (openLink) {
       openLink.href = `/people/${d.data.id}`;
       openLink.textContent = `Open ${d.data.data.name}'s page`;
@@ -31,7 +31,10 @@ async function draw(el) {
   });
 
   chart.updateMainId(el.dataset.focus);
-  chart.updateTree({ initial: true });
+  // On a phone, fitting the whole family makes every name too small to read: start at full size
+  // on the chosen person instead (drag or use the buttons to see more).
+  const narrow = el.clientWidth < 600;
+  chart.updateTree({ initial: true, tree_position: narrow ? "main_to_middle" : "fit" });
 
   const zoom = window.f3.handlers?.manualZoom ?? window.f3.manualZoom;
   for (const button of document.querySelectorAll("[data-zoom]")) {

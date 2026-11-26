@@ -43,7 +43,7 @@ Restoring keeps today's sign-in keys as well as the backup's, so people who are 
 You need four things:
 - a machine with Docker and the Compose plugin;
 - this stack's files (`compose.yml`, or `family-memories.yml` on OpenMediaVault);
-- your old `.env`, or a new one from `.env.example` with the same `POSTGRES_*` values if you can;
+- your old `.env` (on OpenMediaVault, `family-memories.env` also works), or a new one from `.env.example` with the same `POSTGRES_*` values if you can;
 - access to a backup repository and its password.
 
 ```sh
@@ -83,3 +83,5 @@ Restores are tested in three ways:
 - **Automated:** `BackupRestoreTests` adds people, stories and photos, backs them up, wipes the database and media folder, restores, and checks that file checksums and row counts match.
 - **Weekly:** the check restores the latest database into a throwaway database.
 - **By hand:** once or twice a year, do a disaster restore onto a spare machine or VM. It's the only way to be sure the password and the offsite copy really work.
+
+The script was last rehearsed end to end on 2026-11-26. The setup was OpenMediaVault-style (`family-memories.yml` and `family-memories.env` only), with an empty data folder. The backup was the pre-upgrade snapshot of a v0.6.0 site. Every story, photo, person and version came back, and the app upgraded the restored database on its first start.

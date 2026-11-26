@@ -28,10 +28,21 @@ while [ $# -gt 0 ]; do
 done
 
 [ -f compose.yml ] || [ -f family-memories.yml ] || { echo "Run this from the stack folder (compose.yml not found)." >&2; exit 2; }
-[ -f .env ] || { echo ".env not found. Copy your old .env here first (or create one from .env.example)." >&2; exit 2; }
+# .env for plain docker compose; OpenMediaVault's Compose plugin saves it as family-memories.env.
+ENV_FILE=".env"
+[ -f "$ENV_FILE" ] || ENV_FILE="family-memories.env"
+[ -f "$ENV_FILE" ] || { echo ".env not found. Copy your old .env here first (or create one from .env.example)." >&2; exit 2; }
 [ -n "$REPO" ] || { echo "--repo is required (e.g. /mnt/usb/family-memories/restic or b2:bucket:path)" >&2; exit 2; }
 
-env_value() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- || true; }
+# The compose file and env file this stack actually uses (OMV names them after the stack).
+COMPOSE=(docker compose)
+if [ ! -f compose.yml ]; then
+  COMPOSE+=(-f family-memories.yml)
+  [ -f compose.override.yml ] && COMPOSE+=(-f compose.override.yml)   # only picked up automatically next to compose.yml
+fi
+[ "$ENV_FILE" = ".env" ] || COMPOSE+=(--env-file "$ENV_FILE")
+
+env_value() { grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- || true; }
 
 if [ -n "$PASSWORD_FILE" ]; then
   RESTIC_PASSWORD="$(cat "$PASSWORD_FILE")"
@@ -41,7 +52,7 @@ fi
 [ -n "${RESTIC_PASSWORD:-}" ] || { echo "No restic password: use --password-file, or set RESTIC_PASSWORD." >&2; exit 2; }
 
 DATA_ROOT="$(env_value DATA_ROOT)"
-[ -n "$DATA_ROOT" ] || { echo "DATA_ROOT is not set in .env" >&2; exit 2; }
+[ -n "$DATA_ROOT" ] || { echo "DATA_ROOT is not set in $ENV_FILE" >&2; exit 2; }
 mkdir -p "$DATA_ROOT/data" "$DATA_ROOT/postgres"
 
 # A local repository path is mounted into the helper container; URLs (b2:, s3:, sftp:…) are used as-is.
@@ -59,15 +70,20 @@ trap 'rm -f "$PASSFILE"' EXIT
 chmod 600 "$PASSFILE"
 printf '%s' "$RESTIC_PASSWORD" > "$PASSFILE"
 
+# Same defaults as compose.yml, so a minimal .env works too.
+POSTGRES_USER="$(env_value POSTGRES_USER)"; export POSTGRES_USER="${POSTGRES_USER:-family_memories}"
+POSTGRES_DB="$(env_value POSTGRES_DB)"; export POSTGRES_DB="${POSTGRES_DB:-family_memories}"
+
 echo "==> Starting the database only"
-docker compose up -d --wait db
+"${COMPOSE[@]}" up -d --wait db
 
 echo "==> Restoring snapshot '$SNAPSHOT' from $REPO"
-docker compose run --rm --no-deps \
+"${COMPOSE[@]}" run --rm --no-deps \
   "${MOUNT_ARGS[@]}" \
   -e RESTIC_REPOSITORY="$CONTAINER_REPO" \
   -e RESTIC_PASSWORD_FILE="/data/$(basename "$PASSFILE")" \
   -e SNAPSHOT="$SNAPSHOT" \
+  -e POSTGRES_USER -e POSTGRES_DB \
   --entrypoint /bin/bash app -euo pipefail -c '
     # --no-lock: the repository may be mounted read-only (a USB disk, the old backup disk).
     restic snapshots --no-lock "$SNAPSHOT" >/dev/null
@@ -92,7 +108,9 @@ docker compose run --rm --no-deps \
   '
 
 echo "==> Starting the whole stack"
-docker compose up -d --wait
+"${COMPOSE[@]}" up -d
+# Wait for the app itself; optional extras (like speech-to-text downloading its model) may take longer.
+"${COMPOSE[@]}" up -d --wait app
 
 echo
 echo "Done. Open the site and sign in. Then, under Family admin > Backups, press \"Back up now\"."

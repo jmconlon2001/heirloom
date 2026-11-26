@@ -47,6 +47,12 @@
             </fieldset>
         }
         <div class="button-row attachment-buttons">
+            @if (!(Model.IsFirst && Model.IsLast))
+            {
+                @* Shown by answer.js: drag (finger or mouse) or use the arrow keys. Move up/down below always work too. *@
+                <button type="button" class="button button-quiet drag-handle" data-drag-handle hidden
+                        aria-label="Drag to move, or use the arrow keys">⠿ Drag to move</button>
+            }
             @if (!Model.IsFirst)
             {
                 <button type="submit" class="button button-quiet" asp-page-handler="Move" asp-route-direction="-1" name="attachmentId" value="@a.Id">Move up</button>

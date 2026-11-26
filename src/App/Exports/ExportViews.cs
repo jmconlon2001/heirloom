@@ -58,6 +58,9 @@ public sealed record SitePage(ExportContent Content, string Title, string Active
     public static string StoryHref(ExportStory s) => $"story-{s.Slug}.html";
     public static string PersonHref(ExportPerson p) => $"person-{p.Slug}.html";
     public static string Media(Attachment a, string file) => $"media/{a.Id:N}/{file}";
+    /// <summary>Videos with a playable copy are exported as video.mp4; older ones not yet converted keep their own format.</summary>
+    public IReadOnlySet<Guid> PlayableVideos { get; init; } = new HashSet<Guid>();
+    public string VideoName(Attachment a) => PlayableVideos.Contains(a.Id) ? "video.mp4" : "video" + a.Extension;
 }
 
 /// <summary>Reads an export stylesheet and embeds its fonts as data URIs, so the document is self-contained.</summary>

@@ -39,7 +39,7 @@
         <figure class="clip">
             @if (clip.Attachment.Kind == AttachmentKind.Video)
             {
-                <video controls preload="none" poster="@SitePage.Media(clip.Attachment, "poster.jpg")" src="@SitePage.Media(clip.Attachment, "video" + clip.Attachment.Extension)"></video>
+                <video controls preload="none" poster="@SitePage.Media(clip.Attachment, "poster.jpg")" src="@SitePage.Media(clip.Attachment, Model.VideoName(clip.Attachment))" playsinline></video>
             }
             else
             {

@@ -1,5 +1,17 @@
 # Progress
 
+## Getting ready for v1 (2026-11-26, v0.9.0)
+
+- **OpenMediaVault:** a stack named `family-memories` works without the `.env` symlink, and `restore.sh` understands the OMV file names.
+- **Chapters:** rename, move, add, and remove (empty ones you added); upgrades keep your changes.
+- **Videos play on every iPad:** an H.264 MP4 copy of each video, with older videos converted hourly in the background.
+- **Recordings are never lost:** they're kept on the device until the server has them, and sent automatically the next time the story is opened.
+- **PDF previews** (a picture of the first page), **drag to reorder** photos and recordings, and the family tree starts readable on phones.
+- **Fixed:** speech-to-text couldn't download its model in v0.8.0 (Whisper was on the internal network). Whisper being down is now a warning, not an outage.
+- **Security:** an endpoint review (removed attachments are now hidden from family), and a Trivy image scan in CI (clean).
+- **Rehearsed:** an upgrade from v0.6.0 and a disaster restore with OMV-style files. Both passed after fixing `restore.sh`.
+- **Tests (232):** chapters, video conversion and backfill, PDF previews with and without poppler, a removed-media check, Whisper-down status, drag and keyboard reordering, and a recording kept through a dropped connection.
+
 ## Phones, extras on by default, Whisper on a Mac (2026-11-26, v0.8.0)
 
 - **Detailed view on phones** (D-069): the sidebar folds into a "Menu: <current page>" button at 768px and narrower. The header is tighter, and dashboard tables scroll inside themselves. Every reachable page was crawled as admin, family member and storyteller at 320, 390 (normal and largest text), 768, 820 and 1280px, with no sideways scrolling.

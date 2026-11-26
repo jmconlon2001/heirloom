@@ -277,7 +277,9 @@ public sealed class ExportPipeline(
         await Page("search.html", "Search", new SitePage(content, "Search", "search"));
         if (content.AllPeople.Count > 0)
             await Page("tree.html", "Tree", new SitePage(content, "Family tree", "tree") { TreeSvg = TreeSvg.Render(content.AllPeople, content.Parents, content.Partnerships) });
-        foreach (var s in content.Stories) await Page(SitePage.StoryHref(s), "Story", new SitePage(content, s.Memory.Title, "stories") { Story = s });
+        var playable = content.Stories.SelectMany(s => s.Clips).Select(c => c.Attachment)
+            .Where(a => a.Kind == AttachmentKind.Video && File.Exists(storage.PathFor(a, MediaVariant.Video))).Select(a => a.Id).ToHashSet();
+        foreach (var s in content.Stories) await Page(SitePage.StoryHref(s), "Story", new SitePage(content, s.Memory.Title, "stories") { Story = s, PlayableVideos = playable });
         foreach (var p in content.People) await Page(SitePage.PersonHref(p), "Person", new SitePage(content, p.Person.DisplayName, "people") { Person = p });
 
         foreach (var f in new[] { "site.css", "search.js" }) zip.CreateEntryFromFile(Path.Combine(AssetsDir, f), $"assets/{f}");
@@ -303,7 +305,8 @@ public sealed class ExportPipeline(
             foreach (var p in s.Photos) { Add(p.Attachment, MediaVariant.Web, "web.jpg"); Add(p.Attachment, MediaVariant.Thumb, "thumb.jpg"); }
             foreach (var c in s.Clips)
             {
-                if (c.Attachment.Kind == AttachmentKind.Video) { Add(c.Attachment, MediaVariant.Original, "video" + c.Attachment.Extension); Add(c.Attachment, MediaVariant.Poster, "poster.jpg"); }
+                if (c.Attachment.Kind == AttachmentKind.Video) { var converted = File.Exists(storage.PathFor(c.Attachment, MediaVariant.Video));
+                    Add(c.Attachment, converted ? MediaVariant.Video : MediaVariant.Original, converted ? "video.mp4" : "video" + c.Attachment.Extension); Add(c.Attachment, MediaVariant.Poster, "poster.jpg"); }
                 else Add(c.Attachment, MediaVariant.Audio, "audio.m4a");
             }
             foreach (var d in s.Documents) Add(d, MediaVariant.Original, "original" + d.Extension);

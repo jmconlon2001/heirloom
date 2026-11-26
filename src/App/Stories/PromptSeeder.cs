@@ -46,8 +46,11 @@ public sealed class PromptSeeder(AppDbContext db, TimeProvider clock, ILogger<Pr
                 db.Chapters.Add(chapter);
                 chapters[sc.Key] = chapter;
             }
-            chapter.Title = sc.Title;
-            chapter.SortOrder = (ci + 1) * 10;
+            if (!chapter.EditedByAdmin)
+            {
+                chapter.Title = sc.Title;
+                chapter.SortOrder = (ci + 1) * 10;
+            }
 
             for (var pi = 0; pi < sc.Prompts.Count; pi++)
             {

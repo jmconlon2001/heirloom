@@ -369,3 +369,21 @@ It always includes everything, private stories too, because it's the family's co
 The `whisper` service now runs in the standard stack (no profile), and compose gives the app `WHISPER_URL=${WHISPER_URL:-http://whisper:9000}`. Optional extras shows "On", "Waiting to be set up" or "Switched off".
 
 **Whisper on another machine:** A `WHISPER_URL` ending in `/v1` is treated as an OpenAI-compatible server (`POST /v1/audio/transcriptions`, model `WHISPER_MODEL`, default `whisper-1`). That covers whisper.cpp's `whisper-server`, speaches and LocalAI, so a Mac with Apple silicon can transcribe on its GPU. Ollama has no speech-to-text API, so it can't do this job.
+
+**Fixed in v0.9.0:** `whisper` was only on the `internal` backend network, so it could never download its model, and speech-to-text didn't work in the standard stack. It's now also on `frontend` (outbound only; no published ports). Whisper being unreachable is now a **warning**, not a problem, so `/api/status` stays 200: recordings still save and play.
+
+### D-071 · Before v1: readiness work
+- **OMV file names:** the compose file reads `.env` or `family-memories.env` (`env_file` entries with `required: false`, Compose ≥ 2.24). `restore.sh` also accepts `family-memories.yml`, `family-memories.env` and `compose.override.yml`, and defaults `POSTGRES_USER`/`POSTGRES_DB` like compose does. A rehearsal found that it failed when they weren't in the env file.
+- **Chapters:** admins rename, move, add and remove (empty, admin-added only) chapters. `Chapter.EditedByAdmin` stops the seed overwriting a renamed or moved chapter. Moving one chapter marks all of them, so the family's order holds as a whole.
+- **Videos:** each upload also gets `video.mp4`: H.264 4:2:0, longest side at most 1920px, AAC, faststart. H.264 + AAC MP4/MOV uploads are remuxed, not re-encoded. `/media/{id}/video` falls back to the original until the copy exists. An hourly `video-backfill` job converts up to five older videos per run. Exports use the copy.
+- **Recordings survive a closed page:** each second of a recording goes into IndexedDB (`fm-recordings`) as it's made. The device copy is deleted only after the server confirms the whole upload. Opening the story again sends anything left over. `beforeunload` warns while recording or uploading. Without IndexedDB it records as before.
+- **PDF previews:** `pdftoppm` (poppler-utils) renders page 1 into `web.jpg`/`thumb.jpg`. If it's missing or fails, the PDF is still added with its link.
+- **Drag to reorder** photos and recordings on the writing page: pointer events (finger or mouse) with `touch-action: none` on the handle, and the listeners on `window` (moving the item releases pointer capture). The arrow keys work on the focused handle. Move up / Move down stay.
+- **Family tree on phones** (narrower than 600px) starts at full size on the chosen person, not "fit everything".
+- **Security:**
+  - Reviewed every endpoint's authorization and the share-link, sign-in and upload paths.
+  - A removed attachment is now served only to people who can edit the story.
+  - CI scans the image with Trivy and fails on fixable HIGH/CRITICAL findings; it found none today.
+- **Upgrade rehearsal:** a v0.6.0 demo site was upgraded to this build. The pre-migration backup was taken, the migration applied, and every row count matched.
+- **Password and passkey sign-in:** dropped from v1. Sign-in links, login cards and 180-day sessions cover the people this app is for, and passwords would add reset flows and a weaker factor.
+- **Still for the family to do before v1:** a restore drill on the real server and the offsite copy, a real iPad microphone check, and acting on beta feedback.

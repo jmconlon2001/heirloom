@@ -158,6 +158,68 @@ public sealed class MediaTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal("audio/mp4", ranged.Content.Headers.ContentType!.MediaType);
     }
 
+    [Theory]
+    [InlineData("video-android.webm")]      // VP9 + Opus: iPads can't play it as uploaded, so it's converted
+    [InlineData("video-iphone.mp4")]        // already H.264 + AAC: repackaged, not re-encoded
+    public async Task Videos_get_a_copy_every_ipad_can_play(string fixture)
+    {
+        var (_, browser, memoryId, csrf) = await StorytellerAsync($"video-{fixture}@example.test");
+        var bytes = await File.ReadAllBytesAsync(AppFactory.Fixture(fixture));
+        var a = await AttachmentAsync(await IdFrom(await StoryClient.UploadAsync(browser.Http, csrf, memoryId, bytes, fixture)));
+
+        Assert.Equal(AttachmentKind.Video, a.Kind);
+        Assert.Equal(ProcessingState.Ready, a.State);
+        var mp4 = await File.ReadAllBytesAsync(PathOf(a, MediaVariant.Video));
+        Assert.Equal("ftyp", System.Text.Encoding.ASCII.GetString(mp4, 4, 4));
+        var text = System.Text.Encoding.ASCII.GetString(mp4);
+        Assert.Contains("avc1", text);                                         // H.264
+        Assert.Contains("mp4a", text);                                         // AAC sound
+        Assert.True(text.IndexOf("moov", StringComparison.Ordinal) < text.IndexOf("mdat", StringComparison.Ordinal));   // streamable
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(PathOf(a, MediaVariant.Original)));   // original untouched
+
+        var request = new HttpRequestMessage(HttpMethod.Get, $"/media/{a.Id}/video");
+        request.Headers.Range = new RangeHeaderValue(0, 99);
+        var ranged = await browser.Http.SendAsync(request);
+        Assert.Equal(HttpStatusCode.PartialContent, ranged.StatusCode);
+        Assert.Equal("video/mp4", ranged.Content.Headers.ContentType!.MediaType);
+    }
+
+    [Fact]
+    public async Task Older_videos_play_from_the_original_until_the_hourly_job_converts_them()
+    {
+        var (_, browser, memoryId, csrf) = await StorytellerAsync("old-video@example.test");
+        var bytes = await File.ReadAllBytesAsync(AppFactory.Fixture("video-android.webm"));
+        var a = await AttachmentAsync(await IdFrom(await StoryClient.UploadAsync(browser.Http, csrf, memoryId, bytes, "old.webm")));
+        File.Delete(PathOf(a, MediaVariant.Video));                           // as if uploaded before v0.9
+
+        var fallback = await browser.Http.GetAsync($"/media/{a.Id}/video");
+        Assert.Equal("video/webm", fallback.Content.Headers.ContentType!.MediaType);
+
+        await app.WithServiceAsync<MediaProcessor, bool>(async p => { await p.BackfillPlayableVideosAsync(default); return true; });
+        Assert.True(File.Exists(PathOf(a, MediaVariant.Video)));
+        Assert.Equal("video/mp4", (await browser.Http.GetAsync($"/media/{a.Id}/video")).Content.Headers.ContentType!.MediaType);
+    }
+
+    [Fact]
+    public async Task A_pdf_gets_a_picture_of_its_first_page()
+    {
+        var (_, browser, memoryId, csrf) = await StorytellerAsync("pdf-preview@example.test");
+        var bytes = await File.ReadAllBytesAsync(AppFactory.Fixture("recipe.pdf"));
+        var a = await AttachmentAsync(await IdFrom(await StoryClient.UploadAsync(browser.Http, csrf, memoryId, bytes, "recipe.pdf")));
+
+        Assert.Equal(AttachmentKind.Document, a.Kind);
+        Assert.Equal(ProcessingState.Ready, a.State);
+        Assert.NotNull(a.Width);
+        Assert.True(a.Height > a.Width);                                        // a portrait Letter page
+        using var thumb = new MagickImage(PathOf(a, MediaVariant.Thumb));
+        Assert.Equal(400u, thumb.Height);
+        Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(PathOf(a, MediaVariant.Thumb))!, "page.jpg")));   // no leftovers
+
+        var page = await browser.Http.GetStringAsync($"/stories/{memoryId}/write");
+        Assert.Contains("alt=\"First page of recipe.pdf\"", page);
+        Assert.Contains("Open recipe.pdf", page);
+    }
+
     [Fact]
     public async Task An_uploaded_sound_only_mp4_is_treated_as_audio()
     {
@@ -252,6 +314,33 @@ public sealed class MediaTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_removed_photo_is_only_served_to_the_people_who_could_put_it_back()
+    {
+        var (_, browser, memoryId, csrf) = await StorytellerAsync("removed-media@example.test");
+        var id = await IdFrom(await StoryClient.UploadAsync(browser.Http, csrf, memoryId, await File.ReadAllBytesAsync(AppFactory.Fixture("photo.jpg")), "p.jpg"));
+        await app.WithDbAsync(async db =>
+        {
+            var m = await db.Memories.SingleAsync(x => x.Id == memoryId);
+            m.Status = MemoryStatus.Complete;
+            m.Visibility = Visibility.AllFamily;
+            await db.SaveChangesAsync();
+            return true;
+        });
+        await app.CreateUserAsync("Cousin", "cousin-removed@example.test", [Roles.Family]);
+        var cousin = await Browser.SignedInAsync(app, "cousin-removed@example.test");
+        Assert.Equal(HttpStatusCode.OK, (await cousin.Http.GetAsync($"/media/{id}/thumb")).StatusCode);
+
+        await app.WithDbAsync(async db =>
+        {
+            (await db.Attachments.SingleAsync(a => a.Id == id)).RemovedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+            return true;
+        });
+        Assert.Equal(HttpStatusCode.NotFound, (await cousin.Http.GetAsync($"/media/{id}/thumb")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await browser.Http.GetAsync($"/media/{id}/thumb")).StatusCode);    // the storyteller can still restore it
+    }
+
+    [Fact]
     public async Task Scripts_must_send_the_antiforgery_token()
     {
         var (_, browser, memoryId, _) = await StorytellerAsync("csrf@example.test");
@@ -294,5 +383,33 @@ public sealed class HangfireTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.NotEqual(HttpStatusCode.OK, (await browser.Http.GetAsync("/admin/jobs")).StatusCode);
         var admin = await Browser.SignedInAsync(app, AppFactory.AdminEmail);
         Assert.Equal(HttpStatusCode.OK, (await admin.Http.GetAsync("/admin/jobs")).StatusCode);
+    }
+}
+
+public sealed class PdfWithoutPopplerTests(PostgresFixture postgres) : IAsyncLifetime
+{
+    private sealed class NoPopplerFactory(PostgresFixture postgres) : AppFactory(postgres)
+    {
+        protected override IDictionary<string, string?> Settings => new Dictionary<string, string?> { ["PDFTOPPM_PATH"] = "/nonexistent/pdftoppm" };
+    }
+
+    private readonly NoPopplerFactory app = new(postgres);
+    public ValueTask InitializeAsync() => app.InitializeAsync();
+    public ValueTask DisposeAsync() => app.DisposeAsync();
+
+    [Fact]
+    public async Task Without_the_preview_tool_a_pdf_is_still_added_with_a_link()
+    {
+        var user = await app.CreateUserAsync("Rose", "pdf-nopoppler@example.test", [Roles.Storyteller], PromptSetKind.Core);
+        var browser = await Browser.SignedInAsync(app, "pdf-nopoppler@example.test");
+        var (memoryId, csrf, _) = await StoryClient.OpenFirstQuestionAsync(browser, app, user.Id);
+        var response = await StoryClient.UploadAsync(browser.Http, csrf, memoryId, await File.ReadAllBytesAsync(AppFactory.Fixture("recipe.pdf")), "recipe.pdf");
+        var id = Guid.Parse(System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString()!);
+        var a = await app.WithDbAsync(db => db.Attachments.SingleAsync(x => x.Id == id));
+        Assert.Equal(ProcessingState.Ready, a.State);
+        Assert.Null(a.Width);
+        var page = await browser.Http.GetStringAsync($"/stories/{memoryId}/write");
+        Assert.Contains("Open recipe.pdf", page);
+        Assert.DoesNotContain("First page of", page);
     }
 }
