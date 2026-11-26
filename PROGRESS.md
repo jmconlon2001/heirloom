@@ -1,5 +1,12 @@
 # Progress
 
+## Phones, extras on by default, Whisper on a Mac (2026-11-26, v0.8.0)
+
+- **Detailed view on phones** (D-069): the sidebar folds into a "Menu: <current page>" button at 768px and narrower. The header is tighter, and dashboard tables scroll inside themselves. Every reachable page was crawled as admin, family member and storyteller at 320, 390 (normal and largest text), 768, 820 and 1280px, with no sideways scrolling.
+- **Extras on by default** (D-070): speech-to-text (the `whisper` container is now part of the standard stack) and paper packets. Answering by email stays off until `FEATURE_EMAIL_REPLIES=true`.
+- **Whisper anywhere:** a `WHISPER_URL` ending in `/v1` talks to OpenAI-compatible servers, such as whisper.cpp's `whisper-server` on a Mac mini (ADMIN_GUIDE → "Speech-to-text on a Mac").
+- **Tests (222):** an iPhone e2e test (folded menu, no sideways scroll, axe), feature defaults, the OpenAI-style Whisper request. A flaky photo-load check now waits for the image.
+
 ## Status, admin views and fixes (2026-11-25)
 
 - **Status page and API** (D-066): `/status` in plain language for anyone, with details for admins; `/api/status` JSON for monitors (`STATUS_TOKEN`, 503 when something is broken). The version is baked into release images.

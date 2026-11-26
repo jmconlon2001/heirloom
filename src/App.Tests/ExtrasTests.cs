@@ -77,6 +77,22 @@ public sealed class WhisperTranscriberTests
         Assert.Contains("name=audio_file", stub.Body);
         File.Delete(file);
     }
+
+    [Fact]
+    public async Task A_url_ending_in_v1_talks_to_an_OpenAI_compatible_server_like_whisper_cpp_on_a_mac()
+    {
+        var stub = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { text = " It was a red wool coat. " }) });
+        var options = new FamilyMemories.Configuration.AppOptions { WhisperUrl = "http://mac-mini.lan:8178/v1/", WhisperModel = "large-v3-turbo" };
+        var file = Path.GetTempFileName();
+        await File.WriteAllBytesAsync(file, [1, 2, 3]);
+        var text = await new WhisperTranscriber(new Factory(stub), options).TranscribeAsync(file, default);
+        Assert.Equal("It was a red wool coat.", text);
+        Assert.Equal("http://mac-mini.lan:8178/v1/audio/transcriptions", stub.Last!.RequestUri!.ToString());
+        Assert.Contains("name=file", stub.Body);
+        Assert.Contains("large-v3-turbo", stub.Body);
+        Assert.Contains("name=response_format", stub.Body);
+        File.Delete(file);
+    }
 }
 
 public sealed class TranscriptionTests(PostgresFixture postgres) : IAsyncLifetime

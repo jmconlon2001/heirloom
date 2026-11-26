@@ -21,7 +21,13 @@
         groups.Add(("Data", data.ToArray()));
     }
 }
+@{
+    var currentText = groups.SelectMany(g => g.Links).FirstOrDefault(l => Current(l.Href, l.Exact) is not null).Text;
+}
 <nav class="side-nav" aria-label="Sections">
+    @* On phones this folds into a "Menu" button (side-nav.js closes it there); wider screens always show it. *@
+    <details class="side-nav-menu" open data-side-nav>
+    <summary class="side-nav-toggle">Menu@(currentText is null ? "" : ": ")<span class="side-nav-current">@currentText</span></summary>
     @foreach (var g in groups)
     {
         <p class="side-nav-heading">@g.Heading</p>
@@ -32,4 +38,6 @@
             }
         </ul>
     }
+    </details>
 </nav>
+<script type="module" src="~/js/side-nav.js" asp-append-version="true"></script>

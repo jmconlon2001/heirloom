@@ -347,7 +347,7 @@ It always includes everything, private stories too, because it's the family's co
 ### D-067 · Simple and Detailed views, on every page, remembered per person
 **Decision:** Everyone who's signed in has a **View: Simple | Detailed** switch in the header, next to Text size and High contrast.
 - **Simple** (the default) is the calm, large look the site was designed around: top menu, one thing at a time, 48px targets. Storytellers never need to touch the switch.
-- **Detailed** works like a typical web app: a dark sidebar with every section (Family Library, Timeline, Photos, Storytellers, Search, Family tree, People; "My stories" for storytellers; and, for admins, the admin sections grouped as Admin, Questions, Email and Data), 16px base text, compact buttons, form fields and striped tables. On the admin home, a dashboard (stat tiles, the system table, recent activity) replaces the link list. Admin pages use a wide 80rem column, while reading pages stay at 52rem so story text keeps a comfortable line length. Text size and high contrast still apply. Under 52rem wide, the sidebar becomes a wrapping bar.
+- **Detailed** works like a typical web app: a dark sidebar with every section (Family Library, Timeline, Photos, Storytellers, Search, Family tree, People; "My stories" for storytellers; and, for admins, the admin sections grouped as Admin, Questions, Email and Data), 16px base text, compact buttons, form fields and striped tables. On the admin home, a dashboard (stat tiles, the system table, recent activity) replaces the link list. Admin pages use a wide 80rem column, while reading pages stay at 52rem so story text keeps a comfortable line length. Text size and high contrast still apply. At 48rem (768px) and narrower (phones, iPad mini), the sidebar folds into a "Menu: <current page>" button (D-069).
 - **Names:** "Simple" and "Detailed" (we tried "Basic"/"Complex" first). They describe what you get, and "Complex" sounded like a warning to the people this app is for.
 - The choice is stored per person in the settings table (`view-mode:<user id>`), so it follows them to every device and never affects anyone else. "View as" always shows the Simple look. Signed-out visitors don't get a switch. `POST /view` needs sign-in and an anti-forgery token, and only redirects locally.
 - Detailed targets are 40px (WCAG 2.2 AA needs 24px). Axe passes on both views.
@@ -355,3 +355,17 @@ It always includes everything, private stories too, because it's the family's co
 ### D-068 · Every POST form gets its own anti-forgery token
 **Context:** "Print a login card" failed with a 400 for everyone: its form posted to an explicit `action` URL, and the form tag helper only adds the token automatically when there's no `action`. The integration test had passed because the test helper borrowed a token from another form on the same page.
 **Decision:** The form now has `asp-antiforgery="true"`. A new test loads the main pages and fails if any `method="post"` form lacks its own `__RequestVerificationToken`, and the login-card test now posts only that form's fields. With the fix removed, both tests fail.
+
+### D-069 · Detailed view on phones: the sidebar folds into a menu
+**Context:** At phone width the sidebar became a wrapping bar that filled the first screen, and its long labels made "People and invitations" scroll sideways.
+**Decision:** At 48rem and narrower, the sidebar is a `<details>` showing "Menu: <current page>". `side-nav.js` closes it on narrow screens (without JavaScript it stays open). 820–834px iPads in portrait keep the full sidebar. The header is tighter in Detailed on phones (just the name, smaller gaps), the dashboard tables scroll inside themselves, and `code` wraps. Checked by crawling every reachable page as admin, family member and storyteller at 320, 390 (normal and largest text), 768, 820 and 1280px. A new iPhone e2e test covers the menu and sideways scrolling.
+
+### D-070 · Speech-to-text and paper packets are on by default
+**Decision:** `FEATURE_TRANSCRIPTION` and `FEATURE_PAPER_PACKETS` default to on, and only `false`, `0` or `off` switches one off. Each starts working as soon as it has what it needs:
+- **Paper packets:** needs Gotenberg, which is already in the stack.
+- **Transcription:** needs `WHISPER_URL`.
+
+`FEATURE_EMAIL_REPLIES` stays off by default. It lets mail from outside the site create story drafts, so turning it on should be the admin's deliberate choice. Once on, it needs `REPLY_ADDRESS`, and the inbox poll also needs `IMAP_HOST`.
+The `whisper` service now runs in the standard stack (no profile), and compose gives the app `WHISPER_URL=${WHISPER_URL:-http://whisper:9000}`. Optional extras shows "On", "Waiting to be set up" or "Switched off".
+
+**Whisper on another machine:** A `WHISPER_URL` ending in `/v1` is treated as an OpenAI-compatible server (`POST /v1/audio/transcriptions`, model `WHISPER_MODEL`, default `whisper-1`). That covers whisper.cpp's `whisper-server`, speaches and LocalAI, so a Mac with Apple silicon can transcribe on its GPU. Ollama has no speech-to-text API, so it can't do this job.

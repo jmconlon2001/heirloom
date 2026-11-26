@@ -13,23 +13,48 @@ public interface ITranscriber
     Task<string> TranscribeAsync(string audioPath, CancellationToken ct);
 }
 
-/// <summary>Talks to onerahmet/openai-whisper-asr-webservice (POST /asr). Nothing leaves the family's server.</summary>
+/// <summary>
+/// Talks to a Whisper server. Two kinds are understood:
+/// <list type="bullet">
+/// <item>onerahmet/openai-whisper-asr-webservice (the stack's own <c>whisper</c> container): POST {WHISPER_URL}/asr.</item>
+/// <item>Anything OpenAI-compatible, when WHISPER_URL ends in <c>/v1</c> (whisper.cpp's whisper-server, speaches, LocalAI…,
+/// e.g. on a Mac mini using its GPU): POST {WHISPER_URL}/audio/transcriptions with model WHISPER_MODEL.</item>
+/// </list>
+/// Either way nothing leaves the family's own machines.
+/// </summary>
 public sealed class WhisperTranscriber(IHttpClientFactory http, AppOptions options) : ITranscriber
 {
     public async Task<string> TranscribeAsync(string audioPath, CancellationToken ct)
     {
         if (options.WhisperUrl is null) throw new InvalidOperationException("WHISPER_URL is not set.");
+        var baseUrl = options.WhisperUrl.TrimEnd('/');
+        var openAi = IsOpenAiStyle(baseUrl);
         using var form = new MultipartFormDataContent();
         var audio = new ByteArrayContent(await File.ReadAllBytesAsync(audioPath, ct));
         audio.Headers.ContentType = new MediaTypeHeaderValue("audio/mp4");
-        form.Add(audio, "audio_file", Path.GetFileName(audioPath));
-        var url = new Uri(new Uri(options.WhisperUrl.TrimEnd('/') + "/"), "asr?task=transcribe&language=en&output=json&encode=true");
+        Uri url;
+        if (openAi)
+        {
+            form.Add(audio, "file", Path.GetFileName(audioPath));
+            form.Add(new StringContent(options.WhisperModel), "model");
+            form.Add(new StringContent("en"), "language");
+            form.Add(new StringContent("json"), "response_format");
+            url = new Uri(baseUrl + "/audio/transcriptions");
+        }
+        else
+        {
+            form.Add(audio, "audio_file", Path.GetFileName(audioPath));
+            url = new Uri(baseUrl + "/asr?task=transcribe&language=en&output=json&encode=true");
+        }
         using var response = await http.CreateClient("whisper").PostAsync(url, form, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode) throw new InvalidOperationException($"Whisper answered {(int)response.StatusCode}: {body}");
         using var json = JsonDocument.Parse(body);
         return json.RootElement.TryGetProperty("text", out var text) ? text.GetString()?.Trim() ?? "" : "";
     }
+
+    /// <summary>WHISPER_URL ending in /v1 means an OpenAI-compatible server.</summary>
+    public static bool IsOpenAiStyle(string whisperUrl) => whisperUrl.TrimEnd('/').EndsWith("/v1", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class TranscriptionJob(AppDbContext db, ITranscriber transcriber, MediaStorage storage, ILogger<TranscriptionJob> log)

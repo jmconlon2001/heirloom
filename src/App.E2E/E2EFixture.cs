@@ -56,6 +56,10 @@ public sealed class BrowsersFixture : IAsyncLifetime
         return webkit;
     }
 
+    /// <summary>A phone: Playwright's iPhone 13 descriptor (390×664, touch, WebKit).</summary>
+    public Task<IBrowserContext> NewPhoneAsync(Uri baseUrl) =>
+        WebKit.NewContextAsync(new BrowserNewContextOptions(Playwright.Devices["iPhone 13"]) { BaseURL = baseUrl.ToString() });
+
     private bool? webKitCanRecord;
     private IBrowser? fakeMicChromium;
 

@@ -44,7 +44,7 @@
             @if (signedIn)
             {
                 <div class="signed-in">
-                    <span class="signed-in-name">Signed in as <strong>@User.DisplayName()</strong></span>
+                    <span class="signed-in-name"><span class="signed-in-label">Signed in as </span><strong>@User.DisplayName()</strong></span>
                     <form method="post" asp-page="/Account/Logout">
                         <button type="submit" class="button button-quiet">Sign out</button>
                     </form>

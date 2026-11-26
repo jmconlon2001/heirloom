@@ -82,12 +82,16 @@ public sealed class AppOptions
     public string? NtfyTopic { get; init; }
     public string? NtfyToken { get; init; }
 
-    // ---- Optional extras (Phase 6), each off unless switched on ----
-    /// <summary>FEATURE_TRANSCRIPTION: write down voice recordings with a local Whisper container.</summary>
-    public bool TranscriptionEnabled { get; init; }
+    // ---- Optional extras (Phase 6): transcription and paper packets on by default (FEATURE_…=false turns one off); email replies off unless switched on ----
+    /// <summary>FEATURE_TRANSCRIPTION (default on): write down voice recordings with a Whisper server at WHISPER_URL.</summary>
+    public bool TranscriptionSwitchedOn { get; init; } = true;
     public string? WhisperUrl { get; init; }
-    /// <summary>FEATURE_EMAIL_REPLIES: replies to reminder emails become drafts.</summary>
-    public bool EmailRepliesEnabled { get; init; }
+    /// <summary>WHISPER_MODEL: the model name sent to an OpenAI-compatible server (WHISPER_URL ending in /v1).</summary>
+    public string WhisperModel { get; init; } = "whisper-1";
+    public bool TranscriptionEnabled => TranscriptionSwitchedOn && WhisperUrl is not null;
+    /// <summary>FEATURE_EMAIL_REPLIES (default off): replies to reminder emails become drafts, once REPLY_ADDRESS is set.</summary>
+    public bool EmailRepliesSwitchedOn { get; init; }
+    public bool EmailRepliesEnabled => EmailRepliesSwitchedOn && ReplyAddress is { } a && a.Contains('@');
     /// <summary>Address replies go to, e.g. memories@example.com; replies use memories+CODE@example.com.</summary>
     public string? ReplyAddress { get; init; }
     public string ImapHost { get; init; } = "";
@@ -116,8 +120,9 @@ public sealed class AppOptions
         return plus > 0 ? v[..plus] : v;
     }
 
-    /// <summary>FEATURE_PAPER_PACKETS: printable question packets with writing lines.</summary>
-    public bool PaperPacketsEnabled { get; init; }
+    /// <summary>FEATURE_PAPER_PACKETS (default on): printable question packets with writing lines (needs Gotenberg).</summary>
+    public bool PaperPacketsSwitchedOn { get; init; } = true;
+    public bool PaperPacketsEnabled => PaperPacketsSwitchedOn && GotenbergUrl is not null;
 
     public TimeZoneInfo TimeZone => TimeZoneInfo.TryFindSystemTimeZoneById(TimeZoneId, out var tz) ? tz : TimeZoneInfo.Utc;
     public string PgTool(string name) => string.IsNullOrEmpty(PgBinDir) ? name : Path.Combine(PgBinDir, name);
@@ -167,9 +172,10 @@ public sealed class AppOptions
             PgBinDir = c["PG_BIN_DIR"] ?? "",
             ResticPath = NonEmpty(c["RESTIC_PATH"]) ?? "restic",
             TimeZoneId = NonEmpty(c["APP_TIMEZONE"]) ?? NonEmpty(c["TZ"]) ?? "America/New_York",
-            TranscriptionEnabled = Flag(c["FEATURE_TRANSCRIPTION"]),
+            TranscriptionSwitchedOn = FlagDefaultOn(c["FEATURE_TRANSCRIPTION"]),
             WhisperUrl = NonEmpty(c["WHISPER_URL"]),
-            EmailRepliesEnabled = Flag(c["FEATURE_EMAIL_REPLIES"]),
+            WhisperModel = NonEmpty(c["WHISPER_MODEL"]) ?? "whisper-1",
+            EmailRepliesSwitchedOn = Flag(c["FEATURE_EMAIL_REPLIES"]),
             ReplyAddress = NonEmpty(c["REPLY_ADDRESS"]),
             ImapHost = c["IMAP_HOST"] ?? "",
             ImapPort = int.TryParse(c["IMAP_PORT"], out var imapPort) ? imapPort : 993,
@@ -177,7 +183,7 @@ public sealed class AppOptions
             ImapUsername = NonEmpty(c["IMAP_USERNAME"]),
             ImapPassword = NonEmpty(c["IMAP_PASSWORD"]),
             ImapFolder = NonEmpty(c["IMAP_FOLDER"]) ?? "INBOX",
-            PaperPacketsEnabled = Flag(c["FEATURE_PAPER_PACKETS"]),
+            PaperPacketsSwitchedOn = FlagDefaultOn(c["FEATURE_PAPER_PACKETS"]),
             DemoMode = Flag(c["DEMO_MODE"]),
             StatusToken = NonEmpty(c["STATUS_TOKEN"]),
             ProjectUrl = c["PROJECT_URL"] is { } projectUrl ? NonEmpty(projectUrl) : DefaultProjectUrl,
@@ -225,6 +231,8 @@ public sealed class AppOptions
         return result;
     }
 
+    private static bool FlagDefaultOn(string? value) =>
+        string.IsNullOrWhiteSpace(value) || !(value.Trim().Equals("false", StringComparison.OrdinalIgnoreCase) || value.Trim() == "0" || value.Trim().Equals("off", StringComparison.OrdinalIgnoreCase));
     private static bool Flag(string? value) => value is not null && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1");
 
     private static long Megabytes(string? value, long fallback) =>

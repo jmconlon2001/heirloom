@@ -2,25 +2,25 @@
 @{
     ViewData["Title"] = "Optional extras";
     var o = AppOptions;
-    string State(bool on, bool ready) => !on ? "Off" : ready ? "On" : "On, but not fully set up";
+    string State(bool switchedOn, bool working) => !switchedOn ? "Switched off" : working ? "On" : "Waiting to be set up";
 }
 <h1>Optional extras</h1>
-<p>Each extra is switched on in the <code>.env</code> file (then restart). They're off unless you choose them.</p>
+<p>Speech-to-text and paper packets are on unless you switch them off with <code>FEATURE_…=false</code> in the <code>.env</code> file (then restart). Answering by email is off until you choose it.</p>
 
 <section class="card">
-    <h2>Write down voice recordings <span class="muted">(@State(o.TranscriptionEnabled, o.WhisperUrl is not null))</span></h2>
+    <h2>Write down voice recordings <span class="muted">(@State(o.TranscriptionSwitchedOn, o.TranscriptionEnabled))</span></h2>
     <p>After someone records their voice, a speech-to-text program running on your own server writes down what they said. They see the words, fix anything, and choose whether to add them to the story. Nothing is sent to any outside company.</p>
-    <p class="muted">To switch on: <code>FEATURE_TRANSCRIPTION=true</code>, <code>WHISPER_URL=http://whisper:9000</code>, and start the stack with <code>--profile transcription</code>. Needs about 2 GB of memory; on an Intel N100 a 5-minute recording takes a few minutes.</p>
+    <p class="muted">Uses the Whisper server at <code>WHISPER_URL</code>@(o.WhisperUrl is { } w ? $" (now {w})" : " (not set)"). The standard stack runs one at <code>http://whisper:9000</code>; it needs about 2 GB of memory, and on an Intel N100 a 5-minute recording takes a few minutes. A Mac with Apple silicon is much faster: see "Speech-to-text on a Mac" in the admin guide. To switch off: <code>FEATURE_TRANSCRIPTION=false</code>.</p>
 </section>
 
 <section class="card">
-    <h2>Answer by replying to the email <span class="muted">(@State(o.EmailRepliesEnabled, o.ReplyAddress is not null && o.ImapHost.Length > 0))</span></h2>
+    <h2>Answer by replying to the email <span class="muted">(@State(o.EmailRepliesSwitchedOn, o.EmailRepliesEnabled && o.ImapHost.Length > 0))</span></h2>
     <p>Storytellers can simply reply to their weekly question email, with photos attached if they like. The reply becomes a draft of that story; they (or you) read it over and press "I'm finished". Replies are only accepted from the person's own email address.</p>
     <p class="muted">To switch on: <code>FEATURE_EMAIL_REPLIES=true</code>, <code>REPLY_ADDRESS</code> (a mailbox that supports plus-addressing, like Gmail), and its <code>IMAP_HOST</code>, <code>IMAP_USERNAME</code>, <code>IMAP_PASSWORD</code>. The mailbox is checked every 5 minutes.</p>
 </section>
 
 <section class="card">
-    <h2>Paper question packets <span class="muted">(@State(o.PaperPacketsEnabled, o.GotenbergUrl is not null))</span></h2>
+    <h2>Paper question packets <span class="muted">(@State(o.PaperPacketsSwitchedOn, o.PaperPacketsEnabled))</span></h2>
     <p>For storytellers who won't use a device: print their next questions, one per page, with lines to write on. When the pages come back, open "Write a story for …" on their page and add a photo or scan of each page to its question.</p>
-    <p class="muted">To switch on: <code>FEATURE_PAPER_PACKETS=true</code>. The "Print a paper packet" button then appears on each storyteller's page under People.</p>
+    <p class="muted">The "Print a paper packet" button is on each storyteller's page under People. It uses the PDF maker that's already in the stack. To switch off: <code>FEATURE_PAPER_PACKETS=false</code>.</p>
 </section>

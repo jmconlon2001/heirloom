@@ -19,6 +19,8 @@ services:
       DATA_DIR: /data
       POSTGRES_HOST: db
       GOTENBERG_URL: http://gotenberg:3000
+      # Speech-to-text: the whisper service below, unless WHISPER_URL in .env points elsewhere (e.g. a Mac mini).
+      WHISPER_URL: ${WHISPER_URL:-http://whisper:9000}
     ports:
       - "${APP_PORT:-8095}:8080"
     volumes:
@@ -66,11 +68,11 @@ services:
       timeout: 5s
       retries: 3
 
-  # Optional (Phase 6): local speech-to-text for voice recordings. Start with --profile transcription
-  # and set FEATURE_TRANSCRIPTION=true, WHISPER_URL=http://whisper:9000 in .env.
+  # Speech-to-text for voice recordings (on by default). Not wanted, or running Whisper on another machine?
+  # Add to compose.override.yml:   services: { whisper: { profiles: [off] } }
+  # and set FEATURE_TRANSCRIPTION=false, or WHISPER_URL to the other machine, in .env.
   whisper:
     image: onerahmet/openai-whisper-asr-webservice:v2.0.0
-    profiles: [transcription]
     restart: unless-stopped
     environment:
       ASR_ENGINE: faster_whisper

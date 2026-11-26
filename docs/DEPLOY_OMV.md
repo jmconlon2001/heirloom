@@ -56,6 +56,6 @@ Open `PUBLIC_BASE_URL`, tap **Sign in**, type `ADMIN_EMAIL`, and tap the link in
 
 The app takes a full backup automatically before it changes the database.
 
-## Optional: speech-to-text
+## Speech-to-text
 
-Add `FEATURE_TRANSCRIPTION=true` and `WHISPER_URL=http://whisper:9000` to the environment, and add `--profile transcription` under the plugin's file options (or start it once from SSH with `docker compose --profile transcription up -d`). The first recording downloads the "small" model (about 500 MB) into `DATA_ROOT/whisper-models`.
+It's on by default: the stack runs a `whisper` container, and the first recording downloads the "small" model (about 500 MB) into `DATA_ROOT/whisper-models`. It needs about 2 GB of memory. To use a Mac on your network instead, see "Speech-to-text on a Mac" in the admin guide. To switch it off, add `FEATURE_TRANSCRIPTION=false` to the environment, and add `services: { whisper: { profiles: [off] } }` in compose.override.yml.

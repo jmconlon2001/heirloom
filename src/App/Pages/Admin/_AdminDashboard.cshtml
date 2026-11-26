@@ -27,7 +27,7 @@
 <div class="admin-columns">
     <section aria-labelledby="sys-heading">
         <h2 id="sys-heading">System</h2>
-        <table class="data-table">
+        <div class="table-wrap"><table class="data-table">
             <thead><tr><th scope="col">Part</th><th scope="col">Status</th><th scope="col">Details</th></tr></thead>
             <tbody>
                 @foreach (var c in Model.Components)
@@ -35,7 +35,7 @@
                     <tr><td>@c.Name</td><td><span class="pill @Css(c.Level)">@Word(c.Level)</span></td><td>@c.Summary</td></tr>
                 }
             </tbody>
-        </table>
+        </table></div>
         <p class="hint"><a href="/status?refresh=1">Check again</a> · JSON for monitors: <code>/api/status</code></p>
     </section>
     <section aria-labelledby="recent-heading">
@@ -46,7 +46,7 @@
         }
         else
         {
-            <table class="data-table">
+            <div class="table-wrap"><table class="data-table">
                 <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th></tr></thead>
                 <tbody>
                     @foreach (var a in recent)
@@ -54,7 +54,7 @@
                         <tr><td class="nowrap">@Local(a.At)</td><td>@a.ActorName</td><td>@a.Summary</td></tr>
                     }
                 </tbody>
-            </table>
+            </table></div>
             <p class="hint"><a href="/admin/audit">The whole activity log</a></p>
         }
     </section>

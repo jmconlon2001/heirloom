@@ -5,7 +5,7 @@ using static Microsoft.Playwright.Assertions;
 
 namespace FamilyMemories.E2E;
 
-/// <summary>The status page and the Simple / Detailed views, on an iPad.</summary>
+/// <summary>The status page and the Simple / Detailed views, on an iPad and on a phone.</summary>
 public sealed class ViewModeTests(PostgresFixture postgres, BrowsersFixture browsers) : IAsyncLifetime
 {
     private readonly KestrelAppFactory app = new(postgres);
@@ -60,5 +60,35 @@ public sealed class ViewModeTests(PostgresFixture postgres, BrowsersFixture brow
         await page.GetByRole(AriaRole.Button, new() { Name = "Simple" }).ClickAsync();
         await Expect(page.GetByRole(AriaRole.Navigation, new() { Name = "Sections" })).ToHaveCountAsync(0);
         await Expect(page.GetByRole(AriaRole.Navigation, new() { Name = "Main" })).ToBeVisibleAsync();
+    }
+
+    [Fact]
+    public async Task On_a_phone_the_detailed_view_folds_its_sections_into_a_menu_and_nothing_scrolls_sideways()
+    {
+        await using var context = await browsers.NewPhoneAsync(app.BaseUrl);
+        var page = await context.NewPageAsync();
+        await page.GotoAsync("/account/login");
+        await page.GetByLabel("Your email address").FillAsync(AppFactory.AdminEmail);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Email me a sign-in link" }).ClickAsync();
+        await page.GotoAsync(CapturingEmailSender.ExtractMagicLink(app.Email.To(AppFactory.AdminEmail).Last()).PathAndQuery);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Detailed" }).ClickAsync();
+
+        var sections = page.GetByRole(AriaRole.Navigation, new() { Name = "Sections" });
+        var people = sections.GetByRole(AriaRole.Link, new() { Name = "People and invitations" });
+        await Expect(people).ToBeHiddenAsync();                                // folded away, so the page starts on the first screen
+        await Expect(sections.GetByText("Menu")).ToBeVisibleAsync();
+
+        foreach (var path in new[] { "/", "/admin", "/admin/users", "/admin/audit", "/admin/email/log", "/admin/features", "/library", "/status" })
+        {
+            await page.GotoAsync(path);
+            await Accessibility.AssertNoHorizontalScrollAsync(page);
+        }
+        await Accessibility.AssertAccessibleAsync(page, "status page, detailed view on a phone");
+
+        await sections.GetByText("Menu").TapAsync();
+        await people.TapAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "People" })).ToBeVisibleAsync();
+        await Accessibility.AssertNoHorizontalScrollAsync(page);
     }
 }

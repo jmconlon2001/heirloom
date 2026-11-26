@@ -78,10 +78,30 @@ See [RESTORE.md](RESTORE.md). In short:
 
 ## Optional extras
 
-Family admin → **Optional extras** explains each and how to switch it on:
-- **Write down voice recordings** (local speech-to-text);
-- **Answer by replying to the email**;
-- **Paper question packets** for storytellers who won't use a device.
+Speech-to-text and paper packets are on unless you switch one off with `FEATURE_…=false` in `.env`; answering by email is off until you choose it. Family admin → **Optional extras** shows whether each one is working, or what it still needs:
+- **Write down voice recordings** (speech-to-text on your own machines). Works straight away with the stack's `whisper` container.
+- **Answer by replying to the email.** Off by default. Set `FEATURE_EMAIL_REPLIES=true`, plus `REPLY_ADDRESS` and the mailbox's `IMAP_*` settings.
+- **Paper question packets** for storytellers who won't use a device. Works straight away.
+
+### Speech-to-text on a Mac
+
+The `whisper` container runs on the server's processor. An N100 takes a few minutes for a 5-minute recording. A Mac with Apple silicon (a Mac mini, for example) does the same job in seconds on its GPU:
+
+1. On the Mac, install whisper.cpp and download a model:
+   `brew install whisper-cpp`
+   `curl -L -o ~/ggml-large-v3-turbo.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin`
+2. Run its server so other machines on your network can reach it:
+   `whisper-server -m ~/ggml-large-v3-turbo.bin --host 0.0.0.0 --port 8178 --inference-path /v1/audio/transcriptions --convert`
+   (`--convert` needs ffmpeg: `brew install ffmpeg`.)
+3. In `.env` on the server, set `WHISPER_URL=http://<the Mac's address>:8178/v1`, then restart the stack.
+4. Optional: stop the server's own `whisper` container by adding this to `compose.override.yml`:
+   ```yaml
+   services:
+     whisper:
+       profiles: [off]
+   ```
+
+Any OpenAI-compatible speech-to-text server works the same way: end the address in `/v1`, and set `WHISPER_MODEL` if the server wants a model name. Ollama can't do this, because it doesn't offer speech-to-text. Keep the Mac on your home network; recordings should never go over the internet.
 
 ## When someone calls for help
 

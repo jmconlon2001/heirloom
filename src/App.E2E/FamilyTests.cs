@@ -149,7 +149,7 @@ public sealed class FamilyTests(PostgresFixture postgres, BrowsersFixture browse
         await page.GetByRole(AriaRole.Button, new() { Name = "Show me the story" }).ClickAsync();
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "The day I met Joe" })).ToBeVisibleAsync();
         await Expect(page.Locator(".gallery img")).ToHaveCountAsync(1);
-        Assert.True(await page.Locator(".gallery img").EvaluateAsync<bool>("img => img.complete && img.naturalWidth > 0"));
+        await page.WaitForFunctionAsync("() => { const img = document.querySelector('.gallery img'); return img && img.complete && img.naturalWidth > 0; }");
         await Accessibility.AssertAccessibleAsync(page, "story opened by link");
     }
 

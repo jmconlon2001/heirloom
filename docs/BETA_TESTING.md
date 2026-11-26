@@ -105,6 +105,6 @@ A screenshot helps a lot (on iPad: press the top button and volume-up together).
 1. Deploy as normal (README → Install), and set in `.env`:
    - `DEMO_MODE=true` (seeds the sample family once, on an empty site, and shows the one-tap demo sign-in);
    - `SMTP_*` pointing at a test mailbox (or Mailpit with `--profile dev`), so invitations and reminders go somewhere you can read them;
-   - optionally `FEATURE_PAPER_PACKETS=true` so admins can try paper packets.
+   - paper packets and speech-to-text are on by default and work straight away (answering by email stays off).
 2. Demo mode lets anyone with the address sign in as the admin. Put the beta site behind your reverse proxy's basic auth or IP allow-list, and **never** turn demo mode on for a site with real family stories.
 3. To reset between rounds of testing, stop the stack, delete `DATA_ROOT`, and start it again.

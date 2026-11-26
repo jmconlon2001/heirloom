@@ -12,6 +12,26 @@ public sealed class AppOptionsTests
             .AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value)).Build());
 
     [Fact]
+    public void Transcription_and_paper_packets_are_on_by_default_and_email_replies_are_off()
+    {
+        var bare = From();
+        Assert.True(bare.TranscriptionSwitchedOn && bare.PaperPacketsSwitchedOn);
+        Assert.False(bare.EmailRepliesSwitchedOn);                            // replying by email stays off unless chosen
+        Assert.False(bare.TranscriptionEnabled);                              // no WHISPER_URL yet
+        Assert.False(bare.EmailRepliesEnabled);                               // no REPLY_ADDRESS yet
+        Assert.False(bare.PaperPacketsEnabled);                               // no PDF maker
+
+        var ready = From(("WHISPER_URL", "http://whisper:9000"), ("REPLY_ADDRESS", "memories@example.test"), ("GOTENBERG_URL", "http://gotenberg:3000"));
+        Assert.True(ready.TranscriptionEnabled && ready.PaperPacketsEnabled);
+        Assert.False(ready.EmailRepliesEnabled);                              // a reply address alone doesn't switch it on
+        Assert.True(From(("REPLY_ADDRESS", "memories@example.test"), ("FEATURE_EMAIL_REPLIES", "true")).EmailRepliesEnabled);
+
+        var off = From(("WHISPER_URL", "http://whisper:9000"), ("REPLY_ADDRESS", "memories@example.test"), ("GOTENBERG_URL", "http://gotenberg:3000"),
+            ("FEATURE_TRANSCRIPTION", "false"), ("FEATURE_PAPER_PACKETS", "Off"));
+        Assert.False(off.TranscriptionEnabled || off.PaperPacketsEnabled);
+    }
+
+    [Fact]
     public void Trusted_proxies_accept_single_ips_and_cidr_ranges()
     {
         var networks = AppOptions.ParseNetworks("192.168.1.1, 10.0.0.0/8;fd00::/8");
