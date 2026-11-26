@@ -16,8 +16,16 @@ public sealed class IndexModel(AppDbContext db, StoryPlanService plans, StoryAcc
     public string FirstName { get; private set; } = "";
     public List<AppUser> WriteFor { get; private set; } = [];
 
+    /// <summary>Signed-out visitors see the public landing page.</summary>
+    public bool Landing { get; private set; }
+
     public async Task OnGetAsync()
     {
+        if (User.Identity?.IsAuthenticated != true)
+        {
+            Landing = true;
+            return;
+        }
         var me = User.UserId();
         var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == me);
         FirstName = user.DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? user.DisplayName;

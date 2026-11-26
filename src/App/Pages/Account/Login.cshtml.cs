@@ -11,6 +11,8 @@ public sealed class LoginModel(
     UserManager<AppUser> users,
     MagicLinkService links,
     EmailService email,
+    FamilyMemories.Configuration.AppOptions options,
+    DeviceService devices,
     ILogger<LoginModel> log) : PageModel
 {
     [BindProperty] public string? Email { get; set; }
@@ -56,6 +58,22 @@ public sealed class LoginModel(
         // Same answer either way, so the page can't be used to discover who has an account.
         TempData["LoginEmail"] = address;
         return RedirectToPage("CheckEmail");
+    }
+
+    /// <summary>DEMO_MODE only: sign straight in as one of the sample family.</summary>
+    public async Task<IActionResult> OnPostDemoAsync(string? who)
+    {
+        if (!options.DemoMode) return NotFound();
+        var email = who switch
+        {
+            "rose" => FamilyMemories.Demo.DemoSeeder.RoseEmail,
+            "lily" => FamilyMemories.Demo.DemoSeeder.LilyEmail,
+            _ => options.AdminEmail,
+        };
+        var user = email is null ? null : await users.FindByEmailAsync(email);
+        if (user is null) return NotFound();
+        await devices.SignInNewDeviceAsync(user, HttpContext);
+        return LocalRedirect("/");
     }
 
     private string SafeReturnUrl() => Url.IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/";

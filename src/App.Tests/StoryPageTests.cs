@@ -314,7 +314,7 @@ public sealed class AdminPageTests(PostgresFixture postgres) : IAsyncLifetime
     {
         var rose = await app.CreateUserAsync("Rose", "device@example.test", [Roles.Storyteller], PromptSetKind.Core);
         var roseBrowser = await Browser.SignedInAsync(app, "device@example.test");
-        Assert.Equal(HttpStatusCode.OK, (await roseBrowser.Http.GetAsync("/")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await roseBrowser.Http.GetAsync("/library")).StatusCode);
 
         var admin = await Browser.SignedInAsync(app, AppFactory.AdminEmail);
         var page = await admin.Http.GetStringAsync($"/admin/users/{rose.Id}");
@@ -322,7 +322,7 @@ public sealed class AdminPageTests(PostgresFixture postgres) : IAsyncLifetime
         var deviceId = await app.WithDbAsync(db => db.UserDevices.Where(d => d.UserId == rose.Id).Select(d => d.Id).SingleAsync());
         await admin.Http.PostFormAsync($"/admin/users/{rose.Id}?handler=RevokeDevice", page, ("deviceId", deviceId.ToString()));
 
-        var after = await roseBrowser.Http.GetAsync("/");
+        var after = await roseBrowser.Http.GetAsync("/library");
         Assert.Equal(HttpStatusCode.Redirect, after.StatusCode);
         Assert.Contains("/account/login", after.Headers.Location!.ToString());
     }
@@ -336,7 +336,7 @@ public sealed class AdminPageTests(PostgresFixture postgres) : IAsyncLifetime
 
         var page = await admin.Http.GetStringAsync($"/admin/users/{rose.Id}");
         await admin.Http.PostFormAsync($"/admin/users/{rose.Id}?handler=Pause", page, ("paused", "true"));
-        Assert.Equal(HttpStatusCode.Redirect, (await roseBrowser.Http.GetAsync("/")).StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, (await roseBrowser.Http.GetAsync("/library")).StatusCode);
 
         var adminId = await app.WithDbAsync(db => db.Users.Where(u => u.Email == AppFactory.AdminEmail).Select(u => u.Id).SingleAsync());
         var self = await admin.Http.GetStringAsync($"/admin/users/{adminId}");

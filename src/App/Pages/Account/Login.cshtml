@@ -20,3 +20,16 @@
     </div>
     <button type="submit" class="button button-primary button-large">Email me a sign-in link</button>
 </form>
+
+@if (AppOptions.DemoMode)
+{
+    <section class="card demo-signin" aria-labelledby="demo-heading">
+        <h2 id="demo-heading">Try the demo</h2>
+        <p>This is a demonstration site with a made-up family. Sign in with one tap as:</p>
+        <div class="stack">
+            <form method="post" asp-page-handler="Demo"><input type="hidden" name="who" value="admin"><button type="submit" class="button button-secondary button-large">The family admin</button></form>
+            <form method="post" asp-page-handler="Demo"><input type="hidden" name="who" value="rose"><button type="submit" class="button button-secondary button-large">Grandma Rose (storyteller, age 95)</button></form>
+            <form method="post" asp-page-handler="Demo"><input type="hidden" name="who" value="lily"><button type="submit" class="button button-secondary button-large">Lily (granddaughter, reads the stories)</button></form>
+        </div>
+    </section>
+}

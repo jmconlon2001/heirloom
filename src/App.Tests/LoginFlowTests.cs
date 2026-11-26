@@ -41,11 +41,18 @@ public sealed class LoginFlowTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Signed_out_visitors_are_sent_to_the_login_page()
+    public async Task Signed_out_visitors_see_the_landing_page_and_private_pages_send_them_to_sign_in()
     {
-        var response = await NewBrowser().GetAsync("/");
-        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.StartsWith("https://localhost/account/login", response.Headers.Location!.ToString());
+        var landing = WebUtility.HtmlDecode(await NewBrowser().GetStringAsync("/"));
+        Assert.Contains("Every family has stories worth keeping.", landing);
+        Assert.Contains("href=\"/account/login\"", landing);
+        Assert.DoesNotContain("Need help? Call", "");
+        foreach (var url in new[] { "/library", "/questions", "/tree", "/people" })
+        {
+            var response = await NewBrowser().GetAsync(url);
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.StartsWith("https://localhost/account/login", response.Headers.Location!.ToString());
+        }
     }
 
     [Fact]
@@ -156,7 +163,7 @@ public sealed class LoginFlowTests(PostgresFixture postgres) : IAsyncLifetime
         {
             AllowAutoRedirect = false, HandleCookies = false, BaseAddress = new Uri("https://localhost"),
         });
-        var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        var request = new HttpRequestMessage(HttpMethod.Get, "/library");
         request.Headers.Add("Cookie", authCookie);
         var response = await replay.SendAsync(request);
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);

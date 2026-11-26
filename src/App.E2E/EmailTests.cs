@@ -79,3 +79,28 @@ public sealed class ExportPageTests(PostgresFixture postgres, BrowsersFixture br
         Assert.Contains("Atkinson Hyperlegible", await page.EvaluateAsync<string>("getComputedStyle(document.body).fontFamily"));
     }
 }
+
+/// <summary>The public landing page looks right and is accessible on an iPad and at A++.</summary>
+public sealed class LandingTests(PostgresFixture postgres, BrowsersFixture browsers) : IAsyncLifetime
+{
+    private readonly KestrelAppFactory app = new(postgres);
+    public ValueTask InitializeAsync() => app.InitializeAsync();
+    public ValueTask DisposeAsync() => app.DisposeAsync();
+
+    [Fact]
+    public async Task IPad_landing_page_is_inviting_and_accessible()
+    {
+        await using var context = await browsers.NewIPadAsync(app.BaseUrl);
+        var page = await context.NewPageAsync();
+        await page.GotoAsync("/");
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Every family has stories worth keeping." })).ToBeVisibleAsync();
+        await Accessibility.ScreenshotAsync(page, "ipad-landing");
+        await Accessibility.AssertAccessibleAsync(page, "landing page");
+        await Accessibility.AssertTapTargetsAsync(page);
+        await page.GetByRole(AriaRole.Button, new() { Name = "A++" }).ClickAsync();
+        await Accessibility.AssertNoHorizontalScrollAsync(page);
+        await Accessibility.AssertAccessibleAsync(page, "landing page at A++");
+        await page.GetByRole(AriaRole.Link, new() { Name = "Sign in" }).First.ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Sign in" })).ToBeVisibleAsync();
+    }
+}

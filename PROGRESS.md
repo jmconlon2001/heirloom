@@ -1,5 +1,12 @@
 # Progress
 
+## Beta release (2026-11-25)
+
+- **Landing page** at `/` for signed-out visitors (D-064), checked on iPad with axe.
+- **Demo mode** (`DEMO_MODE`, D-065): a sample family plus one-tap sign-in as the admin, Grandma Rose or Lily, for beta testers.
+- **Docs:** a rewritten README with screenshots; [BETA_TESTING.md](docs/BETA_TESTING.md) (admin, family member and storyteller walkthroughs, plus a feedback template); [DEPLOY_OMV.md](docs/DEPLOY_OMV.md); [DEPLOY_PVE.md](docs/DEPLOY_PVE.md); [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md); and a one-page large-type [HELP_FOR_STORYTELLERS.pdf](docs/HELP_FOR_STORYTELLERS.pdf).
+- **Tests:** demo seeding, the demo buttons work only with the flag on, a non-helper can't see Rose's private demo story, and the landing page (anonymous, no redirect, axe on iPad).
+
 ## Phase 6: Optional extras ✅ (2026-11-25), all built, each off by default
 
 - **Speech-to-text** (`FEATURE_TRANSCRIPTION`, D-060): a local Whisper container (compose profile `transcription`). The storyteller checks and edits the words before they join the story.

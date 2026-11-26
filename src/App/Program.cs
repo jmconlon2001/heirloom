@@ -184,6 +184,7 @@ builder.Services.AddScoped<FamilyMemories.Extras.TranscriptionJob>();
 builder.Services.AddScoped<FamilyMemories.Extras.IReplyInbox, FamilyMemories.Extras.ImapReplyInbox>();
 builder.Services.AddScoped<FamilyMemories.Extras.EmailReplyProcessor>();
 builder.Services.AddScoped<FamilyMemories.Extras.PaperPackets>();
+builder.Services.AddScoped<FamilyMemories.Demo.DemoSeeder>();
 
 // ---- Reverse proxy (Caddy on OPNsense): trust X-Forwarded-For/Proto only from TRUSTED_PROXIES ----
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
@@ -203,7 +204,8 @@ builder.Services.AddRateLimiter(o =>
         if (HttpMethods.IsPost(http.Request.Method)
             && ((http.Request.Path.StartsWithSegments("/account", StringComparison.OrdinalIgnoreCase)
                  && !http.Request.Path.StartsWithSegments("/account/logout", StringComparison.OrdinalIgnoreCase))
-                || http.Request.Path.StartsWithSegments("/s", StringComparison.OrdinalIgnoreCase)))
+                || http.Request.Path.StartsWithSegments("/s", StringComparison.OrdinalIgnoreCase))
+            && !(options.DemoMode && http.Request.Query["handler"] == "Demo"))
         {
             return RateLimitPartition.GetFixedWindowLimiter(
                 http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -225,6 +227,7 @@ builder.Services.AddRazorPages(o =>
     o.Conventions.AllowAnonymousToFolder("/Account");
     o.Conventions.AllowAnonymousToPage("/Error");
     o.Conventions.AllowAnonymousToPage("/Display");
+    o.Conventions.AllowAnonymousToPage("/Index");
     o.Conventions.AllowAnonymousToFolder("/Share");
     o.Conventions.AllowAnonymousToFolder("/EmailPrefs");
 });
@@ -236,6 +239,11 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync();
+    if (options.DemoMode)
+    {
+        app.Logger.LogWarning("DEMO_MODE is ON: anyone can sign in as the sample family without email. Never use it with real family stories.");
+        await scope.ServiceProvider.GetRequiredService<FamilyMemories.Demo.DemoSeeder>().SeedAsync();
+    }
 }
 
 app.UseForwardedHeaders();

@@ -32,6 +32,10 @@
     <header class="site-header">
         <div class="wrap header-row">
             <a class="brand" href="/">@AppOptions.AppName</a>
+            @if (!signedIn && !Context.Request.Path.StartsWithSegments("/account"))
+            {
+                <a class="button button-primary" href="/account/login">Sign in</a>
+            }
             @if (signedIn)
             {
                 <div class="signed-in">
@@ -81,6 +85,11 @@
                 </form>
             </div>
         </div>
+    }
+
+    @if (AppOptions.DemoMode)
+    {
+        <p class="demo-banner" role="note">Demo site with a made-up family. Please don't add real family stories here.</p>
     }
 
     <main id="main" class="wrap" tabindex="-1">

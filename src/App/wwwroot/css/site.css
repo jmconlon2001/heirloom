@@ -550,3 +550,41 @@ details summary { cursor: pointer; font-weight: 700; color: var(--accent); min-h
 .transcript { margin: 0.75rem 0; padding: 0.75rem; background: var(--surface-alt); border-radius: var(--radius); grid-column: 1 / -1; }
 .transcript label { font-weight: 700; display: block; margin-bottom: 0.35rem; }
 .transcript-wait { font-style: italic; color: var(--text-muted); grid-column: 1 / -1; }
+
+/* ================================================================
+   Landing page (signed-out visitors)
+   ================================================================ */
+.landing h2 { font-family: var(--font-serif); font-size: 1.7rem; text-align: center; margin-top: 3rem; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 2rem; align-items: center; padding: 1.5rem 0 1rem; }
+@media (max-width: 52rem) { .hero { grid-template-columns: minmax(0, 1fr); } }
+.hero h1 { font-size: 2.3rem; line-height: 1.15; margin: 0.25rem 0 1rem; }
+.hero-lead { font-size: 1.2rem; }
+.hero-card {
+  background: var(--surface); border: 0.15rem solid var(--border); border-radius: 1rem; padding: 1.25rem 1.4rem;
+  box-shadow: 0 0.8rem 2rem rgba(31, 27, 22, 0.12); transform: rotate(-1.2deg);
+}
+.mock-eyebrow { font-weight: 700; color: var(--text-muted); font-size: 0.85rem; margin: 0; }
+.mock-question { font-family: var(--font-serif); font-weight: 700; font-size: 1.2rem; line-height: 1.3; margin: 0.25rem 0 0.9rem; }
+.mock-lines { border: 0.12rem solid var(--border); border-radius: var(--radius); padding: 0.8rem; display: grid; gap: 0.55rem; }
+.mock-lines span { height: 0.55rem; background: var(--surface-alt); border-radius: 0.3rem; }
+.mock-lines .short { width: 55%; }
+.mock-buttons { display: flex; gap: 0.6rem; margin-top: 0.9rem; flex-wrap: wrap; }
+.mock-buttons span { border: 0.12rem solid var(--accent); color: var(--accent); border-radius: var(--radius); padding: 0.35rem 0.7rem; font-weight: 700; font-size: 0.85rem; }
+.mock-buttons .mock-record { border-color: var(--error); color: var(--error); }
+.mock-saved { color: var(--accent); font-weight: 700; font-size: 0.85rem; margin: 0.7rem 0 0; }
+.wrap:has(.landing) { max-width: 60rem; }
+.steps-grid, .feature-grid { list-style: none; padding: 0; display: grid; gap: 1.25rem; }
+.steps-grid { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.feature-grid { grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+.steps-grid li, .feature-grid li, .roles-grid > div { background: var(--surface); border: 0.125rem solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; }
+.steps-grid h3, .feature-grid h3, .roles-grid h3 { margin: 0.25rem 0 0.4rem; font-size: 1.15rem; }
+.steps-grid p, .feature-grid p, .roles-grid p { margin: 0; }
+.step-number { display: inline-flex; width: 2.4rem; height: 2.4rem; border-radius: 50%; background: var(--accent); color: var(--accent-text); align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; }
+.roles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
+.closing { text-align: center; padding: 1rem 0 2rem; }
+.closing .button-large { margin: 0 auto; }
+html.high-contrast .hero-card { box-shadow: none; transform: none; }
+@media (prefers-reduced-motion: reduce) { .hero-card { transform: none; } }
+.demo-banner { margin: 0; padding: 0.5rem 1rem; text-align: center; background: #fff3c4; color: #3d3100; font-weight: 700; border-bottom: 0.1rem solid #c9a400; }
+.demo-signin { margin-top: 2rem; }
+.demo-signin .button-large { max-width: none; }

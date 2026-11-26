@@ -96,6 +96,9 @@ public sealed class AppOptions
     public string? ImapUsername { get; init; }
     public string? ImapPassword { get; init; }
     public string ImapFolder { get; init; } = "INBOX";
+    /// <summary>DEMO_MODE: sample family plus one-tap sign-in as any role. For beta testing only, never with real stories.</summary>
+    public bool DemoMode { get; init; }
+
     /// <summary>FEATURE_PAPER_PACKETS: printable question packets with writing lines.</summary>
     public bool PaperPacketsEnabled { get; init; }
 
@@ -158,6 +161,7 @@ public sealed class AppOptions
             ImapPassword = NonEmpty(c["IMAP_PASSWORD"]),
             ImapFolder = NonEmpty(c["IMAP_FOLDER"]) ?? "INBOX",
             PaperPacketsEnabled = Flag(c["FEATURE_PAPER_PACKETS"]),
+            DemoMode = Flag(c["DEMO_MODE"]),
             NtfyUrl = NonEmpty(c["NTFY_URL"]),
             NtfyTopic = NonEmpty(c["NTFY_TOPIC"]),
             NtfyToken = NonEmpty(c["NTFY_TOKEN"]),

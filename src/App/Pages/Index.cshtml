@@ -1,8 +1,13 @@
 @page
 @model FamilyMemories.Pages.IndexModel
 @{
-    ViewData["Title"] = "Home";
+    ViewData["Title"] = Model.Landing ? null : "Home";
     var plan = Model.Plan;
+}
+@if (Model.Landing)
+{
+    <partial name="_Landing" />
+    return;
 }
 <h1>Hello, @Model.FirstName</h1>
 <partial name="_Flash" />

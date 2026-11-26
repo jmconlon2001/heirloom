@@ -19,6 +19,7 @@ public sealed class LoginTests(PostgresFixture postgres, BrowsersFixture browser
     private async Task SignInAsync(IPage page)
     {
         await page.GotoAsync("/");
+        await page.GetByRole(AriaRole.Link, new() { Name = "Sign in" }).First.ClickAsync();
         await Expect(page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/account/login"));
         await page.GetByLabel("Your email address").FillAsync(AppFactory.AdminEmail);
         await page.GetByRole(AriaRole.Button, new() { Name = "Email me a sign-in link" }).ClickAsync();

@@ -325,3 +325,13 @@ It always includes everything, private stories too, because it's the family's co
 ### D-063 · Text typed before the page script runs is still saved
 **Context:** A full-suite e2e flake showed that text typed before `answer.js` (a deferred module) attached its listeners was never marked unsaved, so autosave never ran. That's possible on a slow iPad, or when the browser restores a form after Back.
 **Decision:** On start, the script compares every text field with its server-rendered value and saves at once if they differ.
+
+---
+## Beta release
+
+### D-064 · A public landing page at `/`
+**Decision:** Signed-out visitors to `/` see a landing page (`_Landing.cshtml`): "Every family has stories worth keeping.", a sample question card, how it works in three steps, what it does for each kind of family member, and a **Sign in** button. It uses the app's own stylesheet and fonts, has no scripts or third-party assets, and keeps the strict CSP. It contains no testimonials or claims we can't back up. Signed-in people still get their home page at `/`, and the header shows **Sign in** to signed-out visitors everywhere except the sign-in pages themselves.
+
+### D-065 · Demo mode for beta testers
+**Decision:** `DEMO_MODE=true` seeds a made-up family once, only when `rose@demo.family` doesn't exist yet: Grandma Rose (storyteller), Ann, Lily (family member and Rose's helper), a 7-person tree, six finished stories (one private, one written by Lily for Rose), generated sepia photos, hearts, a note, a follow-up question and a draft. The sign-in page then shows **Try the demo** buttons (admin, Rose, Lily) that sign in through the normal device flow. Those buttons are exempt from the sign-in rate limit, and every page shows a banner: "Demo site with a made-up family. Please don't add real family stories here." The demo sign-in handler returns 404 when the flag is off (tested), and the app logs a warning at startup when it's on.
+**Risk:** anyone who can reach a demo site can sign in as the admin, so `.env.example` and BETA_TESTING.md say to put it behind basic auth or an allow-list and never to use it with real stories.
