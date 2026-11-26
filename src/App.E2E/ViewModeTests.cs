@@ -25,6 +25,7 @@ public sealed class ViewModeTests(PostgresFixture postgres, BrowsersFixture brow
         await page.GotoAsync("/account/login");
         await page.GetByLabel("Your email address").FillAsync(AppFactory.AdminEmail);
         await page.GetByRole(AriaRole.Button, new() { Name = "Email me a sign-in link" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Check your email" })).ToBeVisibleAsync();   // the email has been sent
         await page.GotoAsync(CapturingEmailSender.ExtractMagicLink(app.Email.To(AppFactory.AdminEmail).Last()).PathAndQuery);
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
         await Expect(page.GetByRole(AriaRole.Heading, new() { NameRegex = new Regex("^Hello") })).ToBeVisibleAsync();
@@ -70,6 +71,7 @@ public sealed class ViewModeTests(PostgresFixture postgres, BrowsersFixture brow
         await page.GotoAsync("/account/login");
         await page.GetByLabel("Your email address").FillAsync(AppFactory.AdminEmail);
         await page.GetByRole(AriaRole.Button, new() { Name = "Email me a sign-in link" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Check your email" })).ToBeVisibleAsync();   // the email has been sent
         await page.GotoAsync(CapturingEmailSender.ExtractMagicLink(app.Email.To(AppFactory.AdminEmail).Last()).PathAndQuery);
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Detailed" }).ClickAsync();

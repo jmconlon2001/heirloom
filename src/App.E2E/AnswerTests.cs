@@ -208,6 +208,7 @@ public sealed class AnswerTests(PostgresFixture postgres, BrowsersFixture browse
         await page.GetByRole(AriaRole.Link, new() { Name = "Sign in again" }).ClickAsync();
         await page.GetByLabel("Your email address").FillAsync("rose-expire@example.test");
         await page.GetByRole(AriaRole.Button, new() { Name = "Email me a sign-in link" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Check your email" })).ToBeVisibleAsync();
         var link = CapturingEmailSender.ExtractMagicLink(app.Email.To("rose-expire@example.test").Last());
         await page.GotoAsync(link.PathAndQuery);
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
