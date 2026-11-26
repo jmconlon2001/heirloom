@@ -28,6 +28,8 @@ It's self-hosted (your server, your data) and designed first for storytellers ag
   - a **print-ready book package** for Lulu, Amazon KDP or a local printer: interior and cover PDFs with a calculated spine width, EPUB, DOCX, Markdown sources and a preflight report;
   - a complete archive in open formats.
 - **Backups:** encrypted with restic every night, checked every week, restorable from the admin page, plus a disaster-restore script for a new server.
+- **Status page and API:** `/status` says in plain words whether each part is working; `/api/status` gives monitors JSON (and a 503 when something breaks). `/healthz` and `/readyz` are there for container health checks.
+- **Two admin views:** **Basic** keeps the family site's large, calm look; **Complex** adds a sidebar, compact tables and a dashboard. Each admin's choice is remembered.
 - **Optional extras**, off by default: local speech-to-text (Whisper), answering by replying to the email, and printable paper question packets.
 
 ## A look around
@@ -57,6 +59,17 @@ Backups at a glance, people and invitations, and exports to a website, a PDF and
 |---|---|---|
 | <img src="docs/images/home-admin.jpg" alt="The admin home: last good backup and check, and the admin tools" width="260"> | <img src="docs/images/admin-people.jpg" alt="People and invitations" width="260"> | <img src="docs/images/admin-exports.jpg" alt="Exports: family website, shareable PDF, book to print, complete archive" width="260"> |
 
+**Complex view** (switch at the top of any admin page; remembered per admin):
+
+<img src="docs/images/admin-complex.jpg" alt="The Complex admin view: a sidebar of admin sections, stat tiles, a system health table and recent activity" width="800">
+
+### Is everything working?
+<img src="docs/images/status.jpg" alt="The status page: each part of the system with a tick, and backups needing attention" width="300" align="right">
+
+`/status` tells anyone, in plain words, whether each part is working; admins also see the details. Monitors use `/api/status` (JSON, 503 when something breaks; send `Authorization: Bearer $STATUS_TOKEN` for every component), and containers use `/healthz` and `/readyz`.
+
+<br clear="right">
+
 ## Install (Docker Compose)
 
 Every release publishes a multi-architecture image (amd64 for an Intel N100 server, arm64 too) and a ready-to-use compose file. See **[Releases](https://github.com/jmconlon2001/heirloom/releases)**.
@@ -72,6 +85,7 @@ Then open `PUBLIC_BASE_URL`, type the `ADMIN_EMAIL` address, and tap the link in
 
 - The app speaks plain HTTP on `APP_PORT` (default 8095) and expects a reverse proxy for HTTPS: **[docs/CADDY.md](docs/CADDY.md)**.
 - OpenMediaVault: **[docs/DEPLOY_OMV.md](docs/DEPLOY_OMV.md)**. Proxmox (LXC or VM): **[docs/DEPLOY_PVE.md](docs/DEPLOY_PVE.md)**.
+- Monitoring: `/api/status` (set `STATUS_TOKEN` for details), `/healthz`, `/readyz`. See [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md#is-everything-working).
 - Running it day to day: **[docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)**. Backups and disaster recovery: **[docs/RESTORE.md](docs/RESTORE.md)**.
 - A one-page, large-type sheet to print for storytellers: **[docs/HELP_FOR_STORYTELLERS.pdf](docs/HELP_FOR_STORYTELLERS.pdf)**.
 

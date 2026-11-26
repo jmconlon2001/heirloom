@@ -11,6 +11,20 @@ You're the family admin: the helpful person who sets things up, invites everyone
 5. **For anyone who struggles with email:** open their page and **Print a login card**. Pointing the iPad's camera at the QR code signs them in, and the iPad then remembers them. A card works once and expires after 30 days, so treat it like a house key.
 6. **Invite the readers** (children, grandchildren, cousins) with just the **Family** role.
 
+## Basic or Complex view
+
+At the top of every admin page there's an **Admin view** switch:
+- **Basic** looks like the rest of the family site: large text and one thing at a time.
+- **Complex** looks like a typical admin console: a sidebar with every admin section, smaller text, compact tables, and a dashboard with numbers, the health of each part, and recent activity.
+
+Your choice is remembered for your account on every device. It doesn't change what anyone else sees.
+
+## Is everything working?
+
+**System status** (on the admin page, or `/status`) checks the website, database, PDF maker, backups, email, background tasks, disk space and (if on) speech-to-text. Anyone can open `/status` and see whether each part is working. Only admins see the details.
+
+For a monitor such as Uptime Kuma, point it at `/api/status`. It answers **503** when something is broken. Set `STATUS_TOKEN` in `.env` and have the monitor send `Authorization: Bearer <token>` to get the details as JSON.
+
 ## People
 
 | Role | Can |

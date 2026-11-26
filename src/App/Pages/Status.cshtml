@@ -1,0 +1,77 @@
+@page "/status"
+@model FamilyMemories.Pages.StatusModel
+@using FamilyMemories.Web
+@{
+    ViewData["Title"] = "Is everything working?";
+    var r = Model.Report;
+    string Word(StatusLevel l) => l switch { StatusLevel.Ok => "Working", StatusLevel.Warning => "Needs attention", _ => "Not working" };
+    string Mark(StatusLevel l) => l switch { StatusLevel.Ok => "✓", StatusLevel.Warning => "!", _ => "✕" };
+    string Css(StatusLevel l) => l switch { StatusLevel.Ok => "is-ok", StatusLevel.Warning => "is-warn", _ => "is-problem" };
+    string Local(DateTime t) => TimeZoneInfo.ConvertTimeFromUtc(t, AppOptions.TimeZone).ToString("MMMM d 'at' h:mm tt");
+    var uptime = r.CheckedAt - r.StartedAt;
+}
+<h1>Is everything working?</h1>
+
+<div class="status-overall @Css(r.Level)" role="status">
+    <span class="status-mark" aria-hidden="true">@Mark(r.Level)</span>
+    <p>
+        @if (r.Maintenance)
+        {
+            <strong>@AppOptions.AppName is down for a few minutes of maintenance.</strong> <span>Your stories are safe.</span>
+        }
+        else if (r.Level == StatusLevel.Ok)
+        {
+            <strong>Everything is working.</strong>
+        }
+        else if (r.Level == StatusLevel.Warning)
+        {
+            <strong>Everything is working, but something needs the family admin's attention.</strong>
+        }
+        else
+        {
+            <strong>Something isn't working right now.</strong> <span>Your stories are safe. @AppOptions.HelpName has been told by email when backups or email stop working.</span>
+        }
+    </p>
+</div>
+
+<ul class="status-list">
+    @foreach (var c in r.Components)
+    {
+        <li class="@Css(c.Level)">
+            <span class="status-mark" aria-hidden="true">@Mark(c.Level)</span>
+            <div>
+                <strong>@c.Name</strong>: @Word(c.Level)
+                @if (Model.Details)
+                {
+                    <p class="status-detail">@c.Summary</p>
+                }
+            </div>
+        </li>
+    }
+</ul>
+
+<p class="hint">Checked @Local(r.CheckedAt). @if (Model.Details) { <a href="/status?refresh=1">Check again now</a> }</p>
+
+@if (Model.Details)
+{
+    <section class="card" aria-labelledby="tech-heading">
+        <h2 id="tech-heading">For the technically minded</h2>
+        <dl class="status-facts">
+            <dt>Version</dt><dd>@r.Version</dd>
+            <dt>Running since</dt><dd>@Local(r.StartedAt) (@((int)uptime.TotalDays) days, @uptime.Hours hours)</dd>
+            <dt>Monitoring</dt>
+            <dd>
+                <code>/healthz</code> (is the app running), <code>/readyz</code> (database and PDF maker), and
+                <code>/api/status</code> (everything above, as JSON; 503 when something is broken).
+                @if (AppOptions.StatusToken is null)
+                {
+                    <span>Set <code>STATUS_TOKEN</code> in <code>.env</code> so a monitor can read the details with <code>Authorization: Bearer …</code>.</span>
+                }
+                else
+                {
+                    <span>Monitors send <code>Authorization: Bearer</code> with your <code>STATUS_TOKEN</code> to get the details.</span>
+                }
+            </dd>
+        </dl>
+    </section>
+}

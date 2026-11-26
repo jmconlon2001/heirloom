@@ -335,3 +335,22 @@ It always includes everything, private stories too, because it's the family's co
 ### D-065 · Demo mode for beta testers
 **Decision:** `DEMO_MODE=true` seeds a made-up family once, only when `rose@demo.family` doesn't exist yet: Grandma Rose (storyteller), Ann, Lily (family member and Rose's helper), a 7-person tree, six finished stories (one private, one written by Lily for Rose), generated sepia photos, hearts, a note, a follow-up question and a draft. The sign-in page then shows **Try the demo** buttons (admin, Rose, Lily) that sign in through the normal device flow. Those buttons are exempt from the sign-in rate limit, and every page shows a banner: "Demo site with a made-up family. Please don't add real family stories here." The demo sign-in handler returns 404 when the flag is off (tested), and the app logs a warning at startup when it's on.
 **Risk:** anyone who can reach a demo site can sign in as the admin, so `.env.example` and BETA_TESTING.md say to put it behind basic auth or an allow-list and never to use it with real stories.
+
+### D-066 · Status page and status API
+**Decision:** One service (`SystemStatusService`) checks the website, database (latency, size), PDF maker, backups, email (24-hour sent/failed, and whether the latest attempt failed), background jobs (Hangfire workers and failures), storage space on the data and backup disks, and speech-to-text when it's on. Each part is **ok**, **warning** or **problem**.
+- `/status` is a plain-language page. Anyone sees each part's name and state; admins also see the details, the version, uptime and monitoring hints.
+- `/api/status` is JSON. Anyone gets only the overall state. Admins, or a monitor sending `Authorization: Bearer STATUS_TOKEN` (constant-time compare), get every component. It answers **503 when anything is a problem** (and during a restore), so monitors can alert on the status code alone. Warnings stay 200.
+- Results are cached for 15 seconds, so an anonymous caller can't hammer the database or Gotenberg. Maintenance mode lets `/api/status` through and skips the database during a restore.
+- `/healthz` and `/readyz` are unchanged (container health checks use them).
+- The version comes from the image: the release workflow passes `APP_VERSION` as a build arg (`/p:Version`); local builds say `0.0.0-dev`.
+
+### D-067 · Basic and Complex admin views, remembered per admin
+**Decision:** Admin pages (`/admin/*`, and `/status` for admins) have an **Admin view: Basic | Complex** switch at the top.
+- **Basic** (the default) keeps the family site's large, calm look.
+- **Complex** looks like a typical admin console: a dark sidebar with every admin section grouped (Overview, Family, Questions, Email, Data), 16px base text, compact buttons, form fields and striped tables, and a dashboard (stat tiles, the system table, recent activity) in place of the link list. The text size buttons still scale it, and high contrast still applies. Under 52rem wide, the sidebar becomes a wrapping bar.
+- The choice is stored per admin in the settings table (`admin-view:<user id>`), so it follows them to every device. It never affects family pages or other admins. "View as" always shows the family look.
+- Complex targets are 40px (WCAG 2.2 AA needs 24px). Basic keeps 48px for everyone else.
+
+### D-068 · Every POST form gets its own anti-forgery token
+**Context:** "Print a login card" failed with a 400 for everyone: its form posted to an explicit `action` URL, and the form tag helper only adds the token automatically when there's no `action`. The integration test had passed because the test helper borrowed a token from another form on the same page.
+**Decision:** The form now has `asp-antiforgery="true"`. A new test loads the main pages and fails if any `method="post"` form lacks its own `__RequestVerificationToken`, and the login-card test now posts only that form's fields. With the fix removed, both tests fail.

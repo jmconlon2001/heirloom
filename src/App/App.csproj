@@ -3,6 +3,8 @@
     <RootNamespace>FamilyMemories</RootNamespace>
     <AssemblyName>FamilyMemories</AssemblyName>
     <UserSecretsId>family-memories-dev</UserSecretsId>
+    <!-- Release images pass /p:Version=X.Y.Z (Dockerfile APP_VERSION build arg); shown on /status. -->
+    <Version>0.0.0-dev</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />

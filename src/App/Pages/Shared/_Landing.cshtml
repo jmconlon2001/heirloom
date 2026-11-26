@@ -67,4 +67,16 @@
         <p>Ask your family admin for an invitation, or sign in if you already have one.</p>
         <a class="button button-primary button-large" href="/account/login">Sign in</a>
     </section>
+
+    <footer class="landing-footer">
+        @if (AppOptions.ProjectUrl is { } projectUrl)
+        {
+            <section class="open-source" aria-labelledby="code-title">
+                <h2 id="code-title">Run it for your own family</h2>
+                <p>@AppOptions.AppName is self-hosted: it runs on a small home server or NAS with Docker, and your family's stories never leave it. The code, the install guide and the release notes are on GitHub.</p>
+                <a class="button button-secondary button-large github-link" href="@projectUrl" rel="noopener">See @AppOptions.AppName on GitHub</a>
+            </section>
+        }
+        <p class="landing-small"><a href="/status">Is everything working?</a></p>
+    </footer>
 </div>

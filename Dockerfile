@@ -10,7 +10,9 @@ COPY src/App/App.csproj src/App/
 RUN dotnet restore src/App/App.csproj
 COPY src/App/ src/App/
 COPY seed/ seed/
-RUN dotnet publish src/App/App.csproj -c Release --no-restore -o /app /p:UseAppHost=false
+# Release builds pass the tag's version (e.g. 0.6.1); it's shown on /status and in /api/status.
+ARG APP_VERSION=0.0.0-dev
+RUN dotnet publish src/App/App.csproj -c Release --no-restore -o /app /p:UseAppHost=false /p:Version=${APP_VERSION}
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-noble AS runtime
 

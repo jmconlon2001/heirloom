@@ -20,7 +20,7 @@ public static class MaintenanceMiddleware
     {
         var maintenance = context.RequestServices.GetRequiredService<MaintenanceMode>();
         var path = context.Request.Path;
-        if (!maintenance.IsOn || path.StartsWithSegments("/healthz") || path.StartsWithSegments("/css")
+        if (!maintenance.IsOn || path.StartsWithSegments("/healthz") || path.StartsWithSegments("/api/status") || path.StartsWithSegments("/css")
             || path.StartsWithSegments("/js") || path.StartsWithSegments("/img") || path.StartsWithSegments("/fonts"))
         {
             await next();

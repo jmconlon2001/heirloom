@@ -13,7 +13,7 @@
 
 <div class="button-row">
     <a class="button button-primary" href="/questions?for=@u.Id">Write a story for @u.DisplayName</a>
-    <form method="post" action="/admin/users/@u.Id/login-card">
+    <form method="post" action="/admin/users/@u.Id/login-card" asp-antiforgery="true">
         <button type="submit" class="button button-secondary">Print a login card</button>
     </form>
     @if (AppOptions.PaperPacketsEnabled && u.PromptSetId is not null)

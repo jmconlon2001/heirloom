@@ -298,7 +298,11 @@ public sealed class AdminPageTests(PostgresFixture postgres) : IAsyncLifetime
         // GET never mints a link (so previews and reloads can't).
         Assert.Equal(HttpStatusCode.Redirect, (await admin.Http.GetAsync($"/admin/users/{rose.Id}/login-card")).StatusCode);
 
-        var card = await admin.Http.PostFormAsync($"/admin/users/{rose.Id}/login-card", page);
+        // Post with the token from the button's own form (a browser only sends that form's fields).
+        var form = System.Text.RegularExpressions.Regex.Match(page, "<form[^>]*login-card[^>]*>.*?</form>",
+            System.Text.RegularExpressions.RegexOptions.Singleline).Value;
+        Assert.Contains("__RequestVerificationToken", form);
+        var card = await admin.Http.PostFormAsync($"/admin/users/{rose.Id}/login-card", form);
         var html = Decode(await card.Content.ReadAsStringAsync());
         Assert.Contains("Login card for Rose", html);
         Assert.Contains("src=\"data:image/png;base64,", html);
@@ -307,6 +311,27 @@ public sealed class AdminPageTests(PostgresFixture postgres) : IAsyncLifetime
         var token = await app.WithDbAsync(db => db.MagicLinkTokens.SingleAsync(t => t.UserId == rose.Id && t.Purpose == MagicLinkPurpose.DeviceEnrollment));
         Assert.InRange(token.ExpiresAt - token.CreatedAt, TimeSpan.FromDays(29.9), TimeSpan.FromDays(30.1));
         Assert.True(await app.WithDbAsync(db => db.AuditLog.AnyAsync(a => a.Action == "logincard.print" && a.TargetId == rose.Id.ToString())));
+    }
+
+    [Fact]
+    public async Task Every_post_form_on_the_main_pages_carries_its_own_antiforgery_token()
+    {
+        var rose = await app.CreateUserAsync("Rose", "forms@example.test", [Roles.Storyteller], PromptSetKind.Core);
+        var admin = await Browser.SignedInAsync(app, AppFactory.AdminEmail);
+        string[] pages = ["/", "/admin", $"/admin/users/{rose.Id}", "/admin/users", "/admin/users/new", "/admin/backups", "/admin/exports",
+            "/admin/email", "/admin/reminders", "/admin/prompts", "/admin/gedcom", "/status", "/library", "/tree", "/people"];
+        var missing = new List<string>();
+        foreach (var path in pages)
+        {
+            var html = await (await admin.Http.GetAsync(path)).Content.ReadAsStringAsync();   // /status may be 503 here (no mail server)
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(html,
+                         "<form[^>]*method=\"post\"[^>]*>.*?</form>", System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            {
+                if (!m.Value.Contains("__RequestVerificationToken"))
+                    missing.Add($"{path}: {m.Value[..Math.Min(120, m.Value.Length)]}");
+            }
+        }
+        Assert.Empty(missing);
     }
 
     [Fact]

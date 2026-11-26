@@ -1,0 +1,61 @@
+@model FamilyMemories.Web.SystemStatusReport
+@using FamilyMemories.Web
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@{
+    var since = DateTime.UtcNow.AddDays(-30);
+    var finished = await Db.Memories.CountAsync(m => m.Status == MemoryStatus.Complete);
+    var drafts = await Db.Memories.CountAsync(m => m.Status == MemoryStatus.Draft);
+    var newThisMonth = await Db.Memories.CountAsync(m => m.Status == MemoryStatus.Complete && m.CompletedAt >= since);
+    var photos = await Db.Attachments.CountAsync(a => a.Kind == AttachmentKind.Photo);
+    var recordings = await Db.Attachments.CountAsync(a => a.Kind == AttachmentKind.Audio);
+    var users = await Db.Users.CountAsync();
+    var treePeople = await Db.People.CountAsync();
+    var recent = await Db.AuditLog.AsNoTracking().OrderByDescending(a => a.At).Take(8).ToListAsync();
+    string Word(StatusLevel l) => l switch { StatusLevel.Ok => "OK", StatusLevel.Warning => "Warning", _ => "Problem" };
+    string Css(StatusLevel l) => l switch { StatusLevel.Ok => "is-ok", StatusLevel.Warning => "is-warn", _ => "is-problem" };
+    string Local(DateTime t) => TimeZoneInfo.ConvertTimeFromUtc(t, AppOptions.TimeZone).ToString("MMM d, h:mm tt");
+}
+<section class="stat-grid" aria-label="At a glance">
+    <div class="stat"><span class="stat-value">@finished</span><span class="stat-label">finished stories</span><span class="stat-note">@newThisMonth in the last 30 days</span></div>
+    <div class="stat"><span class="stat-value">@drafts</span><span class="stat-label">stories in progress</span></div>
+    <div class="stat"><span class="stat-value">@photos</span><span class="stat-label">photos</span><span class="stat-note">@recordings recordings</span></div>
+    <div class="stat"><span class="stat-value">@users</span><span class="stat-label">people who sign in</span><span class="stat-note">@treePeople in the family tree</span></div>
+    <div class="stat @Css(Model.Level)"><span class="stat-value">@Word(Model.Level)</span><span class="stat-label">system status</span><span class="stat-note">version @Model.Version</span></div>
+</section>
+
+<div class="admin-columns">
+    <section aria-labelledby="sys-heading">
+        <h2 id="sys-heading">System</h2>
+        <table class="data-table">
+            <thead><tr><th scope="col">Part</th><th scope="col">Status</th><th scope="col">Details</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model.Components)
+                {
+                    <tr><td>@c.Name</td><td><span class="pill @Css(c.Level)">@Word(c.Level)</span></td><td>@c.Summary</td></tr>
+                }
+            </tbody>
+        </table>
+        <p class="hint"><a href="/status?refresh=1">Check again</a> · JSON for monitors: <code>/api/status</code></p>
+    </section>
+    <section aria-labelledby="recent-heading">
+        <h2 id="recent-heading">Recent activity</h2>
+        @if (recent.Count == 0)
+        {
+            <p>Nothing yet.</p>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th></tr></thead>
+                <tbody>
+                    @foreach (var a in recent)
+                    {
+                        <tr><td class="nowrap">@Local(a.At)</td><td>@a.ActorName</td><td>@a.Summary</td></tr>
+                    }
+                </tbody>
+            </table>
+            <p class="hint"><a href="/admin/audit">The whole activity log</a></p>
+        }
+    </section>
+</div>

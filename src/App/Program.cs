@@ -216,6 +216,8 @@ builder.Services.AddRateLimiter(o =>
 });
 
 builder.Services.AddHttpClient("gotenberg", c => c.Timeout = TimeSpan.FromSeconds(3));
+builder.Services.AddSingleton<SystemStatusService>();
+builder.Services.AddScoped<FamilyMemories.Admin.AdminViewService>();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
     .AddCheck<GotenbergHealthCheck>("gotenberg", tags: ["ready"]);
@@ -228,6 +230,7 @@ builder.Services.AddRazorPages(o =>
     o.Conventions.AllowAnonymousToPage("/Error");
     o.Conventions.AllowAnonymousToPage("/Display");
     o.Conventions.AllowAnonymousToPage("/Index");
+    o.Conventions.AllowAnonymousToPage("/Status");
     o.Conventions.AllowAnonymousToFolder("/Share");
     o.Conventions.AllowAnonymousToFolder("/EmailPrefs");
 });
@@ -249,7 +252,8 @@ await using (var scope = app.Services.CreateAsyncScope())
 app.UseForwardedHeaders();
 app.UseSerilogRequestLogging(o => o.GetLevel = (http, _, ex) =>
     ex is not null || http.Response.StatusCode >= 500 ? LogEventLevel.Error
-    : http.Request.Path.StartsWithSegments("/healthz") || http.Request.Path.StartsWithSegments("/readyz") ? LogEventLevel.Verbose
+    : http.Request.Path.StartsWithSegments("/healthz") || http.Request.Path.StartsWithSegments("/readyz")
+      || http.Request.Path.StartsWithSegments("/api/status") ? LogEventLevel.Verbose
     : LogEventLevel.Information);
 
 app.UseExceptionHandler("/error");
@@ -265,6 +269,16 @@ app.UseAuthorization();
 
 app.MapHealthChecks("/healthz", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });
+// Everything at once, for people (/status) and monitors (/api/status). Anyone gets the overall state;
+// admins and requests with "Authorization: Bearer STATUS_TOKEN" get version, uptime and each component.
+// 200 = ok or warning, 503 = something is broken (so Uptime Kuma & co. can alert on the code alone).
+app.MapGet("/api/status", async (HttpContext http, SystemStatusService status, CancellationToken ct) =>
+{
+    var report = await status.GetAsync(ct);
+    http.Response.Headers.CacheControl = "no-store";
+    return Results.Json(status.MaySeeDetails(http) ? report.Detailed() : report.Public(),
+        statusCode: report.Level == StatusLevel.Problem || report.Maintenance ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status200OK);
+}).AllowAnonymous();
 app.MapRazorPages();
 app.MapStoryApi();
 app.MapMediaEndpoints();
@@ -287,6 +301,17 @@ app.MapPost("/email/unsubscribe/{token}", async (string token, string? list, Ema
 app.MapGet("/email/unsubscribe/{token}", (string token) => Results.Redirect($"/email/preferences/{token}"));
 
 app.MapEmailPreview();
+// Basic / Complex admin look, remembered per admin.
+app.MapPost("/admin/view", async (HttpContext http, FamilyMemories.Admin.AdminViewService views,
+    Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery) =>
+{
+    await antiforgery.ValidateRequestAsync(http);
+    var form = await http.Request.ReadFormAsync();
+    var mode = Enum.TryParse<FamilyMemories.Admin.AdminViewMode>(form["mode"], ignoreCase: true, out var m) ? m : FamilyMemories.Admin.AdminViewMode.Basic;
+    await views.SetAsync(FamilyMemories.Auth.CurrentUserExtensions.UserId(http.User), mode);
+    var back = form["returnUrl"].ToString();
+    return Results.LocalRedirect(back.StartsWith('/') && !back.StartsWith("//") && !back.StartsWith("/\\") ? back : "/admin");
+}).RequireAuthorization("Admin");
 app.MapPost("/admin/users/{id:guid}/packet", async (Guid id, HttpContext http, FamilyMemories.Extras.PaperPackets packets,
     Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery, CancellationToken ct) =>
 {

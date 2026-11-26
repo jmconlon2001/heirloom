@@ -4,7 +4,19 @@
 }
 <h1>Family admin</h1>
 @inject FamilyMemories.Backup.BackupStatusQuery BackupStatus
-<partial name="_BackupHealth" model="await BackupStatus.GetAsync()" />
+@inject FamilyMemories.Admin.AdminViewService AdminViews
+@inject FamilyMemories.Web.SystemStatusService SystemStatus
+@{
+    var complex = await AdminViews.GetAsync(HttpContext) == FamilyMemories.Admin.AdminViewMode.Complex;
+}
+@if (complex)
+{
+    <partial name="_AdminDashboard" model="await SystemStatus.GetAsync()" />
+}
+else
+{
+    <partial name="_BackupHealth" model="await BackupStatus.GetAsync()" />
+}
 @inject FamilyMemories.Data.AppDbContext Db
 @{
     var waiting = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
@@ -17,6 +29,8 @@
         <ul class="link-list">@foreach (var w in waiting) { <li><a href="/stories/@w.Id/write">@w.Teller: @w.Title</a></li> }</ul>
     </section>
 }
+@if (!complex)
+{
 <ul class="link-list link-list-large">
     <li><a href="/admin/users">People and invitations</a></li>
     <li><a href="/admin/prompts">Questions and chapters</a></li>
@@ -27,8 +41,10 @@
     <li><a href="/admin/gedcom">Import or export the family tree (GEDCOM)</a></li>
     <li><a href="/admin/features">Optional extras</a></li>
     <li><a href="/admin/audit">Activity log</a></li>
+    <li><a href="/status">System status</a></li>
     @if (AppOptions.JobsEnabled)
     {
         <li><a href="/admin/jobs">Background jobs</a></li>
     }
 </ul>
+}

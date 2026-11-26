@@ -99,6 +99,23 @@ public sealed class AppOptions
     /// <summary>DEMO_MODE: sample family plus one-tap sign-in as any role. For beta testing only, never with real stories.</summary>
     public bool DemoMode { get; init; }
 
+    /// <summary>STATUS_TOKEN: lets a monitor (Uptime Kuma, Healthchecks…) read the detailed /api/status with "Authorization: Bearer …".</summary>
+    public string? StatusToken { get; init; }
+    /// <summary>PROJECT_URL: where the landing page links to for the project's code ("" hides the link).</summary>
+    public string? ProjectUrl { get; init; } = DefaultProjectUrl;
+    public const string DefaultProjectUrl = "https://github.com/jmconlon2001/heirloom";
+
+    /// <summary>The app's version, baked in at build time (APP_VERSION build arg on release images; "dev" otherwise).</summary>
+    public static string Version { get; } = ReadVersion();
+    private static string ReadVersion()
+    {
+        var v = typeof(AppOptions).Assembly
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "dev";
+        var plus = v.IndexOf('+');                 // drop the "+commit" suffix the SDK adds
+        return plus > 0 ? v[..plus] : v;
+    }
+
     /// <summary>FEATURE_PAPER_PACKETS: printable question packets with writing lines.</summary>
     public bool PaperPacketsEnabled { get; init; }
 
@@ -162,6 +179,8 @@ public sealed class AppOptions
             ImapFolder = NonEmpty(c["IMAP_FOLDER"]) ?? "INBOX",
             PaperPacketsEnabled = Flag(c["FEATURE_PAPER_PACKETS"]),
             DemoMode = Flag(c["DEMO_MODE"]),
+            StatusToken = NonEmpty(c["STATUS_TOKEN"]),
+            ProjectUrl = c["PROJECT_URL"] is { } projectUrl ? NonEmpty(projectUrl) : DefaultProjectUrl,
             NtfyUrl = NonEmpty(c["NTFY_URL"]),
             NtfyTopic = NonEmpty(c["NTFY_TOPIC"]),
             NtfyToken = NonEmpty(c["NTFY_TOKEN"]),

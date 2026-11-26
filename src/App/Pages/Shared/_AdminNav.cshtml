@@ -1,0 +1,31 @@
+@{
+    var path = Context.Request.Path;
+    string? Current(string href, bool exact = false) =>
+        (exact ? path.Equals(href, StringComparison.OrdinalIgnoreCase) : path.StartsWithSegments(href, StringComparison.OrdinalIgnoreCase)) ? "page" : null;
+    var groups = new (string Heading, (string Text, string Href, bool Exact)[] Links)[]
+    {
+        ("Overview", [("Dashboard", "/admin", true), ("System status", "/status", false), ("Activity log", "/admin/audit", false)]),
+        ("Family", [("People and invitations", "/admin/users", false), ("Family tree import/export", "/admin/gedcom", false)]),
+        ("Questions", [("Questions and chapters", "/admin/prompts", false), ("Question sets", "/admin/prompt-sets", false)]),
+        ("Email", [("Mail server", "/admin/email", true), ("Reminder schedule", "/admin/reminders", false), ("Email wording", "/admin/email/templates", false), ("Sent emails", "/admin/email/log", false)]),
+        ("Data", [("Exports", "/admin/exports", false), ("Backups", "/admin/backups", false), ("Optional extras", "/admin/features", false)]),
+    };
+}
+<nav class="admin-nav" aria-label="Family admin">
+    @foreach (var g in groups)
+    {
+        <p class="admin-nav-heading">@g.Heading</p>
+        <ul>
+            @foreach (var l in g.Links)
+            {
+                <li><a href="@l.Href" aria-current="@Current(l.Href, l.Exact)">@l.Text</a></li>
+            }
+            @if (g.Heading == "Data" && AppOptions.JobsEnabled)
+            {
+                <li><a href="/admin/jobs">Background jobs</a></li>
+            }
+        </ul>
+    }
+    <p class="admin-nav-heading">Site</p>
+    <ul><li><a href="/">Back to the family site</a></li></ul>
+</nav>
