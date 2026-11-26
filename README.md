@@ -4,12 +4,13 @@
 
 It's self-hosted (your server, your data) and designed first for storytellers aged 70 to 90+, most of them on an iPad.
 
-<p>
-  <img src="docs/images/ipad-landing.jpg" alt="The landing page" width="24%">
-  <img src="docs/images/ipad-answer-filled.jpg" alt="Answering a question with words, a photo and a voice recording" width="24%">
-  <img src="docs/images/ipad-story-read.jpg" alt="Reading a story, with a heart and a note from a granddaughter" width="24%">
-  <img src="docs/images/ipad-tree.jpg" alt="The family tree" width="24%">
+<p align="center">
+  <img src="docs/images/landing.jpg" alt="The landing page: Every family has stories worth keeping" width="32%">
+  <img src="docs/images/answer.jpg" alt="Grandma Rose answering her granddaughter's follow-up question" width="32%">
+  <img src="docs/images/story.jpg" alt="Reading Grandma Rose's story about the county fair, with an old photo" width="32%">
 </p>
+
+<sub>All screenshots are from demo mode on an iPad-sized screen. The family (Grandma Rose, her son David, her daughter Ann and her granddaughter Lily), their stories and their "old photos" are all made up.</sub>
 
 ## What it does
 
@@ -28,6 +29,33 @@ It's self-hosted (your server, your data) and designed first for storytellers ag
   - a complete archive in open formats.
 - **Backups:** encrypted with restic every night, checked every week, restorable from the admin page, plus a disaster-restore script for a new server.
 - **Optional extras**, off by default: local speech-to-text (Whisper), answering by replying to the email, and printable paper question packets.
+
+## A look around
+
+### For storytellers
+One question at a time, in large type, with a "Need help?" phone number on every page.
+
+| Home | Answering a question | Signing in |
+|---|---|---|
+| <img src="docs/images/home-storyteller.jpg" alt="Grandma Rose's home page: her next question, asked by Lily, and her chapters" width="260"> | <img src="docs/images/answer.jpg" alt="The answer page with the question, a text box, Record my voice and Add photos" width="260"> | <img src="docs/images/login.jpg" alt="The sign-in page: type your email, no password. In demo mode, one-tap demo buttons" width="260"> |
+
+### For the family
+Read the stories, leave a ♥ or a note, ask a follow-up question, and explore photos and the family tree.
+
+| Family Library | A story | Photos |
+|---|---|---|
+| <img src="docs/images/library.jpg" alt="The Family Library with the newest stories" width="260"> | <img src="docs/images/story.jpg" alt="A story with its photos, the people in it, and who can read it" width="260"> | <img src="docs/images/photos.jpg" alt="Photos from every story" width="260"> |
+
+| Timeline | Family tree | Home |
+|---|---|---|
+| <img src="docs/images/timeline.jpg" alt="Stories by decade" width="260"> | <img src="docs/images/tree.jpg" alt="The family tree, four generations" width="260"> | <img src="docs/images/home-family.jpg" alt="Lily's home page, with Write for Grandma Rose" width="260"> |
+
+### For the family admin
+Backups at a glance, people and invitations, and exports to a website, a PDF and a printed book.
+
+| Admin home | People | Exports |
+|---|---|---|
+| <img src="docs/images/home-admin.jpg" alt="The admin home: last good backup and check, and the admin tools" width="260"> | <img src="docs/images/admin-people.jpg" alt="People and invitations" width="260"> | <img src="docs/images/admin-exports.jpg" alt="Exports: family website, shareable PDF, book to print, complete archive" width="260"> |
 
 ## Install (Docker Compose)
 
@@ -49,7 +77,7 @@ Then open `PUBLIC_BASE_URL`, type the `ADMIN_EMAIL` address, and tap the link in
 
 ## Try it with a sample family (beta testing)
 
-Set `DEMO_MODE=true` to get a made-up family (Grandma Rose's stories with photos, a family tree, hearts and notes) and one-tap sign-in buttons for **the family admin**, **Grandma Rose** and **Lily** on the sign-in page. Never use demo mode with real family stories. The reviewer walkthroughs are in **[docs/BETA_TESTING.md](docs/BETA_TESTING.md)**.
+Set `DEMO_MODE=true` to get the made-up family from the screenshots (Grandma Rose's stories with old-looking photos, a four-generation tree, hearts, notes and a follow-up question) and one-tap sign-in buttons for **the family admin**, **Grandma Rose** and **Lily** on the sign-in page. Never use demo mode with real family stories. The reviewer walkthroughs are in **[docs/BETA_TESTING.md](docs/BETA_TESTING.md)**.
 
 ```sh
 cp .env.example .env     # then set at least the values below

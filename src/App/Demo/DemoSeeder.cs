@@ -67,7 +67,7 @@ public sealed class DemoSeeder(
         var photos = Path.Combine(options.UploadsDir, "demo");
         Directory.CreateDirectory(photos);
         async Task<Memory> Story(AppUser teller, string key, string body, FuzzyDate when, string? place, Visibility vis, Guid[] tagged,
-            (string Caption, MagickColor Sky, MagickColor Ground, Guid[] People)[] pictures, Guid? writtenBy = null, DateTime? finished = null)
+            (string Caption, Scene Scene, Guid[] People)[] pictures, Guid? writtenBy = null, DateTime? finished = null)
         {
             var prompt = await db.Prompts.SingleAsync(p => p.Key == key);
             var m = await memories.GetOrCreateForPromptAsync(teller.Id, prompt, writtenBy ?? teller.Id);
@@ -75,7 +75,7 @@ public sealed class DemoSeeder(
             foreach (var pic in pictures)
             {
                 var file = Path.Combine(photos, $"{Guid.NewGuid():N}.jpg");
-                Picture(file, pic.Sky, pic.Ground);
+                Picture(file, pic.Scene);
                 await using var stream = File.OpenRead(file);
                 var (a, _) = await attachments.AddFromStreamAsync(m.Id, Path.GetFileName(file), stream, teller.Id);
                 if (a is null) continue;
@@ -92,16 +92,16 @@ public sealed class DemoSeeder(
         var born = await Story(rose, "roots-born",
             "I was born at home on June 12, 1931, in the front bedroom of our farmhouse outside Akron. The doctor came out from town in a Model A, and my father always said he got there just in time to take the credit.\n\nMy mother named me after the rose bush by the porch. It was the only thing on the farm she planted just because it was pretty.",
             new FuzzyDate(1931, 6, 12, false, null, null), "Akron, Ohio", Visibility.AllFamily, [roseP.Id, walter.Id, edna.Id],
-            [("The farmhouse, about 1935", new MagickColor("#9fc3df"), new MagickColor("#7a9a52"), [])], finished: now.AddDays(-40));
+            [("The farmhouse, about 1935", Scene.Farmhouse, [])], finished: now.AddDays(-40));
         var meeting = await Story(rose, "love-meeting",
             "It was the Summit County Fair, the summer of 1950. Joe had entered his tomatoes, and he won the blue ribbon. He walked right over and pinned it on my coat. I told him that was the boldest thing I'd ever seen, and he said, \"Then you'd better let me buy you a lemonade.\"\n\nWe were married two years later. He grew tomatoes every summer for the rest of his life.",
             new FuzzyDate(1950, 8, null, false, null, null), "Summit County Fair", Visibility.AllFamily, [joe.Id, roseP.Id],
-            [("Joe and me at the fair, 1950", new MagickColor("#f2d5a0"), new MagickColor("#c2a272"), [joe.Id, roseP.Id]),
-             ("Our wedding day, June 1952", new MagickColor("#e9e4dc"), new MagickColor("#b9ad9b"), [joe.Id, roseP.Id])], finished: now.AddDays(-9));
+            [("Joe and me at the fair, 1950", Scene.Fair, [joe.Id, roseP.Id]),
+             ("Our wedding day, June 1952", Scene.Wedding, [joe.Id, roseP.Id])], finished: now.AddDays(-9));
         await Story(rose, "food-recipe",
             "Mother's apple butter. Two pecks of apples, a gallon of cider, three cups of sugar, cinnamon and cloves. You stir it in the copper kettle all afternoon so it doesn't scorch, and everybody takes a turn.\n\nThe secret is patience. And a little more cinnamon than you think.",
             new FuzzyDate(null, null, null, false, 1940, null), null, Visibility.AllFamily, [edna.Id],
-            [("The recipe card in Mother's handwriting", new MagickColor("#efe6cf"), new MagickColor("#d8c9a3"), [edna.Id])], finished: now.AddDays(-3));
+            [("The recipe card in Mother's handwriting", Scene.RecipeCard, [edna.Id])], finished: now.AddDays(-3));
         await Story(rose, "people-miss",
             "I miss my sister Ruth. We shared a bed until I was fourteen and talked every night until Mother knocked on the wall.",
             default, null, Visibility.Private, [], [], finished: now.AddDays(-2));
@@ -127,20 +127,110 @@ public sealed class DemoSeeder(
         try { Directory.Delete(photos, true); } catch (IOException) { }
     }
 
-    /// <summary>A soft, painterly stand-in for an old photo: sky, a field, a house shape and a sun. No text (fonts vary between systems).</summary>
-    private static void Picture(string path, MagickColor sky, MagickColor ground)
+    private enum Scene { Farmhouse, Fair, Wedding, RecipeCard }
+
+    /// <summary>
+    /// A simple stand-in for an old family snapshot: a grey-toned scene, then film grain, a soft focus,
+    /// a warm sepia tint, a vignette and a white print border. No text (fonts vary between systems).
+    /// </summary>
+    private static void Picture(string path, Scene scene)
     {
-        using var image = new MagickImage(sky, 1200, 900);
-        new Drawables()
-            .FillColor(ground).Rectangle(0, 560, 1200, 900)
-            .FillColor(new MagickColor("#8b3a2b")).Polygon(new PointD(420, 420), new PointD(600, 300), new PointD(780, 420))
-            .FillColor(new MagickColor("#f4efe4")).Rectangle(450, 420, 750, 600)
-            .FillColor(new MagickColor("#5b4636")).Rectangle(575, 500, 625, 600)
-            .FillColor(new MagickColor("#fff4c2")).Circle(980, 160, 1040, 160)
-            .Draw(image);
+        static MagickColor G(int v) => new((byte)v, (byte)v, (byte)v);
+        using var image = new MagickImage(G(200), 1200, 900);
+        var d = new Drawables();
+        switch (scene)
+        {
+            case Scene.Farmhouse:
+                d.FillColor(G(205)).Rectangle(0, 0, 1200, 560)
+                 .FillColor(G(120)).Rectangle(0, 560, 1200, 900)
+                 // barn
+                 .FillColor(G(90)).Rectangle(760, 380, 1060, 600)
+                 .FillColor(G(70)).Polygon(new PointD(740, 390), new PointD(910, 270), new PointD(1080, 390))
+                 .FillColor(G(150)).Rectangle(870, 470, 950, 600)
+                 // house
+                 .FillColor(G(60)).Polygon(new PointD(230, 420), new PointD(410, 290), new PointD(590, 420))
+                 .FillColor(G(225)).Rectangle(260, 420, 560, 620)
+                 .FillColor(G(70)).Rectangle(385, 510, 435, 620)
+                 .FillColor(G(110)).Rectangle(290, 460, 345, 510).Rectangle(475, 460, 530, 510)
+                 // tree
+                 .FillColor(G(80)).Rectangle(120, 430, 145, 620)
+                 .FillColor(G(95)).Circle(132, 380, 132, 290)
+                 // fence
+                 .StrokeColor(G(235)).StrokeWidth(6).Line(0, 700, 1200, 690).Line(0, 740, 1200, 730);
+                for (var x = 20; x < 1200; x += 80) d.Line(x, 680, x, 760);
+                break;
+            case Scene.Fair:
+                d.FillColor(G(215)).Rectangle(0, 0, 1200, 600)
+                 .FillColor(G(150)).Rectangle(0, 600, 1200, 900)
+                 // Ferris wheel
+                 .FillColor(MagickColors.Transparent).StrokeColor(G(90)).StrokeWidth(8).Circle(880, 300, 880, 90);
+                for (var a = 0; a < 360; a += 30)
+                {
+                    var r = a * Math.PI / 180;
+                    d.Line(880, 300, 880 + 210 * Math.Cos(r), 300 + 210 * Math.Sin(r));
+                }
+                d.Line(880, 300, 800, 610).Line(880, 300, 960, 610)
+                 // striped tent
+                 .StrokeWidth(0).FillColor(G(240)).Polygon(new PointD(80, 600), new PointD(300, 330), new PointD(520, 600));
+                for (var x = 80; x < 520; x += 88)
+                    d.FillColor(G(110)).Polygon(new PointD(x, 600), new PointD(300, 330), new PointD(x + 44, 600));
+                // two people
+                Person(d, 560, 640, G(55), G(70));
+                Person(d, 660, 650, G(185), G(70));
+                break;
+            case Scene.Wedding:
+                d.FillColor(G(185)).Rectangle(0, 0, 1200, 900)
+                 // church doorway
+                 .FillColor(G(120)).Rectangle(380, 260, 820, 900)
+                 .FillColor(G(75)).Circle(600, 300, 600, 140).Rectangle(440, 300, 760, 900)
+                 .FillColor(G(150)).Rectangle(0, 760, 1200, 900);
+                // groom in a dark suit, bride in white with a long dress
+                Person(d, 520, 520, G(40), G(70));
+                d.FillColor(G(245)).Polygon(new PointD(640, 520), new PointD(560, 860), new PointD(760, 860))
+                 .FillColor(G(150)).Circle(660, 470, 660, 430)
+                 .FillColor(G(230)).Polygon(new PointD(660, 425), new PointD(610, 640), new PointD(710, 640));
+                break;
+            case Scene.RecipeCard:
+                d.FillColor(G(110)).Rectangle(0, 0, 1200, 900)
+                 .FillColor(G(70)).Rectangle(0, 0, 1200, 30)
+                 .FillColor(G(235)).Rectangle(180, 170, 1020, 730)
+                 .StrokeColor(G(170)).StrokeWidth(3);
+                for (var y = 290; y < 720; y += 50) d.Line(200, y, 1000, y);
+                // handwriting-like squiggles
+                d.FillColor(MagickColors.Transparent).StrokeColor(G(60)).StrokeWidth(5);
+                var rng = new Random(7);
+                for (var y = 280; y < 700; y += 50)
+                {
+                    var x = 220.0;
+                    var end = 640 + rng.Next(0, 340);
+                    while (x < end)
+                    {
+                        var w = 25 + rng.Next(0, 45);
+                        d.Bezier(new PointD(x, y), new PointD(x + w / 3.0, y - 22), new PointD(x + 2 * w / 3.0, y + 8), new PointD(x + w, y - 6));
+                        x += w + (rng.Next(0, 4) == 0 ? 22 : 4);
+                    }
+                }
+                d.StrokeWidth(7).Bezier(new PointD(330, 230), new PointD(420, 180), new PointD(520, 260), new PointD(700, 215));
+                break;
+        }
+        d.Draw(image);
         image.ColorType = ColorType.TrueColor;
-        image.SepiaTone(new Percentage(55));
+        image.AddNoise(NoiseType.Gaussian, 0.35);
+        image.GaussianBlur(0, 1.6);
+        image.Grayscale();
+        image.Colorize(new MagickColor("#8a5a2b"), new Percentage(28));
+        image.Vignette(0, 220, 0, 0);
+        image.BorderColor = new MagickColor("#f6f1e6");
+        image.Border(48);
+        image.Quality = 85;
         image.Format = MagickFormat.Jpeg;
         image.Write(path);
+    }
+
+    private static void Person(Drawables d, double x, double y, MagickColor body, MagickColor head)
+    {
+        d.StrokeWidth(0).FillColor(head).Circle(x, y - 60, x, y - 100)
+         .FillColor(body).Rectangle(x - 45, y - 20, x + 45, y + 180)
+         .Rectangle(x - 40, y + 180, x - 8, y + 240).Rectangle(x + 8, y + 180, x + 40, y + 240);
     }
 }

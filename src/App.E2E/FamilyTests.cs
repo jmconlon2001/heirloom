@@ -95,6 +95,10 @@ public sealed class FamilyTests(PostgresFixture postgres, BrowsersFixture browse
 
         // The large photo viewer.
         await page.GotoAsync("/library/photos");
+        // Thumbnails are square tiles (the img height attribute must not stretch them).
+        var tile = await page.Locator(".photo-grid img").First.BoundingBoxAsync();
+        Assert.NotNull(tile);
+        Assert.InRange(tile.Height / tile.Width, 0.95, 1.05);
         await page.Locator(".photo-grid a").First.ClickAsync();
         await Expect(page.GetByText("Joe and me at the fair, 1950")).ToBeVisibleAsync();
         await Accessibility.AssertAccessibleAsync(page, "photo viewer");

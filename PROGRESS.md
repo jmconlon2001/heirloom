@@ -5,6 +5,9 @@
 - **Landing page** at `/` for signed-out visitors (D-064), checked on iPad with axe.
 - **Demo mode** (`DEMO_MODE`, D-065): a sample family plus one-tap sign-in as the admin, Grandma Rose or Lily, for beta testers.
 - **Docs:** a rewritten README with screenshots; [BETA_TESTING.md](docs/BETA_TESTING.md) (admin, family member and storyteller walkthroughs, plus a feedback template); [DEPLOY_OMV.md](docs/DEPLOY_OMV.md); [DEPLOY_PVE.md](docs/DEPLOY_PVE.md); [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md); and a one-page large-type [HELP_FOR_STORYTELLERS.pdf](docs/HELP_FOR_STORYTELLERS.pdf).
+- **README screenshots** retaken from demo mode (no test data): storyteller, family and admin views.
+- **Demo photos** now look like old sepia snapshots (farmhouse, county fair, wedding, recipe card) instead of flat yellow drawings.
+- **Fixed:** Photos-page and person-page thumbnails were stretched to 400px tall on iPad (the `height` attribute beat `aspect-ratio`); there's now an e2e check that they're square.
 - **Tests:** demo seeding, the demo buttons work only with the flag on, a non-helper can't see Rose's private demo story, and the landing page (anonymous, no redirect, axe on iPad).
 
 ## Phase 6: Optional extras ✅ (2026-11-25), all built, each off by default
