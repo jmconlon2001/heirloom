@@ -1,5 +1,38 @@
 # Progress
 
+## Phase 5: Exports ✅ (2026-11-25)
+
+**Built** (admin **Exports** page: one form, Hangfire job, progress bar, versioned files in `/data/exports`, an "export is ready" email, audited admin-only downloads):
+- **Scope:** storytellers, chapters, finished or also unfinished, private only with a tick plus confirmation, and a year range.
+- **Family website** (zip, D-056): stories, timeline by decade, photos, people, the family tree as SVG, and offline search. It works from a USB stick and on any static host; photos, recordings and videos are included.
+- **Shareable PDF** (D-052): US Letter; contents page with page numbers; PDF bookmarks; section dividers; photos with captions and who's in them; QR codes and links for recordings (D-055); family tree page; people index with page numbers.
+- **Book package** (zip, D-053/D-054/D-057):
+  - `interior.pdf`: trim size, bleed, mirrored margins and gutter, 300 dpi images, right-hand chapter starts, running heads, page numbers, title/copyright/dedication/contents pages, people index, padded to the printer's multiple;
+  - `cover.pdf`: back + spine + front spread, spine from page count and paper;
+  - `book.epub` and `book.docx` (pandoc);
+  - `source/`: Markdown per story, `book.md`, `metadata.yaml`, full-resolution images, `people.ged`;
+  - `preflight.txt`: low-dpi photos at printed size, missing captions, empty chapters, page count, spine and cover size.
+- **Portable archive** (D-058): data.json, all media, GEDCOM, README.
+- The app itself now uses the vendored Atkinson Hyperlegible and Literata fonts (D-059).
+
+### Tests: 201 passing
+- **Unit:** spine width (KDP white/cream), cover size, page padding, printed-size dpi, tree SVG (living people shown with year only).
+- **Integration with a real Gotenberg 8 container:**
+  - scope rules;
+  - a shareable PDF (Letter MediaBox, outline, page count, a clip link created, the ready email);
+  - a book package (every file present; 6×9 interior; page count a multiple of 4; the cover's measured width equals 12 in + pages/400 + 0.25 in; preflight numbers; EPUB is a zip; no private story in the Markdown);
+  - a website (relative links only, no modules, every referenced image or audio file inside the zip, search index, no private stories);
+  - the archive (all stories including private ones, every original present);
+  - admin form, private confirmation, download permissions.
+- **e2e:** the Exports page on iPad (axe, no sideways scroll, local font loaded).
+- **Checked by eye:** pages of a rendered book (contents with page numbers, story, photos, QR card, tree, index, running heads and page numbers).
+
+### Bugs found and fixed
+- Paged.js never finished (external CSS from `file://`; a `:first-of-type` target-counter rule broke its parser; CSS columns).
+- `leader()` silently removed the contents page numbers.
+- A diagnostic probe found these in minutes, and now Gotenberg fails fast on any JavaScript error (D-052).
+
+
 ## Phase 4: Email reminders and notifications ✅ (2026-11-25)
 
 **Built:**

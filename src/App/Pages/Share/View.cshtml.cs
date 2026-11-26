@@ -17,6 +17,9 @@ public sealed class ViewModel(AppDbContext db, SharingService sharing) : PageMod
     public Memory? Memory { get; private set; }
     public List<Attachment> Items { get; private set; } = [];
     public List<string[]> Paragraphs { get; private set; } = [];
+    public Attachment? Clip { get; private set; }
+    public string? ClipTeller { get; private set; }
+    public string? ClipStory { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(string token)
     {
@@ -36,6 +39,13 @@ public sealed class ViewModel(AppDbContext db, SharingService sharing) : PageMod
             return Page();
         }
         await sharing.RecordUseAsync(share);
+        if (share.AttachmentId is { } clipId)
+        {
+            Clip = await db.Attachments.AsNoTracking().SingleAsync(a => a.Id == clipId);
+            ClipTeller = await db.Memories.Where(m => m.Id == share.MemoryId).Select(m => m.Storyteller!.DisplayName).SingleAsync();
+            ClipStory = await db.Memories.Where(m => m.Id == share.MemoryId).Select(m => m.Title).SingleAsync();
+            return Page();
+        }
         Memory = await db.Memories.AsNoTracking().Include(m => m.Prompt).Include(m => m.Storyteller).Include(m => m.WrittenBy)
             .SingleAsync(m => m.Id == share.MemoryId);
         Items = await db.Attachments.AsNoTracking().Where(a => a.MemoryId == share.MemoryId && a.RemovedAt == null)

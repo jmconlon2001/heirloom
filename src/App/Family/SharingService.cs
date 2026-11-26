@@ -57,6 +57,19 @@ public sealed class SharingService(AppDbContext db, AuditLog audit, AppOptions o
 
     public Uri LinkUrl(string token) => options.BuildUrl($"s/{token}");
 
+    /// <summary>A link to one recording or video, for the QR codes printed in PDFs and books.</summary>
+    public async Task<string> CreateClipLinkAsync(Attachment clip, Guid createdBy, string label)
+    {
+        var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(18));
+        db.LinkShares.Add(new LinkShare
+        {
+            Id = Guid.CreateVersion7(), MemoryId = clip.MemoryId, AttachmentId = clip.Id,
+            TokenHash = MagicLinkService.Hash(token), Label = label, CreatedById = createdBy, CreatedAt = Now,
+        });
+        await db.SaveChangesAsync();
+        return token;
+    }
+
     public async Task RevokeAsync(Guid memoryId, Guid shareId)
     {
         var share = await db.LinkShares.SingleOrDefaultAsync(s => s.Id == shareId && s.MemoryId == memoryId && s.RevokedAt == null);
@@ -75,6 +88,9 @@ public sealed class SharingService(AppDbContext db, AuditLog audit, AppOptions o
         if (share is null) return new(null, LinkFailure.NotFound);
         if (share.RevokedAt is not null) return new(share, LinkFailure.Revoked);
         if (share.ExpiresAt is { } exp && exp <= Now) return new(share, LinkFailure.Expired);
+        if (share.AttachmentId is { } clipId)
+            return await db.Attachments.AnyAsync(a => a.Id == clipId && a.RemovedAt == null)
+                ? new(share, LinkFailure.None) : new(share, LinkFailure.NotFound);
         if (share.Memory!.Visibility != Visibility.Link || share.Memory.Status != MemoryStatus.Complete) return new(share, LinkFailure.NotShared);
         return new(share, LinkFailure.None);
     }

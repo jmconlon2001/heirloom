@@ -1,0 +1,135 @@
+@model BookView
+@{
+    var o = Model.Options;
+    var c = Model.Content;
+    var mediumClass = Model.Print ? "print" : "screen";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@o.Title</title>
+    @* Inlined (fonts as data URIs) so Paged.js and Chromium need no file fetches inside Gotenberg. *@
+    <style>@Html.Raw(Model.Css)</style>
+    <style>@Html.Raw(Model.PageCss())</style>
+    <script>window.PagedConfig = { auto: true, after: function () { window.pagedDone = true; } };</script>
+    <script src="paged.polyfill.min.js"></script>
+</head>
+<body class="@mediumClass">
+    <section class="title-page">
+        <h1 class="book-title">@o.Title</h1>
+        @if (!string.IsNullOrWhiteSpace(o.Subtitle)) { <p class="book-subtitle">@o.Subtitle</p> }
+        <p class="book-tellers">@string.Join(" · ", c.Stories.Select(s => s.Teller).Distinct())</p>
+    </section>
+
+    <section class="copyright-page">
+        <p>@o.Title</p>
+        <p>Copyright © @Model.Year by the family. All rights reserved.</p>
+        <p>These stories were told and written down with @c.AppName, @c.CreatedAt.ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture).</p>
+        @if (Model.Print) { <p>Set in Literata.</p> }
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(o.Dedication))
+    {
+        <section class="dedication"><p>@o.Dedication</p></section>
+    }
+
+    <nav class="toc">
+        <h1 class="toc-title">Contents</h1>
+        <ol>
+            @foreach (var sec in c.Sections)
+            {
+                <li class="toc-section"><a href="#@sec.Id">@sec.Title</a></li>
+                @foreach (var s in sec.Stories)
+                {
+                    <li class="toc-story"><a href="#story-@s.Slug">@s.Memory.Title</a></li>
+                }
+            }
+            @if (Model.TreeSvg.Length > 0) { <li class="toc-section"><a href="#family-tree">Family tree</a></li> }
+            @if (c.People.Any(p => p.Stories.Count > 0)) { <li class="toc-section"><a href="#people-index">People in these stories</a></li> }
+        </ol>
+    </nav>
+
+    @foreach (var sec in c.Sections)
+    {
+        <section class="chapter-divider" id="@sec.Id">
+            <h1 class="chapter-title">@sec.Title</h1>
+        </section>
+        @foreach (var s in sec.Stories)
+        {
+            <article class="story" id="story-@s.Slug">
+                @if (s.Question is not null) { <p class="story-question">@s.Question</p> }
+                <h2 class="story-title">@s.Memory.Title</h2>
+                <p class="story-byline">Told by @s.Teller@(s.WrittenBy is not null ? $" · written down by {s.WrittenBy}" : "")@(s.When.Length > 0 ? $" · {s.When}" : "")@(s.Memory.Place is not null ? $" · {s.Memory.Place}" : "")</p>
+                @foreach (var p in s.Paragraphs)
+                {
+                    <p class="story-text">@Html.Raw(string.Join("<br>", p.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
+                }
+                @foreach (var photo in s.Photos)
+                {
+                    <figure class="photo">
+                        <img src="@Model.PhotoSrc(photo.Attachment)" alt="@(photo.Caption ?? "")">
+                        @if (photo.Caption is not null || photo.People.Count > 0)
+                        {
+                            <figcaption>@photo.Caption@(photo.People.Count > 0 ? $"{(photo.Caption is null ? "" : " · ")}{string.Join(", ", photo.People)}" : "")</figcaption>
+                        }
+                    </figure>
+                }
+                @foreach (var clip in s.Clips)
+                {
+                    var qr = Model.QrSrc(clip);
+                    <aside class="clip">
+                        @if (clip.Attachment.Kind == AttachmentKind.Video)
+                        {
+                            <img class="clip-poster" src="@Model.PhotoSrc(clip.Attachment)" alt="">
+                        }
+                        @if (qr is not null)
+                        {
+                            <img class="clip-qr" src="@qr" alt="QR code">
+                        }
+                        <p class="clip-text">
+                            <strong>@(clip.Attachment.Kind == AttachmentKind.Video ? "Watch the video" : $"Hear {s.Teller.Split(' ')[0]} tell it")</strong>@(clip.Caption is null ? "" : $": {clip.Caption}")<br>
+                            @if (clip.ClipUrl is not null)
+                            {
+                                <span class="clip-hint">Point a phone camera at the square@(Model.Print ? "" : ", or open")</span>
+                                @if (!Model.Print) { <a href="@clip.ClipUrl">@clip.ClipUrl</a> }
+                            }
+                        </p>
+                    </aside>
+                }
+            </article>
+        }
+    }
+
+    @if (Model.TreeSvg.Length > 0)
+    {
+        <section class="tree-page" id="family-tree">
+            <h1 class="chapter-title-small">Family tree</h1>
+            @Html.Raw(Model.TreeSvg)
+        </section>
+    }
+
+    @if (c.People.Any(p => p.Stories.Count > 0))
+    {
+        <section class="people-index" id="people-index">
+            <h1 class="chapter-title-small">People in these stories</h1>
+            <ul>
+                @foreach (var p in c.People.Where(p => p.Stories.Count > 0))
+                {
+                    <li>
+                        <span class="index-name">@p.Person.DisplayName</span>@(p.LifeSpan.Length > 0 ? $" ({p.LifeSpan})" : "")<span class="index-pages">@foreach (var s in p.Stories)
+                        {
+                            <a class="index-ref" href="#story-@s.Slug"></a>
+                        }</span>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+
+    @for (var i = 0; i < Model.BlankPages; i++)
+    {
+        <div class="blank-page"></div>
+    }
+</body>
+</html>

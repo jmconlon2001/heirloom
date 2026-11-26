@@ -1,0 +1,77 @@
+/* Family book: shared by the shareable PDF (body.screen) and the print interior (body.print).
+   Laid out by Paged.js inside Gotenberg's Chromium. */
+@font-face { font-family: "Literata"; src: url("literata-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; }
+@font-face { font-family: "Literata"; src: url("literata-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; }
+@font-face { font-family: "Literata"; src: url("literata-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-style: normal; }
+@font-face { font-family: "Literata"; src: url("literata-latin-700-italic.woff2") format("woff2"); font-weight: 700; font-style: italic; }
+
+html { font-family: "Literata", Georgia, serif; font-size: 11pt; line-height: 1.5; color: #1a1712; }
+body.screen { font-size: 12.5pt; }
+h1, h2 { line-height: 1.2; }
+a { color: inherit; text-decoration: none; }
+body.screen a[href^="http"] { color: #1d4f91; text-decoration: underline; word-break: break-all; }
+
+/* Running heads and folios. */
+.book-title { string-set: booktitle content(text); }
+.chapter-title { string-set: chapter content(text); }
+@page { @bottom-center { content: counter(page); font-family: "Literata", serif; font-size: 9pt; color: #4a4238; } }
+@page :left { @top-left { content: string(booktitle); font-size: 8.5pt; font-style: italic; color: #4a4238; } }
+@page :right { @top-right { content: string(chapter); font-size: 8.5pt; font-style: italic; color: #4a4238; } }
+@page front { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } @bottom-left { content: none; } @bottom-right { content: none; } }
+@page divider { @top-left { content: none; } @top-right { content: none; } }
+@page blank { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }
+
+.title-page, .copyright-page, .dedication, .toc { page: front; }
+.title-page { break-after: page; display: flex; flex-direction: column; justify-content: center; height: 90%; text-align: center; }
+.book-title { font-size: 30pt; margin: 0 0 0.3in; }
+.book-subtitle { font-size: 15pt; font-style: italic; margin: 0 0 0.6in; }
+.book-tellers { font-size: 11pt; letter-spacing: 0.04em; }
+.copyright-page { break-after: page; display: flex; flex-direction: column; justify-content: flex-end; font-size: 8.5pt; color: #4a4238; height: 95%; }
+body.print .copyright-page { break-after: right; }
+.dedication { break-after: page; text-align: center; font-style: italic; font-size: 13pt; padding-top: 2in; }
+body.print .dedication { break-after: right; }
+
+.toc { break-after: page; }
+.toc-title { font-size: 20pt; margin: 0 0 0.3in; }
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 0 0 0.06in; }
+.toc-section { font-weight: 700; margin-top: 0.15in !important; }
+.toc-story { padding-left: 0.25in; }
+/* Paged.js doesn't support leader(); an unsupported function drops the whole rule, so right-align the number instead. */
+.toc a { display: flex; gap: 0.6em; }
+.toc a::after { content: target-counter(attr(href), page); margin-left: auto; }
+
+.chapter-divider { page: divider; break-before: page; text-align: center; padding-top: 2.6in; }
+body.print .chapter-divider { break-before: right; break-after: page; }
+.chapter-title { font-size: 24pt; font-weight: 700; margin: 0; }
+.chapter-title-small { font-size: 18pt; margin: 0 0 0.25in; string-set: chapter content(text); }
+
+.story { break-before: page; }
+.story-question { font-style: italic; color: #4a4238; margin: 0 0 0.08in; font-size: 0.95em; }
+.story-title { font-size: 17pt; margin: 0 0 0.06in; }
+.story-byline { font-size: 0.85em; color: #4a4238; margin: 0 0 0.22in; letter-spacing: 0.02em; }
+.story-text { margin: 0 0 0.12in; text-align: justify; hyphens: auto; orphans: 2; widows: 2; }
+body.screen .story-text { text-align: left; }
+.photo { margin: 0.2in 0; break-inside: avoid; text-align: center; }
+.photo img { max-width: 100%; max-height: 5in; object-fit: contain; }
+body.screen .photo img { max-height: 6.5in; }
+.photo figcaption { font-size: 0.85em; font-style: italic; color: #4a4238; margin-top: 0.06in; }
+.clip { display: flex; gap: 0.15in; align-items: center; border: 0.5pt solid #b9ae9c; border-radius: 6pt; padding: 0.1in; margin: 0.18in 0; break-inside: avoid; }
+.clip-qr { width: 1in; height: 1in; image-rendering: pixelated; flex: none; }
+.clip-poster { width: 1.4in; flex: none; }
+.clip-text { margin: 0; font-size: 0.9em; }
+.clip-hint { color: #4a4238; }
+
+.tree-page { break-before: page; }
+.family-tree-svg { max-width: 100%; max-height: 7.5in; }
+.people-index { break-before: page; }
+/* Single column: Paged.js is unreliable with CSS columns. Keep target-counter rules simple
+   (no :first-of-type etc.): Paged.js rewrites them and some selectors break its parser. */
+.people-index ul { list-style: none; padding: 0; margin: 0; font-size: 0.9em; }
+.people-index li { margin: 0 0 0.05in; break-inside: avoid; }
+.index-name { font-weight: 700; }
+.index-pages { margin-left: 0.3em; }
+.index-ref::after { content: target-counter(attr(href), page); }
+.index-ref + .index-ref::before { content: ", "; }
+
+.blank-page { page: blank; break-before: page; height: 1px; }

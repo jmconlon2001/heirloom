@@ -1,0 +1,32 @@
+@model SitePage
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@Model.Title · @Model.Content.AppName</title>
+    <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+        <div class="wrap">
+            <a class="brand" href="index.html">@Model.Content.AppName</a>
+            <nav class="main-nav" aria-label="Main">
+                <a href="index.html" aria-current="@(Model.Active == "stories" ? "page" : null)">Stories</a>
+                <a href="timeline.html" aria-current="@(Model.Active == "timeline" ? "page" : null)">Timeline</a>
+                <a href="photos.html" aria-current="@(Model.Active == "photos" ? "page" : null)">Photos</a>
+                <a href="people.html" aria-current="@(Model.Active == "people" ? "page" : null)">People</a>
+                @if (Model.Content.AllPeople.Count > 0) { <a href="tree.html" aria-current="@(Model.Active == "tree" ? "page" : null)">Family tree</a> }
+                <a href="search.html" aria-current="@(Model.Active == "search" ? "page" : null)">Search</a>
+            </nav>
+        </div>
+    </header>
+    <main id="main" class="wrap">
+        @RenderBody()
+    </main>
+    <footer class="wrap site-footer">
+        <p>A family keepsake made with @Model.Content.AppName on @Model.Content.CreatedAt.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture). It works without the internet: keep a copy somewhere safe.</p>
+    </footer>
+</body>
+</html>

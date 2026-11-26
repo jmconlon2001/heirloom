@@ -52,3 +52,30 @@ public sealed class EmailTests(PostgresFixture postgres, BrowsersFixture browser
         await Accessibility.AssertAccessibleAsync(page, "email wording editor");
     }
 }
+
+/// <summary>Phase 5: the Exports page is usable and accessible.</summary>
+public sealed class ExportPageTests(PostgresFixture postgres, BrowsersFixture browsers) : IAsyncLifetime
+{
+    private readonly KestrelAppFactory app = new(postgres);
+    public ValueTask InitializeAsync() => app.InitializeAsync();
+    public ValueTask DisposeAsync() => app.DisposeAsync();
+
+    [Fact]
+    public async Task IPad_admin_exports_page_is_accessible()
+    {
+        await using var context = await browsers.NewIPadAsync(app.BaseUrl);
+        var page = await context.NewPageAsync();
+        await page.GotoAsync("/account/login");
+        await page.GetByLabel("Your email address").FillAsync(AppFactory.AdminEmail);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Email me a sign-in link" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Check your email" })).ToBeVisibleAsync();
+        await page.GotoAsync(CapturingEmailSender.ExtractMagicLink(app.Email.To(AppFactory.AdminEmail).Last()).PathAndQuery);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
+        await page.GotoAsync("/admin/exports");
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Make a new export" })).ToBeVisibleAsync();
+        await Accessibility.AssertAccessibleAsync(page, "exports page");
+        await Accessibility.AssertNoHorizontalScrollAsync(page);
+        // The app's own fonts are served locally.
+        Assert.Contains("Atkinson Hyperlegible", await page.EvaluateAsync<string>("getComputedStyle(document.body).fontFamily"));
+    }
+}

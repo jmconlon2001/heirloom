@@ -1,0 +1,5 @@
+@model SitePage
+@{ Layout = "/Templates/Export/Site/_Layout.cshtml"; }
+<h1>Family tree</h1>
+<div class="tree">@Html.Raw(Model.TreeSvg)</div>
+<p><a href="people.html">See everyone as a list</a></p>

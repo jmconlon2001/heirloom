@@ -1,0 +1,13 @@
+@model SitePage
+@{ Layout = "/Templates/Export/Site/_Layout.cshtml"; }
+<h1>Search</h1>
+<form class="search-form" action="search.html" method="get" role="search">
+    <label for="q" class="visually-hidden">Search the stories</label>
+    <input type="search" id="q" name="q" placeholder="A name, a place, a word…">
+    <button type="submit">Search</button>
+</form>
+<p id="search-status" role="status"></p>
+<ul id="search-results" class="results"></ul>
+<noscript><p>Search needs JavaScript. You can browse the stories from the Stories page instead.</p></noscript>
+<script src="assets/search-index.js"></script>
+<script src="assets/search.js"></script>

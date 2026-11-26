@@ -108,6 +108,11 @@ public sealed class LinkShare
 {
     public Guid Id { get; set; }
     public Guid MemoryId { get; set; }
+    /// <summary>
+    /// A "clip link": opens just this recording or video (the QR codes printed in a PDF or book).
+    /// Clip links work whatever the story's visibility, until revoked.
+    /// </summary>
+    public Guid? AttachmentId { get; set; }
     public Memory? Memory { get; set; }
     public required byte[] TokenHash { get; set; }
     /// <summary>PBKDF2 hash of an optional passcode.</summary>
@@ -147,4 +152,30 @@ public sealed class MemoryRead
     public Guid UserId { get; set; }
     public DateTime FirstReadAt { get; set; }
     public DateTime? NotifiedAt { get; set; }
+}
+
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+
+public enum ExportKind { Website = 1, Pdf = 2, Book = 3, Archive = 4 }
+public enum ExportStatus { Queued = 0, Running = 1, Done = 2, Failed = 3 }
+
+/// <summary>One export (website zip, shareable PDF, book package, portable archive), kept under /data/exports.</summary>
+public sealed class ExportJob
+{
+    public Guid Id { get; set; }
+    public ExportKind Kind { get; set; }
+    /// <summary>1, 2, 3… per kind, so files are versioned ("family-book-v3.zip").</summary>
+    public int Version { get; set; }
+    public ExportStatus Status { get; set; }
+    public int Progress { get; set; }
+    public string Message { get; set; } = "";
+    public string ScopeJson { get; set; } = "{}";
+    public string OptionsJson { get; set; } = "{}";
+    public string? FileName { get; set; }
+    public long? SizeBytes { get; set; }
+    public Guid CreatedById { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? FinishedAt { get; set; }
 }

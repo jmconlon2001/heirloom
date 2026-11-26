@@ -201,6 +201,7 @@ public static class MediaEndpoints
             if (!resolution.Ok || !sharing.IsUnlocked(resolution.Share!, http.Request.Cookies[sharing.UnlockCookieName(resolution.Share!)]))
                 return Results.NotFound();
             var a = await db.Attachments.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.MemoryId == resolution.Share!.MemoryId && x.RemovedAt == null);
+            if (resolution.Share!.AttachmentId is { } clipId && clipId != id) return Results.NotFound(); // a clip link opens only its clip
             if (a is null) return Results.NotFound();
             var path = storage.PathFor(a, v);
             if (!File.Exists(path)) return Results.NotFound();

@@ -1,0 +1,27 @@
+@model CoverView
+@{ var o = Model.Options; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Cover: @o.Title</title>
+    <style>@Html.Raw(Model.StyleSheet)</style>
+    <style>@Html.Raw(Model.Css())</style>
+</head>
+<body>
+    <div class="spread">
+        <section class="back">
+            @if (Model.BackPhoto is not null) { <img src="@Model.BackPhoto" alt=""> }
+            @if (!string.IsNullOrWhiteSpace(o.BackText)) { <p class="back-text">@o.BackText</p> }
+        </section>
+        <section class="spine">
+            @if (Model.SpineText) { <p class="spine-title">@o.Title</p> }
+        </section>
+        <section class="front">
+            <h1>@o.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(o.Subtitle)) { <p class="subtitle">@o.Subtitle</p> }
+            @if (Model.FrontPhoto is not null) { <img src="@Model.FrontPhoto" alt=""> }
+        </section>
+    </div>
+</body>
+</html>

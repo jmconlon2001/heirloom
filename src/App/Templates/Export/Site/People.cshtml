@@ -1,0 +1,9 @@
+@model SitePage
+@{ Layout = "/Templates/Export/Site/_Layout.cshtml"; }
+<h1>People</h1>
+<ul class="people-list">
+    @foreach (var p in Model.Content.People)
+    {
+        <li><a href="@SitePage.PersonHref(p)">@p.Person.DisplayName</a>@(p.LifeSpan.Length > 0 ? $" ({p.LifeSpan})" : "")</li>
+    }
+</ul>

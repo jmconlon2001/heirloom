@@ -1,0 +1,11 @@
+@model SitePage
+@{ Layout = "/Templates/Export/Site/_Layout.cshtml"; }
+<h1>Timeline</h1>
+@foreach (var g in Model.Content.Stories.OrderBy(s => s.Memory.When.SortDate ?? DateOnly.MaxValue)
+    .GroupBy(s => s.Memory.When.SortDate is { } d ? d.Year / 10 * 10 : 0).OrderBy(g => g.Key == 0 ? int.MaxValue : g.Key))
+{
+    <section>
+        <h2>@(g.Key == 0 ? "Not dated" : $"The {g.Key}s")</h2>
+        <partial name="/Templates/Export/Site/_StoryCards.cshtml" model="g" />
+    </section>
+}

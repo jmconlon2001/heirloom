@@ -1,0 +1,11 @@
+@model SitePage
+@{ Layout = "/Templates/Export/Site/_Layout.cshtml"; }
+<h1>Our family's stories</h1>
+<p class="lead">@Model.Content.Stories.Count stories told by @string.Join(", ", Model.Content.Stories.Select(s => s.Teller).Distinct()).</p>
+@foreach (var sec in Model.Content.Sections)
+{
+    <section>
+        <h2>@sec.Title</h2>
+        <partial name="/Templates/Export/Site/_StoryCards.cshtml" model="sec.Stories" />
+    </section>
+}

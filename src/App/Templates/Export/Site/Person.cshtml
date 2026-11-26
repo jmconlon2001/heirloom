@@ -1,0 +1,14 @@
+@model SitePage
+@{
+    Layout = "/Templates/Export/Site/_Layout.cshtml";
+    var p = Model.Person!;
+}
+<h1>@p.Person.DisplayName</h1>
+@if (p.Person.Nickname is not null) { <p class="lead">Known as “@p.Person.Nickname”</p> }
+@if (p.LifeSpan.Length > 0) { <p>@p.LifeSpan</p> }
+@if (p.Person.Bio is not null) { <p class="bio">@p.Person.Bio</p> }
+@if (p.Stories.Count > 0)
+{
+    <h2>Stories</h2>
+    <partial name="/Templates/Export/Site/_StoryCards.cshtml" model="p.Stories" />
+}

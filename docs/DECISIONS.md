@@ -255,3 +255,52 @@ Changes are POSTs, so mail scanners that open links can't snooze or unsubscribe 
 **Decision:**
 - **Read summaries, daily at 17:00:** one email per storyteller about first reads since the last one ("Lily, Ed and Ann read your story “The farm”"). Opt-out per person.
 - **The digest, Saturdays at 09:00:** stories finished since that person's last digest that *they* may read under the normal rules (admins are not shown private stories here), excluding their own; nothing is sent if there's nothing new. Opt-out per person.
+
+---
+## Phase 5
+
+### D-051 · One set of Razor templates for website, PDF and book
+**Decision:** `/Templates/Export/` holds the shared templates:
+- `Book.cshtml` serves both the shareable PDF (`body.screen`) and the print interior (`body.print`).
+- `Cover.cshtml` is the cover.
+- `Site/*.cshtml` are the static website pages.
+
+They're rendered to strings outside a request (`RazorRenderer`) from one `ExportContent` model, built by `ExportContentBuilder` from the scope: storytellers, chapters, statuses (default finished), Private excluded unless an admin ticks it *and* confirms, year range. Living people's birth dates are year-only in every export, because exports leave the app.
+
+### D-052 · PDFs: Gotenberg (Chromium) + Paged.js 0.4.3 (MIT), fully self-contained
+**Decision:**
+- Every asset Gotenberg needs is sent with the request, and the CSS is *inlined* with the Literata fonts as data URIs. A separate `book.css` stopped Paged.js from finishing, because a `file://` document can't fetch it.
+- Gotenberg waits for `window.pagedDone` (set in `PagedConfig.after`), outputs an outline (bookmarks), and runs with `failOnConsoleExceptions`, so a template mistake fails at once with the JavaScript error instead of after the 10-minute `--api-timeout`.
+- Paged.js limits we found and worked around: no `leader()` (an unsupported function drops the whole rule; the contents page right-aligns numbers instead); `target-counter` rules must use simple selectors (`:first-of-type::after` broke its parser and hung the layout); and no CSS columns.
+
+### D-053 · Print interior rules
+**Decision:**
+- Trim 6×9 / 8×10 / 8.5×11, optional 0.125 in bleed.
+- Mirrored margins with a gutter (0.875–1 in inside).
+- Title, copyright, dedication and contents pages as front matter without running heads; chapter dividers start on right-hand pages (`break-before: right`); running heads are the book title (left) and section (right); page numbers at the foot.
+- Images re-encoded from the originals at up to 3000 px (300 dpi at the printed width); 1600 px for the screen PDF.
+- The page count is measured from the PDF; if it isn't a multiple of the printer's number (default 2), the book is re-rendered with that many blank pages added.
+
+### D-054 · Cover and spine
+**Decision:** The cover is one spread: back + spine + front, plus 0.125 in bleed all round. Spine = pages ÷ pages-per-inch: KDP white 0.002252 in/page, KDP cream 0.0025 in/page, Lulu about 444 pages per inch, or a custom value. Spines under 0.25 in carry no text. The test checks the cover PDF's MediaBox against this formula. The preflight tells admins to compare with the printer's own cover calculator before ordering.
+
+### D-055 · QR codes are "clip links"
+**Decision:** Each recording or video in a PDF or book gets its own `LinkShare` with `AttachmentId` set. It opens a simple player for that one clip, whatever the story's visibility, until it is revoked (a printed book can't be updated). The media endpoint refuses anything except that clip for such links.
+
+### D-056 · The static website works from a USB stick
+**Decision:** Every page is at the root with relative links. No ES modules and no `fetch()`, since both fail from `file://`. Search uses a plain `<script>` index (`assets/search-index.js`) and a classic script. Media is copied in (web and thumbnail JPEGs, AAC, video originals and posters, documents). The same zip can go on Cloudflare Pages or any static host.
+
+### D-057 · EPUB and DOCX through pandoc, from the same Markdown as `source/`
+**Decision:** `source/book.md` (plus a file per story with YAML front matter, `metadata.yaml`, full-resolution images, `people.ged`) is the input to `pandoc` for EPUB 3 (with a cover image when one is chosen) and DOCX. If pandoc is missing (dev machines), the preflight says so and the rest of the package is still made. pandoc is in the app image and CI.
+
+### D-058 · The portable archive is the "if this app disappears" copy
+**Decision:** It contains:
+- `data.json`: every story with every version, attachments, people, comments, hearts, questions, the tree, and the people who sign in (names and emails);
+- `media/`: originals and copies, byte for byte;
+- `people.ged`;
+- a plain `README.txt` explaining the structure.
+
+It always includes everything, private stories too, because it's the family's complete record. Downloads of any export are admin-only and audited.
+
+### D-059 · Web fonts: Atkinson Hyperlegible and Literata, vendored (OFL)
+**Decision:** The app now uses Atkinson Hyperlegible (designed by the Braille Institute for low-vision readers) for interface text and Literata for headings and story text. Only the Latin subsets are vendored (`wwwroot/fonts`, `Templates/Export/assets/fonts`), and nothing loads from a font CDN. Non-Latin names fall back to system fonts.

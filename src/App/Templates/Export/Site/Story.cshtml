@@ -1,0 +1,55 @@
+@model SitePage
+@{
+    Layout = "/Templates/Export/Site/_Layout.cshtml";
+    var s = Model.Story!;
+}
+<article class="story">
+    @if (s.Question is not null) { <p class="eyebrow">@s.Question</p> }
+    <h1>@s.Memory.Title</h1>
+    <p class="byline">Told by @s.Teller@(s.WrittenBy is not null ? $" · written down by {s.WrittenBy}" : "")</p>
+    @if (s.When.Length > 0 || s.Memory.Place is not null) { <p class="muted">@string.Join(" · ", new[] { s.When, s.Memory.Place }.Where(x => !string.IsNullOrEmpty(x)))</p> }
+    @if (s.People.Count > 0)
+    {
+        <p class="muted">In this story:
+            @foreach (var p in s.People)
+            {
+                var person = Model.Content.People.First(x => x.Person.Id == p.Id);
+                <a href="@SitePage.PersonHref(person)">@p.DisplayName</a>
+            }
+        </p>
+    }
+    <div class="story-body">
+        @foreach (var p in s.Paragraphs)
+        {
+            <p>@Html.Raw(string.Join("<br>", p.Select(line => System.Text.Encodings.Web.HtmlEncoder.Default.Encode(line))))</p>
+        }
+    </div>
+    @foreach (var photo in s.Photos)
+    {
+        <figure class="photo">
+            <a href="@SitePage.Media(photo.Attachment, "web.jpg")"><img src="@SitePage.Media(photo.Attachment, "web.jpg")" alt="@(photo.Caption ?? "Photo")" loading="lazy"></a>
+            @if (photo.Caption is not null || photo.People.Count > 0)
+            {
+                <figcaption>@photo.Caption@(photo.People.Count > 0 ? $"{(photo.Caption is null ? "" : " · ")}{string.Join(", ", photo.People)}" : "")</figcaption>
+            }
+        </figure>
+    }
+    @foreach (var clip in s.Clips)
+    {
+        <figure class="clip">
+            @if (clip.Attachment.Kind == AttachmentKind.Video)
+            {
+                <video controls preload="none" poster="@SitePage.Media(clip.Attachment, "poster.jpg")" src="@SitePage.Media(clip.Attachment, "video" + clip.Attachment.Extension)"></video>
+            }
+            else
+            {
+                <audio controls preload="none" src="@SitePage.Media(clip.Attachment, "audio.m4a")"></audio>
+            }
+            @if (clip.Caption is not null) { <figcaption>@clip.Caption</figcaption> }
+        </figure>
+    }
+    @foreach (var doc in s.Documents)
+    {
+        <p><a href="@SitePage.Media(doc, "original" + doc.Extension)">Open @doc.OriginalFileName</a></p>
+    }
+</article>

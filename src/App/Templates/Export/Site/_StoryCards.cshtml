@@ -1,0 +1,14 @@
+@model IEnumerable<ExportStory>
+<ul class="story-cards">
+    @foreach (var s in Model)
+    {
+        var thumb = s.Photos.FirstOrDefault()?.Attachment;
+        <li class="story-card">
+            <a href="@SitePage.StoryHref(s)">
+                @if (thumb is not null) { <img src="@SitePage.Media(thumb, "thumb.jpg")" alt="" loading="lazy"> }
+                <span class="card-title">@s.Memory.Title</span>
+                <span class="card-meta">@s.Teller@(s.When.Length > 0 ? $" · {s.When}" : "")</span>
+            </a>
+        </li>
+    }
+</ul>

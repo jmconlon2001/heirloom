@@ -1,0 +1,12 @@
+@model SitePage
+@{ Layout = "/Templates/Export/Site/_Layout.cshtml"; }
+<h1>Photos</h1>
+<ul class="photo-grid">
+    @foreach (var s in Model.Content.Stories)
+    {
+        @foreach (var photo in s.Photos)
+        {
+            <li><a href="@SitePage.StoryHref(s)"><img src="@SitePage.Media(photo.Attachment, "thumb.jpg")" alt="@(photo.Caption ?? $"Photo from {s.Memory.Title}")" loading="lazy"></a></li>
+        }
+    }
+</ul>

@@ -25,6 +25,14 @@ else if (Model.NeedsPasscode)
         <button type="submit" class="button button-primary button-large">Show me the story</button>
     </form>
 }
+else if (Model.Clip is { } clip)
+{
+    ViewData["Title"] = Model.ClipStory;
+    <h1>@Model.ClipStory</h1>
+    <p class="lead">@(clip.Kind == AttachmentKind.Video ? "A video" : "In their own voice"): @Model.ClipTeller</p>
+    <ul class="gallery"><li><figure><partial name="_AttachmentPreview" model="clip" /></figure></li></ul>
+    <p class="muted">From @AppOptions.AppName, a private place where our family keeps its stories.</p>
+}
 else
 {
     var m = Model.Memory!;

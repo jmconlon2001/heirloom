@@ -154,12 +154,14 @@ if (options.JobsEnabled)
     builder.Services.AddScoped<IMediaJobs, HangfireMediaJobs>();
     builder.Services.AddScoped<IBackupQueue, HangfireBackupQueue>();
     builder.Services.AddScoped<IEmailDispatcher, HangfireEmailDispatcher>();
+    builder.Services.AddScoped<FamilyMemories.Exports.IExportQueue, FamilyMemories.Exports.HangfireExportQueue>();
 }
 else
 {
     builder.Services.AddScoped<IMediaJobs, InlineMediaJobs>();
     builder.Services.AddScoped<IBackupQueue, InlineBackupQueue>();
     builder.Services.AddScoped<IEmailDispatcher, InlineEmailDispatcher>();
+    builder.Services.AddScoped<FamilyMemories.Exports.IExportQueue, FamilyMemories.Exports.InlineExportQueue>();
 }
 builder.Services.AddSingleton<EmailTemplates>();
 builder.Services.AddSingleton<SmtpSettingsStore>();
@@ -168,6 +170,14 @@ builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<EmailDelivery>();
 builder.Services.AddScoped<FamilyMemories.Reminders.ReminderService>();
+builder.Services.AddScoped<FamilyMemories.Exports.ExportContentBuilder>();
+builder.Services.AddScoped<FamilyMemories.Exports.RazorRenderer>();
+builder.Services.AddScoped<FamilyMemories.Exports.GotenbergClient>();
+builder.Services.AddScoped<FamilyMemories.Exports.ExportImages>();
+builder.Services.AddScoped<FamilyMemories.Exports.ExportPipeline>();
+builder.Services.AddScoped<FamilyMemories.Exports.ExportService>();
+builder.Services.AddScoped<FamilyMemories.Exports.ExportRunner>();
+builder.Services.AddHttpClient("gotenberg-render", c => c.Timeout = TimeSpan.FromMinutes(15));
 
 // ---- Reverse proxy (Caddy on OPNsense): trust X-Forwarded-For/Proto only from TRUSTED_PROXIES ----
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
@@ -263,6 +273,16 @@ app.MapPost("/email/unsubscribe/{token}", async (string token, string? list, Ema
 app.MapGet("/email/unsubscribe/{token}", (string token) => Results.Redirect($"/email/preferences/{token}"));
 
 app.MapEmailPreview();
+app.MapGet("/admin/exports/{id:guid}/download", async (Guid id, AppDbContext db, FamilyMemories.Exports.ExportPipeline pipeline, AuditLog audit) =>
+{
+    var job = await db.Exports.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id && e.Status == ExportStatus.Done);
+    if (job?.FileName is null) return Results.NotFound();
+    var path = Path.Combine(pipeline.ExportsDir, job.FileName);
+    if (!File.Exists(path)) return Results.NotFound();
+    await audit.WriteAsync("export.download", $"Downloaded {job.FileName}", "export", id);
+    var type = job.FileName.EndsWith(".pdf") ? "application/pdf" : "application/zip";
+    return Results.File(path, type, job.FileName, enableRangeProcessing: true);
+}).RequireAuthorization("Admin");
 if (options.JobsEnabled)
 {
     app.MapHangfireDashboard("/admin/jobs", new DashboardOptions

@@ -1,0 +1,116 @@
+@page "/admin/exports"
+@model FamilyMemories.Pages.Admin.ExportsModel
+@using FamilyMemories.Exports
+@{
+    ViewData["Title"] = "Exports";
+    if (Model.Jobs.Any(j => j.Status is ExportStatus.Queued or ExportStatus.Running)) ViewData["RefreshSeconds"] = 5;
+}
+<h1>Exports</h1>
+<partial name="_Flash" />
+<p>Make something to keep or share: a website that opens from a USB stick, a PDF to email, a book to print, or a complete archive.</p>
+
+@if (Model.Jobs.Count > 0)
+{
+    <h2>Your exports</h2>
+    <ul class="export-list">
+        @foreach (var j in Model.Jobs)
+        {
+            <li>
+                <p><strong>@ExportRunner.Describe(j.Kind)</strong> <span class="muted">version @j.Version · @TimeZoneInfo.ConvertTimeFromUtc(j.CreatedAt, AppOptions.TimeZone).ToString("MMM d, h:mm tt")</span></p>
+                @if (j.Status is ExportStatus.Queued or ExportStatus.Running)
+                {
+                    <progress max="100" value="@j.Progress" aria-label="Progress of @ExportRunner.Describe(j.Kind)">@j.Progress%</progress>
+                    <p class="muted">@j.Message (@j.Progress%)</p>
+                }
+                else if (j.Status == ExportStatus.Done)
+                {
+                    <p>@j.Message</p>
+                    <a class="button button-primary" href="/admin/exports/@j.Id/download">Download @j.FileName (@(((j.SizeBytes ?? 0) / 1024.0 / 1024.0).ToString("0.#")) MB)</a>
+                }
+                else
+                {
+                    <p class="field-error">@j.Message</p>
+                }
+            </li>
+        }
+    </ul>
+}
+
+<h2>Make a new export</h2>
+@if (Model.Error is not null) { <p class="field-error" role="alert">@Model.Error</p> }
+<form method="post" class="stack">
+    <fieldset>
+        <legend>What would you like to make?</legend>
+        @foreach (var (kind, label, hint) in new[]
+        {
+            (ExportKind.Pdf, "A PDF to share", "Letter-size pages for reading on a screen or emailing, with photos, a family tree, and QR codes for the recordings."),
+            (ExportKind.Book, "A book to print", "Ready for Lulu, Amazon KDP or a local printer: interior and cover PDFs, plus e-book and Word versions."),
+            (ExportKind.Website, "A family website", "A folder of web pages that opens in any browser, even from a USB stick, or can be put online."),
+            (ExportKind.Archive, "A complete archive", "Every story, photo and recording, with the family tree, in open formats to keep for decades."),
+        })
+        {
+            <div class="radio-option">
+                <input type="radio" id="kind-@kind" name="Kind" value="@kind" @(Model.Kind == kind ? "checked" : "")>
+                <label for="kind-@kind"><strong>@label</strong><span class="muted"> @hint</span></label>
+            </div>
+        }
+    </fieldset>
+
+    <fieldset>
+        <legend>Which stories?</legend>
+        <p class="muted">Leave everyone unticked to include every storyteller. (The archive always includes everything.)</p>
+        @foreach (var u in Model.Storytellers)
+        {
+            <div class="checkbox"><input type="checkbox" id="st-@u.Id" name="StorytellerIds" value="@u.Id"><label for="st-@u.Id">@u.DisplayName</label></div>
+        }
+        <details>
+            <summary>Only some chapters</summary>
+            @foreach (var c in Model.Chapters)
+            {
+                <div class="checkbox"><input type="checkbox" id="ch-@c.Id" name="ChapterIds" value="@c.Id"><label for="ch-@c.Id">@c.Title</label></div>
+            }
+        </details>
+        <div class="checkbox"><input type="checkbox" id="IncludeDrafts" name="IncludeDrafts" value="true"><label for="IncludeDrafts">Also include stories that aren't finished yet</label></div>
+        <div class="checkbox"><input type="checkbox" id="IncludePrivate" name="IncludePrivate" value="true"><label for="IncludePrivate">Include private ("Only me") stories</label></div>
+        <div class="checkbox"><input type="checkbox" id="ConfirmPrivate" name="ConfirmPrivate" value="true"><label for="ConfirmPrivate">I understand private stories will be in the file, where anyone I give it to can read them</label></div>
+    </fieldset>
+
+    <fieldset>
+        <legend>For the PDF and the book</legend>
+        <div class="field"><label for="Title">Title</label><input id="Title" name="Title" type="text" value="Our Family Stories" maxlength="200"></div>
+        <div class="field"><label for="Subtitle">Subtitle (optional)</label><input id="Subtitle" name="Subtitle" type="text" maxlength="200"></div>
+        <div class="field"><label for="Dedication">Dedication (optional)</label><textarea id="Dedication" name="Dedication" rows="2" maxlength="1000" placeholder="For our grandchildren, and theirs."></textarea></div>
+        <div class="field">
+            <label for="Organize">Arrange the stories</label>
+            <select id="Organize" name="Organize"><option value="Storyteller">By storyteller</option><option value="Chapter">By chapter</option></select>
+        </div>
+        <details>
+            <summary>Printing options (book only)</summary>
+            <div class="field">
+                <label for="Trim">Book size</label>
+                <select id="Trim" name="Trim"><option value="Size6x9">6 × 9 in (most common)</option><option value="Size8x10">8 × 10 in</option><option value="Size8_5x11">8.5 × 11 in</option></select>
+            </div>
+            <div class="checkbox"><input type="checkbox" id="Bleed" name="Bleed" value="true"><label for="Bleed">Add 0.125 in bleed (only if your printer asks for it)</label></div>
+            <div class="field">
+                <label for="Paper">Printer and paper (for the spine width)</label>
+                <select id="Paper" name="Paper">
+                    @foreach (var (key, preset) in SpineCalculator.Presets) { <option value="@key">@preset.Label</option> }
+                </select>
+            </div>
+            <div class="field"><label for="PageMultiple">Page count must be a multiple of</label><input id="PageMultiple" name="PageMultiple" type="text" inputmode="numeric" value="2" class="input-short"></div>
+            <div class="field"><label for="BackText">Back cover words (optional)</label><textarea id="BackText" name="BackText" rows="3" maxlength="1500"></textarea></div>
+            @if (Model.Photos.Count > 0)
+            {
+                <div class="field">
+                    <label for="FrontPhotoId">Front cover photo</label>
+                    <select id="FrontPhotoId" name="FrontPhotoId"><option value="">The first photo in the book</option>@foreach (var p in Model.Photos) { <option value="@p.Id">@(p.Caption ?? p.OriginalFileName)</option> }</select>
+                </div>
+                <div class="field">
+                    <label for="BackPhotoId">Back cover photo</label>
+                    <select id="BackPhotoId" name="BackPhotoId"><option value="">None</option>@foreach (var p in Model.Photos) { <option value="@p.Id">@(p.Caption ?? p.OriginalFileName)</option> }</select>
+                </div>
+            }
+        </details>
+    </fieldset>
+    <button type="submit" class="button button-primary button-large">Make it</button>
+</form>
