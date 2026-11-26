@@ -71,6 +71,7 @@ public sealed class ExportPageTests(PostgresFixture postgres, BrowsersFixture br
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Check your email" })).ToBeVisibleAsync();
         await page.GotoAsync(CapturingEmailSender.ExtractMagicLink(app.Email.To(AppFactory.AdminEmail).Last()).PathAndQuery);
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { NameRegex = new System.Text.RegularExpressions.Regex("^Hello") })).ToBeVisibleAsync();   // signed in before moving on
         await page.GotoAsync("/admin/exports");
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Make a new export" })).ToBeVisibleAsync();
         await Accessibility.AssertAccessibleAsync(page, "exports page");
