@@ -344,12 +344,13 @@ It always includes everything, private stories too, because it's the family's co
 - `/healthz` and `/readyz` are unchanged (container health checks use them).
 - The version comes from the image: the release workflow passes `APP_VERSION` as a build arg (`/p:Version`); local builds say `0.0.0-dev`.
 
-### D-067 · Basic and Complex admin views, remembered per admin
-**Decision:** Admin pages (`/admin/*`, and `/status` for admins) have an **Admin view: Basic | Complex** switch at the top.
-- **Basic** (the default) keeps the family site's large, calm look.
-- **Complex** looks like a typical admin console: a dark sidebar with every admin section grouped (Overview, Family, Questions, Email, Data), 16px base text, compact buttons, form fields and striped tables, and a dashboard (stat tiles, the system table, recent activity) in place of the link list. The text size buttons still scale it, and high contrast still applies. Under 52rem wide, the sidebar becomes a wrapping bar.
-- The choice is stored per admin in the settings table (`admin-view:<user id>`), so it follows them to every device. It never affects family pages or other admins. "View as" always shows the family look.
-- Complex targets are 40px (WCAG 2.2 AA needs 24px). Basic keeps 48px for everyone else.
+### D-067 · Simple and Detailed views, on every page, remembered per person
+**Decision:** Everyone who's signed in has a **View: Simple | Detailed** switch in the header, next to Text size and High contrast.
+- **Simple** (the default) is the calm, large look the site was designed around: top menu, one thing at a time, 48px targets. Storytellers never need to touch the switch.
+- **Detailed** works like a typical web app: a dark sidebar with every section (Family Library, Timeline, Photos, Storytellers, Search, Family tree, People; "My stories" for storytellers; and, for admins, the admin sections grouped as Admin, Questions, Email and Data), 16px base text, compact buttons, form fields and striped tables. On the admin home, a dashboard (stat tiles, the system table, recent activity) replaces the link list. Admin pages use a wide 80rem column, while reading pages stay at 52rem so story text keeps a comfortable line length. Text size and high contrast still apply. Under 52rem wide, the sidebar becomes a wrapping bar.
+- **Names:** "Simple" and "Detailed" (we tried "Basic"/"Complex" first). They describe what you get, and "Complex" sounded like a warning to the people this app is for.
+- The choice is stored per person in the settings table (`view-mode:<user id>`), so it follows them to every device and never affects anyone else. "View as" always shows the Simple look. Signed-out visitors don't get a switch. `POST /view` needs sign-in and an anti-forgery token, and only redirects locally.
+- Detailed targets are 40px (WCAG 2.2 AA needs 24px). Axe passes on both views.
 
 ### D-068 · Every POST form gets its own anti-forgery token
 **Context:** "Print a login card" failed with a 400 for everyone: its form posted to an explicit `action` URL, and the form tag helper only adds the token automatically when there's no `action`. The integration test had passed because the test helper borrowed a token from another form on the same page.

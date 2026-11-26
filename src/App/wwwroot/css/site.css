@@ -611,46 +611,48 @@ html.high-contrast .hero-card { box-shadow: none; transform: none; }
 .landing-footer .open-source p { max-width: 38rem; margin: 0 auto 1rem; }
 .landing-small { margin-top: 1.5rem; font-size: 0.95rem; }
 
-/* ---- Admin view switch (both modes) ---- */
-.admin-view-toggle { display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; margin: 1rem 0 0; flex-wrap: wrap; }
-.admin-view-toggle .segmented { display: inline-flex; }
-.admin-view-toggle .segmented .button { border-radius: 0; }
-.admin-view-toggle .segmented .button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-.admin-view-toggle .segmented .button:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -0.125rem; }
+/* ---- Simple / Detailed view switch (in the header, for everyone signed in) ---- */
+.display-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1.5rem; }
+.display-row .display-controls { margin-top: 0.5rem; }
+.segmented .button { border-radius: 0; }
+.segmented .button + .button { margin-left: -0.5rem; }
+.segmented .control-label + .button { border-radius: var(--radius) 0 0 var(--radius); }
+.segmented .button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
 
-/* ---- Complex admin view: a denser, typical admin console. Text size buttons still scale it. ---- */
-html.admin-complex { font-size: 100%; --radius: 0.3rem; --tap: 2.5rem; --nav-bg: #1f2933; --nav-text: #e4e7eb; --nav-muted: #9aa5b1; --nav-active: #323f4b; }
-html.admin-complex.text-1 { font-size: 115%; }
-html.admin-complex.text-2 { font-size: 135%; }
-html.admin-complex.high-contrast { --nav-bg: #000000; --nav-text: #ffffff; --nav-muted: #ffffff; --nav-active: #333333; }
-.admin-complex .site-header .wrap { max-width: none; padding-inline: 1.25rem; }
-.admin-complex .display-controls { padding-block: 0.25rem; }
-.admin-complex .brand { font-size: 1.15rem; }
-.admin-complex .demo-banner { padding-block: 0.35rem; font-size: 0.9rem; }
-.admin-shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 70vh; }
-.admin-nav { background: var(--nav-bg); color: var(--nav-text); padding: 0.75rem 0 2rem; }
-.admin-nav ul { list-style: none; margin: 0 0 0.5rem; padding: 0; }
-.admin-nav-heading { margin: 0.9rem 1rem 0.25rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--nav-muted); }
-.admin-nav a { display: block; padding: 0.45rem 1rem; color: var(--nav-text); text-decoration: none; border-left: 0.25rem solid transparent; font-size: 0.95rem; }
-.admin-nav a:hover { background: var(--nav-active); }
-.admin-nav a:focus-visible { outline: 0.15rem solid var(--nav-text); outline-offset: -0.15rem; }
-.admin-nav a[aria-current="page"] { background: var(--nav-active); border-left-color: #7cc4fa; font-weight: 700; }
-.admin-main { padding: 0.5rem 2rem 2rem; max-width: 80rem; width: 100%; }
-.admin-complex h1 { font-family: var(--font-sans); font-size: 1.6rem; margin-top: 0.75rem; }
-.admin-complex h2 { font-size: 1.15rem; margin-top: 1.25rem; }
-.admin-complex .card { padding: 0.75rem 1rem; border-width: 0.0625rem; }
-.admin-complex .button { padding: 0.3rem 0.9rem; font-size: 0.95rem; border-width: 0.0625rem; }
-.admin-complex .button-large { font-size: 1rem; padding: 0.4rem 1.1rem; }
-.admin-complex input[type="email"], .admin-complex input[type="text"], .admin-complex input[type="tel"],
-.admin-complex input[type="number"], .admin-complex input[type="date"], .admin-complex input[type="time"],
-.admin-complex textarea, .admin-complex select { font-size: 0.95rem; padding: 0.35rem 0.5rem; min-height: 2.25rem; border-width: 0.0625rem; }
-.admin-complex .data-table { font-size: 0.9rem; border: 0.0625rem solid var(--border); }
-.admin-complex .data-table th, .admin-complex .data-table td { padding: 0.4rem 0.6rem; }
-.admin-complex .data-table thead th { background: var(--surface-alt); position: sticky; top: 0; }
-.admin-complex .data-table tbody tr:nth-child(even) { background: var(--surface-alt); }
-.admin-complex .link-list-large a { font-size: 1rem; padding-block: 0.35rem; }
-.admin-complex .need-help { max-width: none; font-size: 0.9rem; }
-.admin-complex .backup-health { border-width: 0.0625rem; border-left-width: 0.35rem; }
+/* ---- Detailed view: sidebar, denser type and tables, like a typical web app. Text size buttons still scale it. ---- */
+html.view-detailed { font-size: 100%; --radius: 0.3rem; --tap: 2.5rem; --nav-bg: #1f2933; --nav-text: #e4e7eb; --nav-muted: #9aa5b1; --nav-active: #323f4b; }
+html.view-detailed.text-1 { font-size: 115%; }
+html.view-detailed.text-2 { font-size: 135%; }
+html.view-detailed.high-contrast { --nav-bg: #000000; --nav-text: #ffffff; --nav-muted: #ffffff; --nav-active: #333333; }
+.view-detailed .site-header .wrap { max-width: none; padding-inline: 1.25rem; }
+.view-detailed .display-controls { padding-block: 0.25rem; }
+.view-detailed .brand { font-size: 1.15rem; }
+.view-detailed .demo-banner { padding-block: 0.35rem; font-size: 0.9rem; }
+.app-shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 70vh; }
+.side-nav { background: var(--nav-bg); color: var(--nav-text); padding: 0.75rem 0 2rem; }
+.side-nav ul { list-style: none; margin: 0 0 0.5rem; padding: 0; }
+.side-nav-heading { margin: 0.9rem 1rem 0.25rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--nav-muted); }
+.side-nav a { display: block; padding: 0.45rem 1rem; color: var(--nav-text); text-decoration: none; border-left: 0.25rem solid transparent; font-size: 0.95rem; }
+.side-nav a:hover { background: var(--nav-active); }
+.side-nav a:focus-visible { outline: 0.15rem solid var(--nav-text); outline-offset: -0.15rem; }
+.side-nav a[aria-current="page"] { background: var(--nav-active); border-left-color: #7cc4fa; font-weight: 700; }
+.app-main { padding: 0.5rem 2rem 2rem; max-width: 52rem; width: 100%; }
+.app-main-wide { max-width: 80rem; }
+.view-detailed h1 { font-family: var(--font-sans); font-size: 1.6rem; margin-top: 0.75rem; }
+.view-detailed h2 { font-size: 1.15rem; margin-top: 1.25rem; }
+.view-detailed .card { padding: 0.75rem 1rem; border-width: 0.0625rem; }
+.view-detailed .button { padding: 0.3rem 0.9rem; font-size: 0.95rem; border-width: 0.0625rem; }
+.view-detailed .button-large { font-size: 1rem; padding: 0.4rem 1.1rem; }
+.view-detailed input[type="email"], .view-detailed input[type="text"], .view-detailed input[type="tel"],
+.view-detailed input[type="number"], .view-detailed input[type="date"], .view-detailed input[type="time"],
+.view-detailed textarea, .view-detailed select { font-size: 0.95rem; padding: 0.35rem 0.5rem; min-height: 2.25rem; border-width: 0.0625rem; }
+.view-detailed .data-table { font-size: 0.9rem; border: 0.0625rem solid var(--border); }
+.view-detailed .data-table th, .view-detailed .data-table td { padding: 0.4rem 0.6rem; }
+.view-detailed .data-table thead th { background: var(--surface-alt); position: sticky; top: 0; }
+.view-detailed .data-table tbody tr:nth-child(even) { background: var(--surface-alt); }
+.view-detailed .link-list-large a { font-size: 1rem; padding-block: 0.35rem; }
+.view-detailed .need-help { max-width: none; font-size: 0.9rem; }
+.view-detailed .backup-health { border-width: 0.0625rem; border-left-width: 0.35rem; }
 .nowrap { white-space: nowrap; }
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.75rem; margin: 1rem 0; }
 .stat { display: flex; flex-direction: column; border: 0.0625rem solid var(--border); border-top: 0.3rem solid var(--accent); border-radius: var(--radius); padding: 0.75rem 1rem; background: var(--surface); }
@@ -664,11 +666,11 @@ html.admin-complex.high-contrast { --nav-bg: #000000; --nav-text: #ffffff; --nav
 .pill.is-warn { background: #8a5300; }
 .pill.is-problem { background: var(--error); }
 @media (max-width: 52rem) {
-  .admin-shell { grid-template-columns: 1fr; }
-  .admin-nav { padding: 0.5rem 0; }
-  .admin-nav ul { display: flex; flex-wrap: wrap; }
-  .admin-nav a { border-left: 0; border-bottom: 0.2rem solid transparent; padding: 0.4rem 0.7rem; }
-  .admin-nav a[aria-current="page"] { border-bottom-color: #7cc4fa; }
-  .admin-main { padding: 0.5rem 1rem 2rem; }
+  .app-shell { grid-template-columns: 1fr; }
+  .side-nav { padding: 0.5rem 0; }
+  .side-nav ul { display: flex; flex-wrap: wrap; }
+  .side-nav a { border-left: 0; border-bottom: 0.2rem solid transparent; padding: 0.4rem 0.7rem; }
+  .side-nav a[aria-current="page"] { border-bottom-color: #7cc4fa; }
+  .app-main { padding: 0.5rem 1rem 2rem; }
 }
-@media print { .admin-nav, .admin-view-toggle { display: none; } .admin-shell { display: block; } }
+@media print { .side-nav, .view-controls { display: none; } .app-shell { display: block; } }

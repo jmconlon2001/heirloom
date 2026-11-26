@@ -1,0 +1,35 @@
+@{
+    var path = Context.Request.Path;
+    string? Current(string href, bool exact) =>
+        (exact ? path.Equals(href, StringComparison.OrdinalIgnoreCase) : path.StartsWithSegments(href, StringComparison.OrdinalIgnoreCase)) ? "page" : null;
+    var groups = new List<(string Heading, (string Text, string Href, bool Exact)[] Links)>
+    {
+        ("Family", [("Home", "/", true), ("Family Library", "/library", true), ("Timeline", "/library/timeline", false), ("Photos", "/library/photos", false),
+                    ("Storytellers", "/library/storytellers", false), ("Search", "/library/search", false), ("Family tree", "/tree", false), ("People", "/people", false)]),
+    };
+    if (User.IsInRole(Roles.Storyteller))
+        groups.Add(("My stories", [("My questions", "/questions", false), ("Stories I've told", "/stories", true)]));
+    if (User.IsInRole(Roles.Admin) && !FamilyMemories.Admin.ViewAs.IsActive(Context))
+    {
+        groups.Add(("Admin", [("Dashboard", "/admin", true), ("System status", "/status", false), ("Activity log", "/admin/audit", false),
+                              ("People and invitations", "/admin/users", false), ("Family tree import/export", "/admin/gedcom", false)]));
+        groups.Add(("Questions", [("Questions and chapters", "/admin/prompts", false), ("Question sets", "/admin/prompt-sets", false)]));
+        groups.Add(("Email", [("Mail server", "/admin/email", true), ("Reminder schedule", "/admin/reminders", false),
+                              ("Email wording", "/admin/email/templates", false), ("Sent emails", "/admin/email/log", false)]));
+        var data = new List<(string, string, bool)> { ("Exports", "/admin/exports", false), ("Backups", "/admin/backups", false), ("Optional extras", "/admin/features", false) };
+        if (AppOptions.JobsEnabled) data.Add(("Background jobs", "/admin/jobs", false));
+        groups.Add(("Data", data.ToArray()));
+    }
+}
+<nav class="side-nav" aria-label="Sections">
+    @foreach (var g in groups)
+    {
+        <p class="side-nav-heading">@g.Heading</p>
+        <ul>
+            @foreach (var l in g.Links)
+            {
+                <li><a href="@l.Href" aria-current="@Current(l.Href, l.Exact)">@l.Text</a></li>
+            }
+        </ul>
+    }
+</nav>

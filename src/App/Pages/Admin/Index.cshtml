@@ -4,10 +4,10 @@
 }
 <h1>Family admin</h1>
 @inject FamilyMemories.Backup.BackupStatusQuery BackupStatus
-@inject FamilyMemories.Admin.AdminViewService AdminViews
+@inject FamilyMemories.Web.ViewModeService Views
 @inject FamilyMemories.Web.SystemStatusService SystemStatus
 @{
-    var complex = await AdminViews.GetAsync(HttpContext) == FamilyMemories.Admin.AdminViewMode.Complex;
+    var complex = await Views.GetAsync(HttpContext) == FamilyMemories.Web.ViewMode.Detailed;
 }
 @if (complex)
 {

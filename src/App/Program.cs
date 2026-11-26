@@ -217,7 +217,7 @@ builder.Services.AddRateLimiter(o =>
 
 builder.Services.AddHttpClient("gotenberg", c => c.Timeout = TimeSpan.FromSeconds(3));
 builder.Services.AddSingleton<SystemStatusService>();
-builder.Services.AddScoped<FamilyMemories.Admin.AdminViewService>();
+builder.Services.AddScoped<ViewModeService>();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
     .AddCheck<GotenbergHealthCheck>("gotenberg", tags: ["ready"]);
@@ -301,17 +301,16 @@ app.MapPost("/email/unsubscribe/{token}", async (string token, string? list, Ema
 app.MapGet("/email/unsubscribe/{token}", (string token) => Results.Redirect($"/email/preferences/{token}"));
 
 app.MapEmailPreview();
-// Basic / Complex admin look, remembered per admin.
-app.MapPost("/admin/view", async (HttpContext http, FamilyMemories.Admin.AdminViewService views,
-    Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery) =>
+// Simple / Detailed view, remembered per person (any signed-in person).
+app.MapPost("/view", async (HttpContext http, ViewModeService views, Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery) =>
 {
     await antiforgery.ValidateRequestAsync(http);
     var form = await http.Request.ReadFormAsync();
-    var mode = Enum.TryParse<FamilyMemories.Admin.AdminViewMode>(form["mode"], ignoreCase: true, out var m) ? m : FamilyMemories.Admin.AdminViewMode.Basic;
+    var mode = Enum.TryParse<ViewMode>(form["view"], ignoreCase: true, out var m) ? m : ViewMode.Simple;
     await views.SetAsync(FamilyMemories.Auth.CurrentUserExtensions.UserId(http.User), mode);
     var back = form["returnUrl"].ToString();
-    return Results.LocalRedirect(back.StartsWith('/') && !back.StartsWith("//") && !back.StartsWith("/\\") ? back : "/admin");
-}).RequireAuthorization("Admin");
+    return Results.LocalRedirect(back.StartsWith('/') && !back.StartsWith("//") && !back.StartsWith("/\\") ? back : "/");
+}).RequireAuthorization();
 app.MapPost("/admin/users/{id:guid}/packet", async (Guid id, HttpContext http, FamilyMemories.Extras.PaperPackets packets,
     Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgery, CancellationToken ct) =>
 {

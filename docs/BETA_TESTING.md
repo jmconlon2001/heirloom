@@ -34,6 +34,7 @@ Sign in as **The family admin**.
    Also try **A family website**: unzip it and open `index.html` straight from the folder.
 8. **Email wording.** Family admin → **Email and reminders** → **Email wording** → the reminder. Change a word and press **Preview**.
 9. **Activity log.** Family admin → **Activity log**. Can you see what you just did?
+10. **Simple or Detailed.** In the header, switch **View** to **Detailed** and look around: the admin home becomes a dashboard, with a sidebar on every page. Which do you prefer for admin work? Switch back to **Simple** when you're done.
 
 Questions for you:
 - Was there any point where you didn't know what to do next?
@@ -55,6 +56,7 @@ Sign in as **Lily (granddaughter)**.
 4. **The tree.** **Family tree**. Find Grandpa Joe's page. Can you see the stories about him and the photos he's in?
 5. **Write for Grandma.** Lily is set up as Grandma's helper. On the home page, try **Write for Grandma Rose**.
 6. **Text size.** Tap **A++** and **High contrast** at the top. Is everything still readable and usable?
+7. **View.** Try **View: Detailed** in the header. Is the sidebar easier or harder to find your way around? Which would you use?
 
 Questions for you:
 - Did you feel like you were reading your grandmother's stories, or using a website?

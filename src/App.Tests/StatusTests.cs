@@ -99,55 +99,64 @@ public sealed class StatusTests(PostgresFixture postgres) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Admins_can_switch_between_basic_and_complex_views_and_it_is_remembered_per_admin()
+    public async Task Anyone_signed_in_can_switch_the_whole_site_between_simple_and_detailed_and_it_is_remembered_per_person()
     {
         var admin = await Browser.SignedInAsync(app, AppFactory.AdminEmail);
-        var basic = await admin.Http.GetStringAsync("/admin");
-        Assert.Contains("Admin view", basic);
-        Assert.DoesNotContain("admin-complex", basic);
-        Assert.DoesNotContain("admin-nav", basic);
+        var simple = await admin.Http.GetStringAsync("/library");
+        Assert.Contains("aria-labelledby=\"view-label\"", simple);                   // the switch is in the header on every page
+        Assert.DoesNotContain("view-detailed", simple);
+        Assert.Contains("class=\"wrap main-nav\"", simple);
 
-        var switched = await admin.Http.PostFormAsync("/admin/view", ToggleForm(basic), ("mode", "complex"), ("returnUrl", "/admin/backups"));
+        var switched = await admin.Http.PostFormAsync("/view", ViewForm(simple), ("view", "detailed"), ("returnUrl", "/admin/backups"));
         Assert.Equal(HttpStatusCode.Redirect, switched.StatusCode);
         Assert.Equal("/admin/backups", switched.Headers.Location?.OriginalString);
 
-        var complex = WebUtility.HtmlDecode(await admin.Http.GetStringAsync("/admin"));
-        Assert.Contains("admin-complex", complex);
-        Assert.Contains("class=\"admin-nav\"", complex);
-        Assert.Contains("finished stories", complex);                        // the dashboard
-        Assert.Contains("Recent activity", complex);
-        Assert.Contains("admin-complex", await admin.Http.GetStringAsync("/admin/users"));
-        Assert.Contains("admin-complex", await admin.Http.GetStringAsync("/status"));
-        // The family pages keep the family look.
-        Assert.DoesNotContain("admin-complex", await admin.Http.GetStringAsync("/library"));
+        // Detailed on family pages too: a sidebar instead of the top menu.
+        var library = WebUtility.HtmlDecode(await admin.Http.GetStringAsync("/library"));
+        Assert.Contains("view-detailed", library);
+        Assert.Contains("class=\"side-nav\"", library);
+        Assert.DoesNotContain("class=\"wrap main-nav\"", library);
+        Assert.Contains("Timeline", library);
+        Assert.Contains("People and invitations", library);                          // admins also get the admin sections
+        var dashboard = WebUtility.HtmlDecode(await admin.Http.GetStringAsync("/admin"));
+        Assert.Contains("finished stories", dashboard);
+        Assert.Contains("app-main-wide", dashboard);
+        Assert.DoesNotContain("app-main-wide", library);                             // reading pages keep a readable width
+        Assert.Contains("view-detailed", await admin.Http.GetStringAsync("/status"));
 
-        // Remembered on another device (a new sign-in), but not for a different admin.
+        // Remembered on another device (a new sign-in), but only for that person.
         var sameAdminElsewhere = await Browser.SignedInAsync(app, AppFactory.AdminEmail);
-        Assert.Contains("admin-complex", await sameAdminElsewhere.Http.GetStringAsync("/admin"));
-        await app.CreateUserAsync("Second Admin", "admin2@example.test", [Roles.Admin]);
-        var other = await Browser.SignedInAsync(app, "admin2@example.test");
-        Assert.DoesNotContain("admin-complex", await other.Http.GetStringAsync("/admin"));
+        Assert.Contains("view-detailed", await sameAdminElsewhere.Http.GetStringAsync("/"));
+        await app.CreateUserAsync("Lily", "lily-view@example.test", [Roles.Family]);
+        var lily = await Browser.SignedInAsync(app, "lily-view@example.test");
+        var lilyHome = await lily.Http.GetStringAsync("/");
+        Assert.DoesNotContain("view-detailed", lilyHome);                            // Simple is the default
 
-        // And back again.
-        var back = await admin.Http.PostFormAsync("/admin/view", ToggleForm(complex), ("mode", "basic"), ("returnUrl", "//evil.example"));
-        Assert.Equal("/admin", back.Headers.Location?.OriginalString);                 // never an off-site redirect
-        Assert.DoesNotContain("admin-complex", await admin.Http.GetStringAsync("/admin"));
+        // A family member can choose Detailed too, and sees no admin sections.
+        await lily.Http.PostFormAsync("/view", ViewForm(lilyHome), ("view", "detailed"), ("returnUrl", "/library"));
+        var lilyLibrary = WebUtility.HtmlDecode(await lily.Http.GetStringAsync("/library"));
+        Assert.Contains("view-detailed", lilyLibrary);
+        Assert.DoesNotContain("People and invitations", lilyLibrary);
+
+        // And back again, never redirecting off-site.
+        var back = await admin.Http.PostFormAsync("/view", ViewForm(library), ("view", "simple"), ("returnUrl", "//evil.example"));
+        Assert.Equal("/", back.Headers.Location?.OriginalString);
+        Assert.DoesNotContain("view-detailed", await admin.Http.GetStringAsync("/admin"));
     }
 
     [Fact]
-    public async Task Only_admins_can_change_the_admin_view()
+    public async Task Signed_out_visitors_get_no_view_switch_and_cannot_post_one()
     {
-        await app.CreateUserAsync("Lily", "lily-view@example.test", [Roles.Family]);
-        var lily = await Browser.SignedInAsync(app, "lily-view@example.test");
-        var home = await lily.Http.GetStringAsync("/");
-        Assert.DoesNotContain("Admin view", home);
-        var response = await lily.Http.PostFormAsync("/admin/view", home, ("mode", "complex"));
-        Assert.NotEqual("/admin", response.Headers.Location?.OriginalString);          // turned away, not switched
-        Assert.False(await app.WithDbAsync(db => Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(db.Settings, s => s.Key.StartsWith("admin-view:"))));
+        var client = Anonymous();
+        Assert.DoesNotContain("view-label", await client.GetStringAsync("/"));
+        var login = await client.GetStringAsync("/account/login");
+        var response = await client.PostFormAsync("/view", login, ("view", "detailed"));
+        Assert.NotEqual("/", response.Headers.Location?.OriginalString);
+        Assert.False(await app.WithDbAsync(db => Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(db.Settings, s => s.Key.StartsWith("view-mode:"))));
     }
 
-    private static string ToggleForm(string html) =>
-        System.Text.RegularExpressions.Regex.Match(html, "<form class=\"admin-view-toggle\".*?</form>", System.Text.RegularExpressions.RegexOptions.Singleline).Value;
+    private static string ViewForm(string html) =>
+        System.Text.RegularExpressions.Regex.Match(html, "<form class=\"display-controls view-controls\".*?</form>", System.Text.RegularExpressions.RegexOptions.Singleline).Value;
 }
 
 public sealed class StatusProblemTests(PostgresFixture postgres) : IAsyncLifetime

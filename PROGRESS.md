@@ -3,10 +3,10 @@
 ## Status, admin views and fixes (2026-11-25)
 
 - **Status page and API** (D-066): `/status` in plain language for anyone, with details for admins; `/api/status` JSON for monitors (`STATUS_TOKEN`, 503 when something is broken). The version is baked into release images.
-- **Basic / Complex admin view** (D-067): a switch on every admin page, remembered per admin. Complex adds a sidebar, denser tables and a dashboard.
+- **Simple / Detailed view** (D-067): a switch in the header on every page for everyone signed in, remembered per person; Simple is the default. Detailed adds a sidebar with every section (plus the admin sections for admins), denser type and tables, and an admin dashboard.
 - **Landing page:** a "Run it for your own family" section linking to GitHub (`PROJECT_URL`), and a link to the status page.
 - **Fixed:** "Print a login card" returned a 400 for everyone (no anti-forgery token on that form). There's a new guard test for every POST form (D-068).
-- **Tests:** status API (public, admin, token, wrong token, family member, 503), status page, GitHub link, admin view switch (per admin, across devices, no off-site redirect, admins only), and an iPad e2e test with axe on both admin views and the status page.
+- **Tests:** status API (public, admin, token, wrong token, family member, 503), status page, GitHub link, view switch (on every page, per person, across devices, family members too, no admin sections for them, no off-site redirect, not for signed-out visitors), and an iPad e2e test with axe on both views (admin home, people, Family Library) and the status page.
 
 ## Beta release (2026-11-25)
 

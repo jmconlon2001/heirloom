@@ -11,13 +11,13 @@ You're the family admin: the helpful person who sets things up, invites everyone
 5. **For anyone who struggles with email:** open their page and **Print a login card**. Pointing the iPad's camera at the QR code signs them in, and the iPad then remembers them. A card works once and expires after 30 days, so treat it like a house key.
 6. **Invite the readers** (children, grandchildren, cousins) with just the **Family** role.
 
-## Basic or Complex view
+## Simple or Detailed view
 
-At the top of every admin page there's an **Admin view** switch:
-- **Basic** looks like the rest of the family site: large text and one thing at a time.
-- **Complex** looks like a typical admin console: a sidebar with every admin section, smaller text, compact tables, and a dashboard with numbers, the health of each part, and recent activity.
+At the top of every page, next to Text size, there's a **View** switch:
+- **Simple** (everyone starts here) is large and calm: the top menu, and one thing at a time.
+- **Detailed** looks like a typical web app: a sidebar with every section (and all the admin pages for you), smaller text, and compact tables. Your admin home becomes a dashboard with numbers, the health of each part, and recent activity.
 
-Your choice is remembered for your account on every device. It doesn't change what anyone else sees.
+Each person's choice is remembered for their account on every device, and doesn't change what anyone else sees. Grandchildren who like a busier screen can pick Detailed. Storytellers can simply leave it on Simple.
 
 ## Is everything working?
 

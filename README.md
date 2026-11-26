@@ -29,7 +29,7 @@ It's self-hosted (your server, your data) and designed first for storytellers ag
   - a complete archive in open formats.
 - **Backups:** encrypted with restic every night, checked every week, restorable from the admin page, plus a disaster-restore script for a new server.
 - **Status page and API:** `/status` says in plain words whether each part is working; `/api/status` gives monitors JSON (and a 503 when something breaks). `/healthz` and `/readyz` are there for container health checks.
-- **Two admin views:** **Basic** keeps the family site's large, calm look; **Complex** adds a sidebar, compact tables and a dashboard. Each admin's choice is remembered.
+- **Simple or Detailed view, on every page:** **Simple** (the default) keeps the large, calm look; **Detailed** adds a sidebar with every section, compact tables and, for admins, a dashboard. Each person's choice is remembered.
 - **Optional extras**, off by default: local speech-to-text (Whisper), answering by replying to the email, and printable paper question packets.
 
 ## A look around
@@ -59,9 +59,9 @@ Backups at a glance, people and invitations, and exports to a website, a PDF and
 |---|---|---|
 | <img src="docs/images/home-admin.jpg" alt="The admin home: last good backup and check, and the admin tools" width="260"> | <img src="docs/images/admin-people.jpg" alt="People and invitations" width="260"> | <img src="docs/images/admin-exports.jpg" alt="Exports: family website, shareable PDF, book to print, complete archive" width="260"> |
 
-**Complex view** (switch at the top of any admin page; remembered per admin):
+**Detailed view** (the **View: Simple | Detailed** switch is in the header on every page, and each person's choice is remembered):
 
-<img src="docs/images/admin-complex.jpg" alt="The Complex admin view: a sidebar of admin sections, stat tiles, a system health table and recent activity" width="800">
+<img src="docs/images/admin-detailed.jpg" alt="The Detailed view of the admin home: a sidebar of sections, stat tiles, a system health table and recent activity" width="800">
 
 ### Is everything working?
 <img src="docs/images/status.jpg" alt="The status page: each part of the system with a tick, and backups needing attention" width="300" align="right">
