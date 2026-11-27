@@ -54,7 +54,8 @@ public static class Gedcom
     {
         var roots = new List<GedcomNode>();
         var stack = new Stack<GedcomNode>();
-        foreach (var raw in text.TrimStart('﻿').Split('\n'))
+        // Reunion and other classic Mac software end lines with a bare CR; Windows with CRLF; everyone else LF.
+        foreach (var raw in text.TrimStart('﻿').Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
         {
             var line = raw.TrimEnd('\r').TrimStart();
             if (line.Length == 0) continue;
@@ -101,7 +102,11 @@ public static class Gedcom
         ["PROB"] = "Probate", ["DEAT"] = "Death", ["BURI"] = "Burial", ["CREM"] = "Cremation", ["TITL"] = "Title",
         ["NATI"] = "Nationality", ["DSCR"] = "Description",
         ["MARR"] = "Marriage", ["MARB"] = "Marriage banns", ["MARL"] = "Marriage license", ["ENGA"] = "Engagement",
-        ["DIV"] = "Divorce", ["ANUL"] = "Annulment", ["EVEN"] = "Event", ["FACT"] = "Fact",
+        ["DIV"] = "Divorce", ["ANUL"] = "Annulment", ["SEPA"] = "Separation", ["EVEN"] = "Event", ["FACT"] = "Fact",
+        // Written by Reunion and other programs, though not in the 5.5.1 list. (RACE and SSN are deliberately not read.)
+        ["CITN"] = "Citizenship", ["EMPL"] = "Employment", ["HIST"] = "History", ["NAMR"] = "Religious name",
+        ["CAUS"] = "Cause of death", ["ALIA"] = "Also known as", ["HAIR"] = "Hair", ["HEIG"] = "Height", ["CLER"] = "Clergy",
+        ["WEIG"] = "Weight", ["EYES"] = "Eyes", ["MEDI"] = "Medical",
     };
 
     public static GedcomData Parse(string text)
@@ -119,7 +124,7 @@ public static class Gedcom
             ParseDate(f.Child("MARR")?.Child("DATE")?.Value).Year,
             f.Child("DIV") is not null)
         {
-            Facts = [.. f.Children.Where(c => c.Tag is "MARR" or "MARB" or "MARL" or "ENGA" or "DIV" or "ANUL" or "EVEN").Select(c => ReadFact(c, context))],
+            Facts = [.. f.Children.Where(c => c.Tag is "MARR" or "MARB" or "MARL" or "ENGA" or "DIV" or "ANUL" or "SEPA" or "EVEN").Select(c => ReadFact(c, context))],
         }).ToList();
         return new GedcomData(individuals, families);
     }
@@ -140,12 +145,32 @@ public static class Gedcom
             {
                 if (!Sources.TryGetValue(value, out var record)) return page is null ? null : new FactCitation("Source", page);
                 var title = record.Child("TITL")?.Value.Trim() is { Length: > 0 } t ? t
-                    : record.Child("ABBR")?.Value.Trim() is { Length: > 0 } a ? a : "Source";
-                var url = (record.Child("WWW") ?? record.Child("_URL") ?? record.Child("URL"))?.Value.Trim();
-                return new FactCitation(title, page, IsWebLink(url) ? url : null);
+                    : record.Child("ABBR")?.Value.Trim() is { Length: > 0 } a ? a
+                    : DescribeUntitled(record) ?? "Source";
+                var url = new[] { "WWW", "_URL", "URL", "LOCA" }.Select(tag => record.Child(tag)?.Value.Trim()).FirstOrDefault(IsWebLink);
+                return new FactCitation(title, page, url);
             }
             return value.Length > 0 ? new FactCitation(value, page) : null;
         }
+    }
+
+    /// <summary>
+    /// Reunion builds many sources from templates with no title: a type, an author, a periodical, a date, a page. Those make
+    /// a title people can read ("Newspaper, The Boston Globe, 26 Mar 2011, page B8"), and keep different sources apart.
+    /// </summary>
+    private static string? DescribeUntitled(GedcomNode record)
+    {
+        string? V(string tag) => record.Child(tag)?.Value.Trim() is { Length: > 0 } v ? v : null;
+        var attachedTitle = record.Child("OBJE")?.Child("TITL")?.Value.Trim();
+        var what = V("PERI") ?? V("PUBL") ?? (string.IsNullOrEmpty(attachedTitle) ? null : attachedTitle);
+        var parts = new[] { V("TYPE"), V("AUTH") is { } by ? $"by {by}" : null, what, V("DATE"), V("PAGE") is { } pg ? $"page {pg}" : null }
+            .Where(x => !string.IsNullOrEmpty(x)).ToList();
+        if (parts.Count == 0 && V("TEXT") is { } text)
+        {
+            var first = text.Split('\n')[0].Trim();
+            parts.Add(first.Length > 80 ? first[..80].TrimEnd() + "…" : first);
+        }
+        return parts.Count == 0 ? null : string.Join(", ", parts);
     }
 
     internal static bool IsWebLink(string? url) =>
@@ -155,9 +180,14 @@ public static class Gedcom
     {
         var type = n.Child("TYPE")?.Value.Trim();
         var label = n.Tag is "EVEN" or "FACT" && type is { Length: > 0 } ? type : EventLabels.GetValueOrDefault(n.Tag, n.Tag);
-        var value = n.Value.Trim() is { Length: > 0 } v && v != "Y" && !v.StartsWith('@') ? v : null;
+        var raw = n.Value.Trim();
+        var value = raw is { Length: > 0 } v && v != "Y" && !v.StartsWith('@') ? v : null;
         if (value is null && n.Child("ADDR") is { } addr && addr.Value.Trim().Length > 0) value = addr.Value.Trim();
-        var notes = n.All("NOTE").Select(context.Note).OfType<string>().ToList();
+        var notes = new List<string>();
+        // Reunion writes some events as a pointer to a shared note ("1 MILI @N225@", "1 HIST @N309@").
+        if (raw.StartsWith('@') && context.Notes.ContainsKey(raw) && context.Note(n) is { } pointed) notes.Add(pointed);
+        if (n.Child("CAUS")?.Value.Trim() is { Length: > 0 } cause) notes.Add($"Cause: {cause}");
+        notes.AddRange(n.All("NOTE").Select(context.Note).OfType<string>());
         return new GedcomFact(n.Tag, label, ParseDate(n.Child("DATE")?.Value), Place(n), value,
             notes.Count == 0 ? null : string.Join("\n\n", notes),
             [.. n.All("SOUR").Select(context.Citation).OfType<FactCitation>()]);
@@ -183,7 +213,8 @@ public static class Gedcom
         var deceased = deat is not null || n.Child("BURI") is not null;
         var notes = n.All("NOTE").Select(context.Note).OfType<string>().ToList();
         var facts = n.Children.Where(c => EventLabels.ContainsKey(c.Tag)).Select(c => ReadFact(c, context)).ToList();
-        if (n.All("SOUR").Select(context.Citation).OfType<FactCitation>().ToList() is { Count: > 0 } general)
+        // Sources for the person as a whole, and for their name.
+        if (n.All("SOUR").Concat(n.All("NAME").SelectMany(x => x.All("SOUR"))).Select(context.Citation).OfType<FactCitation>().Distinct().ToList() is { Count: > 0 } general)
             facts.Add(new GedcomFact("SOUR", "Sources", default, null, null, null, general));
 
         var links = new List<GedcomLink>();
@@ -191,6 +222,11 @@ public static class Gedcom
             if (IsWebLink(w.Value.Trim())) links.Add(new GedcomLink(LinkLabel(w.Value.Trim()), w.Value.Trim()));
         if (n.Child("_FSFTID")?.Value.Trim() is { Length: > 0 } fs && System.Text.RegularExpressions.Regex.IsMatch(fs, "^[A-Z0-9-]{4,12}$"))
             links.Add(new GedcomLink("FamilySearch", $"https://www.familysearch.org/tree/person/details/{fs}"));
+        // Reunion puts the FamilySearch ID in REFN ("1 REFN LJLG-H2H"); other REFNs are the program's own numbers.
+        foreach (var refn in n.All("REFN"))
+            if (System.Text.RegularExpressions.Regex.IsMatch(refn.Value.Trim(), "^[A-Z0-9]{4}-[A-Z0-9]{3,4}$")
+                && (refn.Child("TYPE") is null || refn.Child("TYPE")!.Value.Contains("FamilySearch", StringComparison.OrdinalIgnoreCase)))
+                links.Add(new GedcomLink("FamilySearch", $"https://www.familysearch.org/tree/person/details/{refn.Value.Trim()}"));
         foreach (var obje in n.All("OBJE"))
             if (obje.Child("FILE")?.Value.Trim() is { } file && IsWebLink(file))
                 links.Add(new GedcomLink(obje.Child("TITL")?.Value.Trim() is { Length: > 0 } t ? t : obje.Child("FILE")!.Child("TITL")?.Value.Trim() ?? LinkLabel(file), file));
@@ -235,34 +271,50 @@ public static class Gedcom
     }
 
     /// <summary>"12 JUN 1972", "JUN 1972", "ABT 1965", "BEF 1900", "BET 1940 AND 1945", "EST 1890" → a fuzzy date.</summary>
+    private static readonly string[] MonthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    /// <summary>
+    /// "12 JUN 1972", "JUN 1972", "ABT 1965", "BEF 1900", "BET 1940 AND 1945", "bet 1885 1887", "1871/1874", "EST 1890" → a fuzzy
+    /// date. A range or a choice keeps its first year and becomes "around". A day and month with no year ("7 SEP") is kept as words.
+    /// </summary>
     internal static FuzzyDate ParseDate(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return default;
         var tokens = value.ToUpperInvariant().Replace("(", " ").Replace(")", " ").Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
         var circa = false;
-        if (tokens.Count > 0 && tokens[0] is "ABT" or "ABOUT" or "CIRCA" or "CA" or "C." or "EST" or "CAL" or "BEF" or "AFT" or "BET" or "FROM" or "TO" or "INT")
+        if (tokens.Count > 0 && tokens[0].TrimEnd('.') is "ABT" or "ABOUT" or "CIRCA" or "CA" or "C" or "EST" or "CAL" or "BEF" or "BEFORE"
+                or "AFT" or "AFTER" or "BET" or "BETW" or "BETWEEN" or "FROM" or "TO" or "INT")
         {
             circa = tokens[0] is not "FROM" and not "TO" and not "INT";
             tokens.RemoveAt(0);
         }
-        var cut = tokens.FindIndex(t => t is "AND" or "TO");
+        var cut = tokens.FindIndex(t => t is "AND" or "TO" or "-");
         if (cut >= 0) { tokens = tokens[..cut]; circa = true; }
 
         int? day = null, month = null, year = null;
         foreach (var t in tokens)
         {
-            var m = Array.IndexOf(Months, t);
-            if (m >= 0) month = m + 1;
-            else if (int.TryParse(t.Split('/')[0], out var n)) { if (n > 31) year = n; else day = n; }
+            var m = Array.IndexOf(Months, t.Length > 3 ? t[..3] : t);
+            if (m >= 0 && month is null) month = m + 1;
+            else if (int.TryParse(t.Split('/')[0], out var n))
+            {
+                if (n > 31) { if (year is null) { year = n; if (t.Contains('/')) circa = true; } else circa = true; }   // a second year: a range
+                else if (day is null) day = n;
+            }
         }
         if (month is null) day = null;
+        // A date phrase in parentheses that isn't a date ("(the summer after the war)") is kept as words.
+        var phrase = value.Trim() is ['(', .. var inner, ')'] ? inner.Trim() : null;
+        if (year is null && month is null && phrase is { Length: > 0 }) return FuzzyDate.Normalize(null, null, null, false, null, phrase, DateTime.UtcNow.Year);
+        if (year is null && month is { } onlyMonth)
+            return FuzzyDate.Normalize(null, null, null, false, null, day is { } d ? $"{MonthNames[onlyMonth - 1]} {d}" : MonthNames[onlyMonth - 1], DateTime.UtcNow.Year);
         return FuzzyDate.Normalize(year, month, day, circa, null, null, DateTime.UtcNow.Year);
     }
 
     // ------------------------------------------------------------------ writing
 
     /// <summary>Tags that belong to a couple (written under FAM), not to one person.</summary>
-    internal static readonly HashSet<string> FamilyEventTags = ["MARR", "MARB", "MARL", "ENGA", "DIV", "ANUL"];
+    internal static readonly HashSet<string> FamilyEventTags = ["MARR", "MARB", "MARL", "ENGA", "DIV", "ANUL", "SEPA"];
 
     public static string Export(IReadOnlyList<Person> people, IReadOnlyList<ParentChild> parents, IReadOnlyList<Partnership> partnerships, string appName,
         IReadOnlyList<PersonFact>? facts = null, IReadOnlyList<PersonLink>? links = null)
@@ -335,24 +387,35 @@ public static class Gedcom
             if (p.BirthYear is not null || p.BirthPlace is not null || birthFact is not null)
             {
                 Line(1, "BIRT");
-                if (FormatDate(p.Birth) is { } bd) Line(2, "DATE", bd);
+                if ((FormatDate(p.Birth) ?? (birthFact is null ? null : FormatDate(birthFact.Date))) is { } bd) Line(2, "DATE", bd);
                 if (p.BirthPlace is not null) Line(2, "PLAC", p.BirthPlace);
                 if (birthFact?.Note is { } bn) Line(2, "NOTE", bn);
                 Citations(2, birthFact?.Citations ?? []);
             }
             if (!p.IsLiving)
             {
-                if (p.DeathYear is null && p.DeathPlace is null && deathFact is null) Line(1, "DEAT", "Y");
+                // "Died, date unknown" — unless a burial or cremation already says so (the file had no DEAT then).
+                if (p.DeathYear is null && p.DeathPlace is null && deathFact is null)
+                {
+                    if (!mine.Any(f => f.Kind is "BURI" or "CREM")) Line(1, "DEAT", "Y");
+                }
                 else
                 {
                     Line(1, "DEAT");
-                    if (FormatDate(p.Death) is { } dd) Line(2, "DATE", dd);
+                    if ((FormatDate(p.Death) ?? (deathFact is null ? null : FormatDate(deathFact.Date))) is { } dd) Line(2, "DATE", dd);
                     if (p.DeathPlace is not null) Line(2, "PLAC", p.DeathPlace);
                     if (deathFact?.Note is { } dn) Line(2, "NOTE", dn);
                     Citations(2, deathFact?.Citations ?? []);
                 }
             }
-            foreach (var f in mine.Where(f => f.Kind is not ("BIRT" or "DEAT" or "NOTE" or "SOUR") && !FamilyEventTags.Contains(f.Kind)))
+            // A couple's events ("with …") go under FAM below; anything else stays on the person, as it came in.
+            // Any further birth or death entries (a program may keep alternatives) go out as they came in.
+            foreach (var extra in mine.Where(f => f.Kind == "BIRT" && f != birthFact).Concat(mine.Where(f => f.Kind == "DEAT" && f != deathFact)))
+            {
+                Line(1, extra.Kind, extra.Value);
+                EventDetails(extra);
+            }
+            foreach (var f in mine.Where(f => f.Kind is not ("BIRT" or "DEAT" or "NOTE" or "SOUR") && !(FamilyEventTags.Contains(f.Kind) && (f.PartnerId is not null || (f.Value ?? "").StartsWith("with ")))))
             {
                 var tag = EventLabels.ContainsKey(f.Kind) && f.Kind is not ("EVEN" or "FACT") ? f.Kind : "EVEN";
                 Line(1, tag, f.Value);
@@ -381,8 +444,10 @@ public static class Gedcom
             if (f.Husband is { } h) Line(1, "HUSB", ids[h]);
             if (f.Wife is { } w) Line(1, "WIFE", ids[w]);
             // The couple's own events, kept on each partner as "with …"; written once, from the first partner's copy.
+            // Matched by the partner's id (two "(Living)" partners share a name); the "with …" text is a fallback for older rows.
             var coupleFacts = f.Husband is { } hh && f.Wife is { } ww
-                ? (factsBy.GetValueOrDefault(hh) ?? []).Where(x => FamilyEventTags.Contains(x.Kind) && x.Value == $"with {people.First(q => q.Id == ww).DisplayName}").ToList()
+                ? (factsBy.GetValueOrDefault(hh) ?? []).Where(x => FamilyEventTags.Contains(x.Kind)
+                    && (x.PartnerId == ww || (x.PartnerId is null && x.Value == $"with {people.First(q => q.Id == ww).DisplayName}"))).ToList()
                 : [];
             foreach (var cf in coupleFacts)
             {
@@ -452,7 +517,8 @@ public static class Gedcom
 
     internal static string? FormatDate(FuzzyDate d)
     {
-        if (d.Year is not { } y) return null;
+        // A date kept as words ("September 7", "the summer after the war") goes out as a GEDCOM date phrase.
+        if (d.Year is not { } y) return d.Label is { Length: > 0 } words ? $"({words})" : null;
         var text = (d.Month, d.Day) switch
         {
             ({ } m, { } day) => $"{day} {Months[m - 1]} {y}",

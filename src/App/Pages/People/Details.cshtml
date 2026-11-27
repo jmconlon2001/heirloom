@@ -54,7 +54,8 @@
                 @foreach (var f in events)
                 {
                     <li>
-                        <span class="event-date">@f.Date.Format()</span>
+                        @* §7: a living person's birth date shows only its year to non-admins, here as everywhere else. *@
+                        <span class="event-date">@(p.IsLiving && !User.IsAdmin() && f.Kind is "BIRT" or "CHR" or "BAPM" ? f.Date.Year?.ToString() ?? "" : f.Date.Format())</span>
                         <span class="event-what"><strong>@f.Label</strong>@(f.Value is null ? "" : $": {f.Value}")@(f.Place is null ? "" : $", {f.Place}")</span>
                         @if (f.Note is not null) { <span class="event-note">@f.Note</span> }
                         @if (f.Citations.Count > 0)

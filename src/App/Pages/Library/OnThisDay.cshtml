@@ -1,0 +1,32 @@
+@page "/library/on-this-day"
+@model FamilyMemories.Pages.Library.OnThisDayModel
+@{
+    var en = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+    var isToday = Model.Day == Model.Today;
+    ViewData["Title"] = "On this day";
+}
+<h1>On this day@(isToday ? "" : $": {Model.Day.ToString("MMMM d", en)}")</h1>
+<partial name="_LibraryNav" />
+<p class="lead">@(isToday ? $"{Model.Day.ToString("dddd, MMMM d", en)} in the family's history." : $"{Model.Day.ToString("MMMM d", en)} in the family's history.")</p>
+<nav class="day-nav" aria-label="Other days">
+    <a class="button button-secondary" href="/library/on-this-day?date=@Model.Day.AddDays(-1).ToString("yyyy-MM-dd")">← @Model.Day.AddDays(-1).ToString("MMMM d", en)</a>
+    @if (!isToday) { <a class="button button-quiet" href="/library/on-this-day">Today</a> }
+    <a class="button button-secondary" href="/library/on-this-day?date=@Model.Day.AddDays(1).ToString("yyyy-MM-dd")">@Model.Day.AddDays(1).ToString("MMMM d", en) →</a>
+</nav>
+
+@if (Model.OnTheDay.Count == 0)
+{
+    <p>Nothing we know of happened on @Model.Day.ToString("MMMM d", en) yet. Stories, birthdays and archive items show here when their date includes the day, like "June 12, 1952" rather than just "1952".</p>
+}
+else
+{
+    <partial name="_OnThisDayList" model="(Model.OnTheDay, Model.Today)" />
+}
+
+@if (Model.WeekAhead.Count > 0)
+{
+    <section aria-labelledby="ahead-heading">
+        <h2 id="ahead-heading">Coming up this week</h2>
+        <partial name="_OnThisDayList" model="(Model.WeekAhead, Model.Day)" />
+    </section>
+}

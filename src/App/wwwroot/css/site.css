@@ -770,3 +770,14 @@ html.view-detailed.high-contrast { --nav-bg: #000000; --nav-text: #ffffff; --nav
 .keyword-tree > ul { padding-left: 0; }
 .keyword-tree a { display: inline-flex; align-items: center; min-height: var(--tap); }
 .related-docs { list-style: none; padding: 0; }
+
+/* ---- On this day (D-081) ---- */
+.on-this-day { list-style: none; padding: 0; margin: 0.5rem 0 1rem; display: grid; gap: 0.6rem; }
+.on-this-day a { display: flex; gap: 0.9rem; align-items: center; padding: 0.6rem; border: 0.1rem solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); text-decoration: none; min-height: var(--tap); }
+.on-this-day a:hover { border-color: var(--accent); }
+.on-this-day img, .otd-icon { flex: none; width: 4.5rem; height: 4.5rem; border-radius: calc(var(--radius) / 2); object-fit: cover; }
+.otd-icon { display: flex; align-items: center; justify-content: center; font-size: 2rem; background: var(--surface-alt); }
+.otd-text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.otd-when { font-size: 0.9rem; color: var(--text-muted); font-weight: 700; }
+.otd-title { font-family: var(--font-serif); color: var(--accent); }
+.day-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0 1.25rem; }

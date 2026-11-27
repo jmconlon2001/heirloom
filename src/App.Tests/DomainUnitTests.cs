@@ -29,7 +29,8 @@ public sealed class FuzzyDateTests
     {
         Assert.Equal(new FuzzyDate(1972, 2, null, false, null, null), N(1972, 2, 30));          // no Feb 30
         Assert.Equal(new FuzzyDate(null, null, null, false, null, null), N(y: 3000));            // future
-        Assert.Equal(new FuzzyDate(null, null, null, false, null, null), N(y: 1500));            // too early
+        Assert.Equal(new FuzzyDate(1500, null, null, false, null, null), N(y: 1500));            // family trees go back centuries (D-082)
+        Assert.Equal(new FuzzyDate(null, null, null, false, null, null), N(y: 999));             // too early: a slip
         Assert.Equal(new FuzzyDate(1960, null, null, false, null, null), N(1960, 13, 5));        // month 13, so day goes too
         Assert.Equal(new FuzzyDate(null, null, null, false, null, null), N(m: 6));               // month with no year
         Assert.Equal(new FuzzyDate(null, null, null, false, null, null), N(decade: 1975));       // not a decade

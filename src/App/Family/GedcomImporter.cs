@@ -12,6 +12,8 @@ public sealed record ImportPreview(Guid FileId, IReadOnlyList<ImportRow> Rows, i
     public int EventCount { get; init; }
     public int SourceCount { get; init; }
     public int LinkCount { get; init; }
+    /// <summary>People the program exported as "(Living)" with no name, for privacy; kept so the tree still connects.</summary>
+    public int Placeholders { get; init; }
 }
 
 public sealed record ImportResult(int Created, int Matched, int Skipped, int Relationships)
@@ -62,6 +64,7 @@ public sealed class GedcomImporter(AppDbContext db, PeopleService people, AuditL
             EventCount = facts.Count(f => f.Kind != "SOUR"),
             SourceCount = facts.SelectMany(f => f.Citations).Select(c => c.Title).Distinct().Count(),
             LinkCount = data.Individuals.Sum(i => i.Links.Count),
+            Placeholders = data.Individuals.Count(i => IsPrivacyPlaceholder(i.Given, i.Surname)),
         };
     }
 
@@ -73,8 +76,14 @@ public sealed class GedcomImporter(AppDbContext db, PeopleService people, AuditL
     }
 
     /// <summary>Same first name and surname (or maiden name) with no conflicting birth year. Also used by the spreadsheet import.</summary>
+    /// <summary>"(Living)", "Living", "Private": a person a genealogy program exported without a name, for privacy.</summary>
+    public static bool IsPrivacyPlaceholder(string givenNames, string surname) =>
+        surname.Trim().Length == 0 && givenNames.Trim().Trim('(', ')', '[', ']').ToLowerInvariant() is "living" or "private" or "hidden";
+
     internal static (Person?, string) FindDuplicate(string givenNames, string surname, int? birthYear, IEnumerable<Person> existing)
     {
+        // Unnamed placeholders can only be matched by their id in the file, never by "name".
+        if (IsPrivacyPlaceholder(givenNames, surname)) return (null, "");
         static string First(string s) => s.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToLowerInvariant() ?? "";
         var given = First(givenNames);
         var last = surname.Trim().ToLowerInvariant();
@@ -203,11 +212,16 @@ public sealed class GedcomImporter(AppDbContext db, PeopleService people, AuditL
         foreach (var (i, personId) in people)
         {
             var facts = i.Facts.ToList();
+            var partnerOf = new Dictionary<GedcomFact, Guid?>(ReferenceEqualityComparer.Instance);
             foreach (var fam in data.Families.Where(f => f.Husband == i.Xref || f.Wife == i.Xref))
             {
                 var partner = fam.Husband == i.Xref ? fam.Wife : fam.Husband;
                 var with = partner is not null && names.TryGetValue(partner, out var n) ? $"with {n}" : null;
-                facts.AddRange(fam.Facts.Select(f => f with { Value = f.Value ?? with }));
+                foreach (var f in fam.Facts.Select(f => f with { Value = f.Value ?? with }))
+                {
+                    facts.Add(f);
+                    partnerOf[f] = partner is not null && map.TryGetValue(partner, out var pid) ? pid : null;
+                }
             }
             if (i.Note is { } note) facts.Add(new GedcomFact("NOTE", "Notes", default, null, null, note, []));
 
@@ -217,9 +231,10 @@ public sealed class GedcomImporter(AppDbContext db, PeopleService people, AuditL
                 db.PersonFacts.Add(new PersonFact
                 {
                     Id = Guid.CreateVersion7(), PersonId = personId, Kind = f.Kind, Label = Trim(f.Label, 120)!,
-                    Year = f.Date.Year, Month = f.Date.Month, Day = f.Date.Day, Circa = f.Date.Circa,
-                    Place = Trim(f.Place, 300), Value = Trim(f.Value, 1000), Note = Trim(f.Note, 8000),
+                    Year = f.Date.Year, Month = f.Date.Month, Day = f.Date.Day, Circa = f.Date.Circa, DateWords = Trim(f.Date.Label, 200),
+                    Place = Trim(f.Place, 300), Value = Trim(f.Value, 4000), Note = Trim(f.Note, 200_000),
                     Citations = [.. f.Citations.Take(50)], SortOrder = order++, FromGedcom = true,
+                    PartnerId = partnerOf.GetValueOrDefault(f),
                 });
                 count++;
             }

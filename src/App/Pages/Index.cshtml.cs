@@ -7,8 +7,11 @@ using Microsoft.EntityFrameworkCore;
 namespace FamilyMemories.Pages;
 
 public sealed class IndexModel(AppDbContext db, StoryPlanService plans, StoryAccess access, FamilyMemories.Backup.BackupStatusQuery backups, LibraryService library,
-    FamilyMemories.Configuration.AppOptions options, TimeProvider clock) : PageModel
+    FamilyMemories.Configuration.AppOptions options, TimeProvider clock, OnThisDayService onThisDay) : PageModel
 {
+    /// <summary>What happened on this day in earlier years (D-081); the card shows only when there's something.</summary>
+    public List<OnThisDayEntry> OnThisDay { get; private set; } = [];
+    public DateOnly Today { get; private set; }
     public string ReminderLine { get; private set; } = "";
     public List<StoryCard> Newest { get; private set; } = [];
     public FamilyMemories.Backup.BackupHealth? Backups { get; private set; }
@@ -27,6 +30,8 @@ public sealed class IndexModel(AppDbContext db, StoryPlanService plans, StoryAcc
             return;
         }
         var me = User.UserId();
+        Today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(clock.GetUtcNow().UtcDateTime, options.TimeZone));
+        OnThisDay = await onThisDay.GetAsync(library.Visible(User), User.IsAdmin(), Today);
         var user = await db.Users.AsNoTracking().SingleAsync(u => u.Id == me);
         FirstName = user.DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? user.DisplayName;
         if (user.PromptSetId is not null)

@@ -64,7 +64,8 @@ public sealed class CsvTests
     [InlineData("26472", "June 22, 1972", true)]   // an Excel date number
     [InlineData("", "", true)]
     [InlineData("the summer after the war", "the summer after the war", false)]
-    [InlineData("1492", "1492", false)]
+    [InlineData("1729", "1729", true)]
+    [InlineData("0999", "0999", false)]
     public void Reads_dates_the_way_people_type_them(string text, string expected, bool understood)
     {
         var (date, ok) = DateText.Parse(text, 2026);

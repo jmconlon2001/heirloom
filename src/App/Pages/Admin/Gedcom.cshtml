@@ -30,6 +30,10 @@ else
     var dupes = Model.Preview.Rows.Count(r => r.Match is not null);
     <h2>Check before importing</h2>
     <p class="lead">@Model.Preview.Rows.Count people and @Model.Preview.FamilyCount families found, with @Model.Preview.EventCount life events, @Model.Preview.SourceCount sources and @Model.Preview.LinkCount links. @(dupes == 0 ? "None of them look like people already in the tree." : $"{dupes} look like people already in the tree; they're marked below.")</p>
+    @if (Model.Preview.Placeholders > 0)
+    {
+        <p>@Model.Preview.Placeholders @(Model.Preview.Placeholders == 1 ? "person was" : "people were") exported as "(Living)" with no name, the way genealogy programs keep living people private. They're added under that name so parents, partners and children still connect; you can name them in the tree later, or leave them be.</p>
+    }
     <form method="post" asp-page-handler="Commit">
         <input type="hidden" name="FileId" value="@Model.Preview.FileId">
         <div class="table-wrap">

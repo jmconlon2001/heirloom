@@ -304,3 +304,56 @@ public sealed class ArchivePageTests(PostgresFixture postgres, BrowsersFixture b
         await Accessibility.AssertAccessibleAsync(page, "archive folder");
     }
 }
+
+/// <summary>On this day (D-081): the home card and the page read well and are accessible on an iPad.</summary>
+public sealed class OnThisDayPageTests(PostgresFixture postgres, BrowsersFixture browsers) : IAsyncLifetime
+{
+    private readonly KestrelAppFactory app = new(postgres);
+    public ValueTask InitializeAsync() => app.InitializeAsync();
+    public ValueTask DisposeAsync() => app.DisposeAsync();
+
+    [Fact]
+    public async Task IPad_storyteller_sees_what_happened_on_this_day()
+    {
+        var options = app.Services.GetRequiredService<FamilyMemories.Configuration.AppOptions>();
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(app.Clock.GetUtcNow().UtcDateTime, options.TimeZone));
+        var rose = await app.CreateUserAsync("Rose Smith", "otd-e2e@example.test", [Roles.Storyteller, Roles.Family], PromptSetKind.Core);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var memories = scope.ServiceProvider.GetRequiredService<FamilyMemories.Stories.MemoryService>();
+            var m = await memories.CreateFreeFormAsync(rose.Id, rose.Id);
+            await memories.SaveAsync(m.Id, new FamilyMemories.Stories.MemoryEdit("Our wedding day", "It rained, and nobody minded.",
+                new FuzzyDate(today.Year - 70, today.Month, Math.Min(today.Day, 28), false, null, null), "Akron"), rose.Id, VersionKind.Save);
+            await memories.SetStatusAsync(m.Id, MemoryStatus.Complete, rose.Id);
+            await scope.ServiceProvider.GetRequiredService<FamilyMemories.Family.PeopleService>().CreateAsync(new FamilyMemories.Family.PersonInput(
+                "Joseph", "Smith", null, null, Sex.Male, new FuzzyDate(1928, today.AddDays(2).Month, Math.Min(today.AddDays(2).Day, 28), false, null, null), null,
+                false, new FuzzyDate(2004, null, null, false, null, null), null, null, null, null));
+        }
+
+        await using var context = await browsers.NewIPadAsync(app.BaseUrl);
+        var page = await context.NewPageAsync();
+        await page.GotoAsync("/account/login");
+        await page.GetByLabel("Your email address").FillAsync("otd-e2e@example.test");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Email me a sign-in link" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Check your email" })).ToBeVisibleAsync();
+        await page.GotoAsync(CapturingEmailSender.ExtractMagicLink(app.Email.To("otd-e2e@example.test").Last()).PathAndQuery);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Sign me in" }).ClickAsync();
+
+        if (today.Day <= 28)
+        {
+            var card = page.Locator("section:has(h2#otd-heading)");
+            await Expect(card).ToContainTextAsync("Our wedding day");
+            await Expect(card).ToContainTextAsync("70 years ago today");
+            await Accessibility.AssertAccessibleAsync(page, "home with On this day");
+            await Accessibility.AssertTapTargetsAsync(page);
+        }
+
+        await page.GotoAsync("/library/on-this-day");
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "On this day", Exact = true })).ToBeVisibleAsync();
+        await Accessibility.AssertAccessibleAsync(page, "on this day page");
+        await Accessibility.AssertTapTargetsAsync(page);
+        await Accessibility.AssertNoHorizontalScrollAsync(page);
+        await page.GetByRole(AriaRole.Link, new() { NameRegex = new Regex("→$") }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Heading, new() { NameRegex = new Regex("^On this day: ") })).ToBeVisibleAsync();
+    }
+}

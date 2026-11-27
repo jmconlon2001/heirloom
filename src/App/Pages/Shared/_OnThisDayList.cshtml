@@ -1,0 +1,30 @@
+@model (List<FamilyMemories.Stories.OnThisDayEntry> Entries, DateOnly Today)
+@{
+    var en = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+    string Icon(FamilyMemories.Stories.OnThisDayKind k) => k switch
+    {
+        FamilyMemories.Stories.OnThisDayKind.Story => "📖",
+        FamilyMemories.Stories.OnThisDayKind.Birthday => "🎂",
+        FamilyMemories.Stories.OnThisDayKind.Remembrance => "🕯",
+        FamilyMemories.Stories.OnThisDayKind.Wedding => "💍",
+        FamilyMemories.Stories.OnThisDayKind.Archive => "📜",
+        _ => "📷",
+    };
+}
+<ul class="on-this-day">
+    @foreach (var e in Model.Entries)
+    {
+        var ago = e.YearsAgo(Model.Today);
+        <li>
+            <a href="@e.Url">
+                @if (e.ThumbId is { } thumb) { <img src="/media/@thumb/thumb" alt="" loading="lazy" width="96" height="96"> }
+                else { <span class="otd-icon" aria-hidden="true">@Icon(e.Kind)</span> }
+                <span class="otd-text">
+                    <span class="otd-when">@(ago.Length > 0 ? ago : e.Date.ToString("MMMM d", en))@(e.ExactYear ? $" · {e.Date.ToString("MMMM d, yyyy", en)}" : "")</span>
+                    <strong class="otd-title">@e.Title</strong>
+                    <span class="muted">@e.Detail</span>
+                </span>
+            </a>
+        </li>
+    }
+</ul>

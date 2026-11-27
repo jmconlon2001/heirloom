@@ -46,13 +46,23 @@ On a person's page you can also:
 
 Heirloom isn't a genealogy program, and it doesn't try to replace one. If someone in the family keeps the tree in Reunion, RootsMagic, Family Tree Maker, Gramps or similar, that stays the master copy:
 
-1. In the genealogy program, export a GEDCOM file of the whole tree.
+1. In the genealogy program, export a GEDCOM file of the whole tree (in Reunion: File › Export › GEDCOM, with sources and notes included). Heirloom can't open a Reunion family file itself; it'll tell you if you try.
 2. Family admin → **Import or export the family tree** → choose the file → check the list.
 3. Tick **This file is our main family tree** and press **Import**.
 
 Each person's page then shows their **life events** (residences, occupations, immigration, military service, burial…) with the **sources** for each one, the program's notes, and links such as their FamilySearch record. Do it again whenever the tree has grown, once a year is plenty: people are matched by their id in the file, names, dates, events and sources are updated, and stories, photos, accounts and links you added by hand stay as they are.
 
 If the tree is also published on the web (like a Reunion website), put its address in **Site name, help phone number and display** → **The family's main tree**; it's shown on the family tree and People pages. Any person's page can have its own links too (Edit → **Links**): their page on the family website, a Find a Grave memorial, an obituary.
+
+### On this day
+
+Family Library → **On this day** shows what happened on today's date in earlier years:
+- stories;
+- weddings (from the main tree);
+- archive items and photos (dated from when they were taken);
+- the birthdays and remembrance days of family who have died.
+
+A card on everyone's home page shows the first few whenever there's something. The weekly "New family stories" email ends with what's coming up in the next week. Only dates that include the day count: "June 12, 1952", not "1952". So the more dates people fill in, the more this shows. Living people's birthdays appear only for admins, the same rule as everywhere else.
 
 ### The family archive
 

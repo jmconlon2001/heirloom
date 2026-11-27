@@ -190,3 +190,76 @@ public sealed class MainTreeTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal("Find a Grave", await app.WithDbAsync(db => db.PersonLinks.Select(l => l.Label).SingleAsync()));
     }
 }
+
+/// <summary>What a real Reunion 14 export taught us (made-up people; the real file is never committed).</summary>
+public sealed class ReunionExportTests
+{
+    private const string Classic = "0 HEAD\r1 SOUR Reunion\r2 VERS V14.0\r0 @I1@ INDI\r1 NAME Anna /Byrne/\r2 SOUR @S2@\r3 PAGE obit\r1 REFN ABCD-123\r"
+        + "1 BIRT\r2 DATE 4 JUL 1798\r2 PLAC Cork\r1 MILI @N1@\r1 HIST @N2@\r1 EMPL\r2 DATE 1820\r2 PLAC The mill\r1 CITN\r2 DATE 1850\r"
+        + "1 RACE White\r1 SSN 000-00-0000\r1 DEAT\r2 DATE 7 SEP\r2 CAUS Fever\r1 SOUR @S2@\r0 @I2@ INDI\r1 NAME (Living)\r0 @I3@ INDI\r1 NAME (Living)\r"
+        + "0 @N1@ NOTE\r1 CONT Served in the militia.\r0 @N2@ NOTE Family history.\r0 @S2@ SOUR\r1 TYPE Newspaper\r1 PERI The Cork Examiner\r1 DATE 1 Jan 1900\r1 PAGE 4\r"
+        + "1 LOCA https://example.org/examiner\r0 TRLR\r";
+
+    [Fact]
+    public void Reads_a_classic_mac_file_with_reunions_own_events_and_sources()
+    {
+        var data = Gedcom.Parse(Classic);   // CR line endings, as Reunion writes them
+        Assert.Equal(3, data.Individuals.Count);
+        var anna = data.Individuals[0];
+        Assert.Equal("July 4, 1798", anna.Facts.Single(f => f.Kind == "BIRT").Date.Format());             // before 1800 is fine
+        Assert.Equal("Served in the militia.", anna.Facts.Single(f => f.Kind == "MILI").Note);            // a value that points at a note
+        Assert.Equal(("History", "Family history."), (anna.Facts.Single(f => f.Kind == "HIST").Label, anna.Facts.Single(f => f.Kind == "HIST").Note));
+        Assert.Equal(("Employment", "The mill"), (anna.Facts.Single(f => f.Kind == "EMPL").Label, anna.Facts.Single(f => f.Kind == "EMPL").Place));
+        Assert.Contains(anna.Facts, f => f.Kind == "CITN" && f.Label == "Citizenship");
+        Assert.DoesNotContain(anna.Facts, f => f.Kind is "RACE" or "SSN");                                // deliberately not read
+        var death = anna.Facts.Single(f => f.Kind == "DEAT");
+        Assert.Equal(("September 7", "Cause: Fever"), (death.Date.Format(), death.Note));                 // a day with no year, kept as words
+        var source = Assert.Single(anna.Facts.Single(f => f.Kind == "SOUR").Citations.DistinctBy(c => c.Title));
+        Assert.Equal(("Newspaper, The Cork Examiner, 1 Jan 1900, page 4", "https://example.org/examiner"), (source.Title, source.Url));
+        Assert.Equal("https://www.familysearch.org/tree/person/details/ABCD-123", Assert.Single(anna.Links).Url);
+    }
+
+    [Theory]
+    [InlineData("bet 1885  1887", "around 1885")]
+    [InlineData("betw 1887 and 1888", "around 1887")]
+    [InlineData("1871/1874", "around 1871")]
+    [InlineData("ABT 31 MAY 1952", "around May 31, 1952")]
+    [InlineData("7 SEP", "September 7")]
+    [InlineData("(the summer after the war)", "the summer after the war")]
+    [InlineData("1729", "1729")]
+    public void Reads_the_dates_genealogists_write(string value, string expected) => Assert.Equal(expected, Gedcom.ParseDate(value).Format());
+
+    [Fact]
+    public void Living_placeholders_are_never_matched_by_name()
+    {
+        var existing = new[] { new Person { GivenNames = "(Living)", Surname = "" } };
+        Assert.True(GedcomImporter.IsPrivacyPlaceholder("(Living)", ""));
+        Assert.Null(GedcomImporter.FindDuplicate("(Living)", "", null, existing).Item1);
+    }
+}
+
+public sealed class ReunionFileUploadTests(PostgresFixture postgres) : IAsyncLifetime
+{
+    private readonly AppFactory app = new(postgres);
+    public ValueTask InitializeAsync() => app.InitializeAsync();
+    public ValueTask DisposeAsync() => app.DisposeAsync();
+
+    [Fact]
+    public async Task Uploading_a_Reunion_family_file_explains_how_to_export_a_GEDCOM()
+    {
+        var admin = await Browser.SignedInAsync(app, AppFactory.AdminEmail);
+        using var zipped = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(zipped, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        await using (var entry = zip.CreateEntry("Our Family.familyfile14/familyfile.familydata").Open())
+            await entry.WriteAsync("3SDUAU~R...."u8.ToArray());
+        foreach (var (bytes, name) in new[] { (zipped.ToArray(), "Our Family.zip"), ("3SDUAU~R...."u8.ToArray(), "familyfile.familydata") })
+        {
+            var page = await admin.Http.GetStringAsync("/admin/gedcom");
+            var upload = new MultipartFormDataContent { { new StringContent(HtmlForms.AntiforgeryToken(page)), "__RequestVerificationToken" } };
+            upload.Add(new ByteArrayContent(bytes), "File", name);
+            var html = WebUtility.HtmlDecode(await (await admin.Http.PostAsync("/admin/gedcom?handler=Upload", upload)).Content.ReadAsStringAsync());
+            Assert.Contains("That's a Reunion family file", html);
+            Assert.Contains("File › Export › GEDCOM", html);
+        }
+    }
+}

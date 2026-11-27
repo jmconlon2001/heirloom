@@ -130,6 +130,7 @@ builder.Services.AddScoped<FamilyMemories.Family.ConversationService>();
 builder.Services.AddScoped<FamilyMemories.Family.GedcomImporter>();
 builder.Services.AddScoped<FamilyMemories.Imports.PeopleCsvImporter>();
 builder.Services.AddScoped<FamilyMemories.Archive.ArchiveService>();
+builder.Services.AddScoped<FamilyMemories.Stories.OnThisDayService>();
 builder.Services.AddScoped<FamilyMemories.Imports.StoriesCsvImporter>();
 builder.Services.AddSingleton<MaintenanceMode>();
 builder.Services.AddSingleton<BackupService>();

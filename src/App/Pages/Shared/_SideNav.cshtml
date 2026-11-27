@@ -5,7 +5,7 @@
     var groups = new List<(string Heading, (string Text, string Href, bool Exact)[] Links)>
     {
         ("Family", [("Home", "/", true), ("Family Library", "/library", true), ("Timeline", "/library/timeline", false), ("Photos", "/library/photos", false),
-                    ("Storytellers", "/library/storytellers", false), ("Search", "/library/search", false), ("Archive", "/library/archive", false), ("Family tree", "/tree", false), ("People", "/people", false)]),
+                    ("Storytellers", "/library/storytellers", false), ("Search", "/library/search", false), ("On this day", "/library/on-this-day", false), ("Archive", "/library/archive", false), ("Family tree", "/tree", false), ("People", "/people", false)]),
     };
     if (User.IsInRole(Roles.Storyteller))
         groups.Add(("My stories", [("My questions", "/questions", false), ("Stories I've told", "/stories", true)]));

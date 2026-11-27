@@ -119,6 +119,16 @@
     </section>
 }
 
+@if (Model.OnThisDay.Count > 0)
+{
+    <section class="card" aria-labelledby="otd-heading">
+        <h2 id="otd-heading">On this day</h2>
+        <partial name="_OnThisDayList" model="(Model.OnThisDay.Take(3).ToList(), Model.Today)" />
+        @if (Model.OnThisDay.Count > 3) { <p><a href="/library/on-this-day">See all @Model.OnThisDay.Count from today</a></p> }
+        else { <p><a href="/library/on-this-day">More from this week</a></p> }
+    </section>
+}
+
 <section aria-labelledby="newest-heading">
     <h2 id="newest-heading">New in the Family Library</h2>
     @if (Model.Newest.Count == 0)

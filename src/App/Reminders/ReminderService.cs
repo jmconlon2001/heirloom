@@ -28,7 +28,8 @@ public sealed class ReminderService(
     FamilyMemories.Extras.EmailReplyProcessor replies,
     AppOptions options,
     TimeProvider clock,
-    ILogger<ReminderService> log)
+    ILogger<ReminderService> log,
+    FamilyMemories.Stories.OnThisDayService onThisDay)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -177,6 +178,10 @@ public sealed class ReminderService(
         if (!defaults.DigestEnabled) return 0;
         var now = Now;
         var users = await db.Users.Where(u => u.Email != null && (u.LockoutEnd == null || u.LockoutEnd < DateTimeOffset.UtcNow)).ToListAsync();
+        var adminRole = await db.Roles.Where(r => r.Name == Roles.Admin).Select(r => r.Id).SingleOrDefaultAsync();
+        var admins = (await db.UserRoles.Where(ur => ur.RoleId == adminRole).Select(ur => ur.UserId).ToListAsync()).ToHashSet();
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(now, options.TimeZone));
+        var en = System.Globalization.CultureInfo.GetCultureInfo("en-US");
         var sent = 0;
         foreach (var user in users)
         {
@@ -192,8 +197,18 @@ public sealed class ReminderService(
             settings.LastDigestAt = now;
             if (stories.Count == 0) continue;
 
+            // The week ahead in the family's history (D-081): birthdays, remembrance days, weddings, stories.
+            var ahead = (await onThisDay.GetAsync(access.ReadableByRules(user.Id), admins.Contains(user.Id), today.AddDays(1), 7))
+                .Where(e => e.Kind != FamilyMemories.Stories.OnThisDayKind.Photo).Take(6).ToList();
             await email.SendAsync(EmailKind.Digest, new Recipient(user.Email!, user.DisplayName, user.Id), new Dictionary<string, object?>
             {
+                ["dates"] = ahead.Select(e => (object?)new Dictionary<string, object?>
+                {
+                    ["day"] = WeekdayOf(e.Date, today).ToString("dddd", en),
+                    ["title"] = e.Title,
+                    ["years"] = e.ExactYear ? today.Year - e.Date.Year : 0,
+                    ["url"] = options.BuildUrl(e.Url.TrimStart('/')).ToString(),
+                }).ToList(),
                 ["stories"] = stories.Select(s => (object?)new Dictionary<string, object?>
                 {
                     ["title"] = s.Title, ["teller"] = s.Teller, ["url"] = options.BuildUrl($"stories/{s.Id}").ToString(),
@@ -204,6 +219,11 @@ public sealed class ReminderService(
         await db.SaveChangesAsync();
         return sent;
     }
+
+    /// <summary>The day in the coming week that falls on this month and day (February 29 → the 28th in other years).</summary>
+    private static DateOnly WeekdayOf(DateOnly date, DateOnly today) =>
+        Enumerable.Range(1, 7).Select(today.AddDays)
+            .FirstOrDefault(d => d.Month == date.Month && (d.Day == date.Day || (date.Month == 2 && date.Day == 29 && d.Day == 28)), today.AddDays(1));
 
     private static string Names(IReadOnlyList<string> names)
     {

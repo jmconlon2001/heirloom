@@ -200,6 +200,10 @@ public sealed class PersonFact
     public int? Month { get; set; }
     public int? Day { get; set; }
     public bool Circa { get; set; }
+    /// <summary>For a couple's event (marriage, divorce…): the other partner. Names can't tell two "(Living)" partners apart.</summary>
+    public Guid? PartnerId { get; set; }
+    /// <summary>A date kept as words: "June 16" with no year, or a date phrase the file gave.</summary>
+    public string? DateWords { get; set; }
     public string? Place { get; set; }
     public string? Value { get; set; }
     public string? Note { get; set; }
@@ -208,7 +212,7 @@ public sealed class PersonFact
     /// <summary>Came from a GEDCOM import; replaced when the main tree is imported again.</summary>
     public bool FromGedcom { get; set; }
 
-    public FuzzyDate Date => new(Year, Month, Day, Circa, null, null);
+    public FuzzyDate Date => new(Year, Month, Day, Circa, null, DateWords);
 }
 
 /// <summary>A link from a person to somewhere else about them: the family's tree website, FamilySearch, Find a Grave, a memorial page.</summary>

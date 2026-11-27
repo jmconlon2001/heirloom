@@ -1186,6 +1186,10 @@ namespace FamilyMemories.Data.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("DateWords")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<int?>("Day")
                         .HasColumnType("integer");
 
@@ -1206,8 +1210,11 @@ namespace FamilyMemories.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("Note")
-                        .HasMaxLength(8000)
-                        .HasColumnType("character varying(8000)");
+                        .HasMaxLength(200000)
+                        .HasColumnType("character varying(200000)");
+
+                    b.Property<Guid?>("PartnerId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("PersonId")
                         .HasColumnType("uuid");
@@ -1220,13 +1227,15 @@ namespace FamilyMemories.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("Value")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.Property<int?>("Year")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PartnerId");
 
                     b.HasIndex("PersonId", "SortOrder");
 
@@ -1960,6 +1969,11 @@ namespace FamilyMemories.Data.Migrations
 
             modelBuilder.Entity("FamilyMemories.Data.PersonFact", b =>
                 {
+                    b.HasOne("FamilyMemories.Data.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FamilyMemories.Data.Person", "Person")
                         .WithMany()
                         .HasForeignKey("PersonId")

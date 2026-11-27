@@ -194,9 +194,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             e.Property(f => f.Kind).HasMaxLength(20);
             e.Property(f => f.Label).HasMaxLength(120);
+            e.Property(f => f.DateWords).HasMaxLength(200);
+            e.HasOne<Person>().WithMany().HasForeignKey(f => f.PartnerId).OnDelete(DeleteBehavior.SetNull);
             e.Property(f => f.Place).HasMaxLength(300);
-            e.Property(f => f.Value).HasMaxLength(1000);
-            e.Property(f => f.Note).HasMaxLength(8000);
+            // Genealogy notes can be long (a 20,000-character research note is real); same room as a story.
+            e.Property(f => f.Value).HasMaxLength(4000);
+            e.Property(f => f.Note).HasMaxLength(200_000);
             e.Ignore(f => f.Date);
             e.Property(f => f.Citations).HasColumnType("jsonb").HasConversion(
                 v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),

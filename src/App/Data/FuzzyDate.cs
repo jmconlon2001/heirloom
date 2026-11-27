@@ -8,7 +8,8 @@ namespace FamilyMemories.Data;
 /// </summary>
 public readonly record struct FuzzyDate(int? Year, int? Month, int? Day, bool Circa, int? Decade, string? Label)
 {
-    public const int MinYear = 1800;
+    /// <summary>Family trees go back centuries (a 1729 baptism is ordinary in a genealogy file), so only years before 1000 are treated as a slip.</summary>
+    public const int MinYear = 1000;
     private static readonly CultureInfo En = CultureInfo.GetCultureInfo("en-US");
 
     public static FuzzyDate Empty => default;

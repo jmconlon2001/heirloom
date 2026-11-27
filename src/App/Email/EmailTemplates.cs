@@ -118,11 +118,18 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
             {{ for story in stories }}
             - "{{ story.title }}", told by {{ story.teller }}
               {{ story.url }}{{ end }}
+            {{ if dates && dates.size > 0 }}
+            Coming up this week in the family's history:
+            {{ for d in dates }}
+            - {{ d.day }}: {{ d.title }}{{ if d.years > 0 }} ({{ d.years }} years){{ end }}{{ end }}
+            {{ end }}
             """,
             """
             <p style="font-size:22px;margin:0 0 16px">Hello {{ name }},</p>
             <p style="margin:0 0 16px">Here's what the family shared this week:</p>
             {{ for story in stories }}<p style="margin:0 0 14px"><a href="{{ story.url }}" style="color:#2f5d46;font-weight:bold;font-size:21px">{{ story.title }}</a><br><span style="color:#4a4238">told by {{ story.teller }}</span></p>{{ end }}
+            {{ if dates && dates.size > 0 }}<p style="margin:24px 0 8px;font-weight:bold">Coming up this week in the family's history</p>
+            {{ for d in dates }}<p style="margin:0 0 8px"><span style="color:#4a4238">{{ d.day }}:</span> <a href="{{ d.url }}" style="color:#2f5d46">{{ d.title }}</a>{{ if d.years > 0 }} <span style="color:#4a4238">({{ d.years }} years)</span>{{ end }}</p>{{ end }}{{ end }}
             """),
 
         [EmailKind.ExportReady] = new(
@@ -213,6 +220,7 @@ public sealed class EmailTemplates(IServiceScopeFactory scopes, AppOptions optio
         EmailKind.Digest => new()
         {
             ["stories"] = new List<object> { new Dictionary<string, object?> { ["title"] = "The day I met Joe", ["teller"] = "Rose", ["url"] = options.BuildUrl("library").ToString() } },
+            ["dates"] = new List<object> { new Dictionary<string, object?> { ["day"] = "Tuesday", ["title"] = "Remembering Joseph Smith", ["years"] = 20, ["url"] = options.BuildUrl("library/on-this-day").ToString() } },
         },
         EmailKind.AdminNudge => new() { ["storyteller"] = "Grandma Rose", ["weeks"] = 3, ["reminders"] = 3, ["link"] = options.BuildUrl("admin/users").ToString() },
         EmailKind.AdminAlert => new() { ["subject"] = "Backup failed", ["message"] = "The nightly backup failed: the backup disk is not mounted.", ["link"] = options.BuildUrl("admin/backups").ToString() },

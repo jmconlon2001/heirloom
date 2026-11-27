@@ -475,3 +475,44 @@ Only people who can edit the story see raw material, on the writing page in Deta
 - **Folders in the database, files on disk:** the hierarchy, search and permissions live in the database, where they can be managed. The files stay ordinary files that restic, the plain copy and rsync all handle well.
 - **Exports:** the website gets an Archive page grouped by folder. The complete archive adds folders, items, transcriptions and file paths to `data.json`; the files are already under `media/`.
 
+### D-081 · On this day
+
+**Decision:** `OnThisDayService` gathers what happened on a month and day in earlier years. The sources are:
+- stories (only those the viewer may read);
+- births and deaths from the tree;
+- MARR events from the main tree, shown once per couple;
+- archive items;
+- photos dated by their EXIF date taken.
+
+Only dates with a known month and day count. February 29 is remembered on the 28th in other years.
+
+- **Privacy (§7):** a living person's birthday is shown only to admins; everyone sees the birthdays and remembrance days of those who have died. Writing this turned up a leak from D-076: the person page's life events showed a living person's full birth date to the family. Birth, christening and baptism events for living people now show only the year to non-admins.
+- **Where it shows:** `/library/on-this-day` (today, with arrows for other days and "coming up this week"); a home card when today has anything; and the last part of the weekly digest ("Coming up this week in the family's history", without photos). The digest is still only sent when there are new stories, so this adds no new emails.
+- **Today** is the family's date (`APP_TIMEZONE`), not the server's.
+
+### D-082 · Validated against a real Reunion 14 export
+
+**Decision:** The GEDCOM import was checked against a real family's Reunion 14 export: 1,434 people, 487 families, 1,425 sources, 3,354 events. Three checks were run against it:
+
+- the reader compared to a separate, plain reading of the file, person by person;
+- the import through the admin pages compared to the file's own counts and to each person's events, notes, citations and links;
+- a "main tree" re-import and an export round trip.
+
+The file and the person-level spot-checks stay outside the repository. `RealGedcomTests` runs against any file named in `HEIRLOOM_GEDCOM_SAMPLE`, and is skipped otherwise.
+
+What the real file showed, now fixed and covered by tests with made-up data:
+- **Line endings:** Reunion ends lines with a bare CR, so the reader saw one line and imported nothing. Lines now split on CR, LF or CRLF.
+- **Form size:** the check-before-importing form posts one choice per person, past ASP.NET Core's 1,024-value limit, so the final Import step answered 500. The GEDCOM page and both spreadsheet imports now allow 100,000 values.
+- **Old dates:** `FuzzyDate.MinYear` was 1800 and dropped 18th-century dates. It's now 1000.
+- **Unusual dates:** ranges and choices without "AND" (`bet 1885  1887`, `1871/1874`) keep their first year as "around". A day and month with no year (`7 SEP`) and parenthesised phrases are kept as words, stored in a new `PersonFact.DateWords` column and written back as GEDCOM date phrases.
+- **Reunion's own events:** CITN, EMPL, HIST, NAMR, CAUS, ALIA, HAIR, HEIG, CLER and SEPA are read. Event values that point at a shared note (`1 MILI @N225@`) bring the note. A `CAUS` under a death becomes "Cause: …" in its note. RACE and SSN are deliberately not read.
+- **FamilySearch IDs and name citations:** Reunion keeps the FamilySearch ID in `REFN` (`LJLG-H2H`), and it becomes a FamilySearch link. Citations on the NAME count among the person's sources.
+- **Untitled sources:** 145 Reunion sources have no TITL (they're built from templates), and all showed as "Source", so different sources merged. They now get a title from TYPE, AUTH, PERI/PUBL (or the attached file's title), DATE and PAGE, falling back to the first line of TEXT. `LOCA` is used as the link when there's no URL.
+- **"(Living)" placeholders:** 317 people were exported unnamed. They're imported, so the tree still connects, but never matched by name, and the preview explains them.
+- **Couple events:** these now record `PartnerId`, because two "(Living)" partners share a name. Export and "On this day" use the id.
+- **Room for long text:** life-event notes go up to 200,000 characters (one was 20,282 and had been cut at 8,000), and values to 4,000.
+- **Export:** a second birth or death entry, an engagement on one person, and "died" implied only by a burial now round-trip unchanged.
+- **Reunion family files:** a `.familyfile14` bundle (zipped) or its `familyfile.familydata` is Leister's undocumented binary format. It's recognised on upload, and the admin is told to use File › Export › GEDCOM. Reading it directly isn't attempted: there's no published specification to be correct against.
+
+Timings for the 1,434-person tree on a laptop: about 11 s for the first import, 5 s for a main-tree re-import. The people, tree, on-this-day and person pages each answer in under 60 ms.
+

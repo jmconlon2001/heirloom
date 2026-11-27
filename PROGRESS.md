@@ -1,5 +1,13 @@
 # Progress
 
+## On this day, and the Reunion import proven on a real tree (2026-11-26, unreleased)
+
+- **Reunion import validated on a real 1,434-person file:** it now reads Reunion's line endings, 18th-century dates, Reunion's own events, FamilySearch IDs, untitled sources and very long notes, and the import no longer fails on trees over about 1,000 people. A re-import and an export round trip lose nothing. Uploading a Reunion family file instead of a GEDCOM now explains how to export one.
+
+- **On this day:** stories, weddings, archive items, photos, and the birthdays and remembrance days of family who have died, from today's date in earlier years. It's a page in the Family Library and a card on the home page, and the weekly email gets a "coming up this week" section.
+- **Fixed:** the person page's life events (from v0.11.0) showed living people's full birth dates to the family; it now shows only the year, as everywhere else.
+
+
 ## Stories, raw material and the archive (2026-11-26, v0.12.0, unreleased)
 
 - **Formatting and photos in the text:** headings, lists, bold, italic, quotes, links, and "Place in the story" for photos and recordings, in Detailed view and for helpers. Simple view is unchanged. The PDF, book, website and e-book follow it.

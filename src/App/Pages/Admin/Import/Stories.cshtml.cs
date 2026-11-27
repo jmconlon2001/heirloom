@@ -5,6 +5,11 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace FamilyMemories.Pages.Admin.Import;
 
+/// <summary>
+/// The check-before-importing form sends one choice per row; a real family tree (1,400 people from Reunion) is well past
+/// ASP.NET Core's default limit of 1,024 form values.
+/// </summary>
+[RequestFormLimits(ValueCountLimit = 100_000)]
 public sealed class StoriesModel(StoriesCsvImporter importer) : PageModel
 {
     public StoryImportPreview? Preview { get; private set; }
